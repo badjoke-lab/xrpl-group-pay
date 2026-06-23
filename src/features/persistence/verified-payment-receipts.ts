@@ -6,6 +6,10 @@ import {
 } from "@/features/payment-verification/types";
 
 import type { D1DatabaseLike } from "./d1-types";
+import {
+  recordedPaymentReceiptSchema,
+  type RecordedPaymentReceipt,
+} from "./types";
 
 const receiptRowSchema = z.object({
   receipt_id: z.string().min(1),
@@ -23,22 +27,6 @@ const receiptRowSchema = z.object({
   recorded_at: z.string().datetime(),
   proof_digest: z.string().regex(/^[A-F0-9]{64}$/),
 });
-
-export const recordedPaymentReceiptSchema = z
-  .object({
-    receiptId: z.string().min(1),
-    status: z.enum(["created", "existing"]),
-    network: z.literal("testnet"),
-    transactionId: z.string().regex(/^[A-F0-9]{64}$/),
-    invoiceId: z.string().regex(/^[A-F0-9]{64}$/),
-    recordedAt: z.string().datetime(),
-    proofDigest: z.string().regex(/^[A-F0-9]{64}$/),
-  })
-  .strict();
-
-export type RecordedPaymentReceipt = z.infer<
-  typeof recordedPaymentReceiptSchema
->;
 
 export class PaymentReceiptInputError extends Error {
   constructor(message: string) {
@@ -146,7 +134,6 @@ async function digestProof(proof: LedgerVerificationProof) {
     sourceTag: proof.sourceTag,
     destinationTag: proof.destinationTag,
     invoiceId: proof.invoiceId,
-    verifiedAt: proof.verifiedAt,
   });
   const digest = await crypto.subtle.digest(
     "SHA-256",
