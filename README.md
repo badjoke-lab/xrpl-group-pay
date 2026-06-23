@@ -49,7 +49,7 @@ The `/testnet/payment` vertical slice currently:
 
 Requirements:
 
-- Node.js 20.9 or later. The repository pins Node.js 22.16.0 for development and CI.
+- Node.js 20.19 or later. The repository pins Node.js 22.16.0 for development and CI.
 - pnpm 10.15.1.
 
 ```bash
