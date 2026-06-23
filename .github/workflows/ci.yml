@@ -58,9 +58,9 @@ jobs:
       - name: Build Next.js application
         run: pnpm build
 
-      - name: Build Storybook
-        timeout-minutes: 5
-        run: pnpm build-storybook --quiet
+      - name: Build Storybook test bundle
+        timeout-minutes: 3
+        run: pnpm build-storybook:ci
 
       - name: Build Cloudflare Worker output
         timeout-minutes: 10
