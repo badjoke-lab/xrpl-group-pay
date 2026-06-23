@@ -49,6 +49,9 @@ jobs:
       - name: Apply D1 migrations locally
         run: pnpm db:migrate:local
 
+      - name: Verify D1 receipt constraints
+        run: pnpm db:check:local
+
       - name: Lint
         run: pnpm lint
 
