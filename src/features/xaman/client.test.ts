@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { XamanEnvironment } from "@/config/server-env";
 
-import { XamanClient } from "./client";
+import { XamanApiError, XamanClient } from "./client";
 import type { XamanPaymentPayloadRequest } from "./payment-request";
 
 const environment: XamanEnvironment = {
@@ -56,5 +56,29 @@ describe("XamanClient", () => {
     expect(headers.get("X-API-Secret")).toBe("secret");
     expect(JSON.parse(init.body as string)).toEqual(request);
     expect(JSON.stringify(request)).not.toContain("secret");
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("normalizes network and schema failures as Xaman API errors", async () => {
+    const unreachable = vi.fn().mockRejectedValue(new Error("network down"));
+    await expect(
+      new XamanClient(
+        environment,
+        unreachable as unknown as typeof fetch,
+      ).createPayload(request),
+    ).rejects.toMatchObject({ name: "XamanApiError", status: 502 });
+
+    const invalidResponse = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ unexpected: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    await expect(
+      new XamanClient(
+        environment,
+        invalidResponse as unknown as typeof fetch,
+      ).createPayload(request),
+    ).rejects.toBeInstanceOf(XamanApiError);
   });
 });
