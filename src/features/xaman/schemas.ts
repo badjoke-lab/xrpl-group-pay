@@ -31,7 +31,9 @@ export const createPaymentInputSchema = z
       .min(1)
       .max(64)
       .regex(/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/),
-    destinationTag: z.union([uint32Text, uint32]).optional(),
+    destinationTag: z
+      .union([z.literal(""), uint32Text, uint32])
+      .optional(),
   })
   .strict();
 
