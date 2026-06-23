@@ -1,9 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, ExternalLink, LoaderCircle, Smartphone, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  ExternalLink,
+  LoaderCircle,
+  RefreshCw,
+  Smartphone,
+  XCircle,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { shouldRefreshFromXamanWebsocket } from "@/features/xaman/status";
 
 type CreatedPayload = {
   payloadId: string;
@@ -46,6 +54,8 @@ async function readJson(response: Response) {
 
 export function TestnetPaymentForm() {
   const [state, setState] = useState<ViewState>({ kind: "idle" });
+  const [isChecking, setIsChecking] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   const refreshStatus = useCallback(async (payload: CreatedPayload) => {
     const response = await fetch(`/api/xaman/payloads/${payload.payloadId}`, {
@@ -60,34 +70,51 @@ export function TestnetPaymentForm() {
     } else if (status.status === "expired") {
       setState({ kind: "expired", payload });
     }
+
+    return status;
   }, []);
 
   useEffect(() => {
     if (state.kind !== "waiting") return;
 
     const payload = state.payload;
-    const interval = window.setInterval(() => {
+    const refreshSilently = () => {
       void refreshStatus(payload).catch(() => undefined);
-    }, 3_000);
+    };
+    const handleFocus = () => refreshSilently();
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refreshSilently();
+      }
+    };
+    const handleSocketMessage = (event: MessageEvent) => {
+      if (shouldRefreshFromXamanWebsocket(event.data)) {
+        refreshSilently();
+      }
+    };
 
     let socket: WebSocket | undefined;
     try {
       socket = new WebSocket(payload.websocketUrl);
-      socket.addEventListener("message", () => {
-        void refreshStatus(payload).catch(() => undefined);
-      });
+      socket.addEventListener("message", handleSocketMessage);
     } catch {
       socket = undefined;
     }
 
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+
     return () => {
-      window.clearInterval(interval);
+      socket?.removeEventListener("message", handleSocketMessage);
       socket?.close();
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [refreshStatus, state]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setStatusError(null);
     setState({ kind: "creating" });
 
     const formData = new FormData(event.currentTarget);
@@ -111,8 +138,27 @@ export function TestnetPaymentForm() {
     }
   }
 
+  async function handleStatusCheck(payload: CreatedPayload) {
+    setIsChecking(true);
+    setStatusError(null);
+
+    try {
+      await refreshStatus(payload);
+    } catch (error) {
+      setStatusError(
+        error instanceof Error
+          ? error.message
+          : "The Xaman status could not be checked.",
+      );
+    } finally {
+      setIsChecking(false);
+    }
+  }
+
   const terminalPayload =
-    state.kind === "submitted" || state.kind === "rejected" || state.kind === "expired"
+    state.kind === "submitted" ||
+    state.kind === "rejected" ||
+    state.kind === "expired"
       ? state.payload
       : null;
 
@@ -122,9 +168,12 @@ export function TestnetPaymentForm() {
         onSubmit={handleSubmit}
         className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8"
       >
-        <h2 className="font-heading text-2xl font-semibold">Create a Testnet Payment</h2>
+        <h2 className="font-heading text-2xl font-semibold">
+          Create a Testnet Payment
+        </h2>
         <p className="mt-2 leading-7 text-muted">
-          This flow creates an XRP Payment Sign Request and forces Xaman to use XRPL Testnet.
+          This flow creates an XRP Payment Sign Request and forces Xaman to use
+          XRPL Testnet.
         </p>
 
         <div className="mt-7 space-y-5">
@@ -168,68 +217,137 @@ export function TestnetPaymentForm() {
           </label>
         </div>
 
-        <Button className="mt-7 w-full" type="submit" disabled={state.kind === "creating" || state.kind === "waiting"}>
+        <Button
+          className="mt-7 w-full"
+          type="submit"
+          disabled={state.kind === "creating" || state.kind === "waiting"}
+        >
           {state.kind === "creating" ? (
-            <><LoaderCircle aria-hidden="true" className="size-4 animate-spin" /> Preparing Xaman request</>
+            <>
+              <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+              Preparing Xaman request
+            </>
           ) : (
             "Continue to Xaman"
           )}
         </Button>
 
         {state.kind === "error" && (
-          <p role="alert" className="mt-4 rounded-md bg-danger/10 px-4 py-3 text-sm text-danger">
+          <p
+            role="alert"
+            className="mt-4 rounded-md bg-danger/10 px-4 py-3 text-sm text-danger"
+          >
             {state.message}
           </p>
         )}
       </form>
 
-      <section aria-live="polite" className="rounded-xl border border-border bg-surface p-6 sm:p-8">
-        {state.kind === "idle" || state.kind === "creating" ? (
+      <section
+        aria-live="polite"
+        className="rounded-xl border border-border bg-surface p-6 sm:p-8"
+      >
+        {state.kind === "idle" ||
+        state.kind === "creating" ||
+        state.kind === "error" ? (
           <div className="flex min-h-80 flex-col items-center justify-center text-center">
             <Smartphone aria-hidden="true" className="size-12 text-brand" />
-            <h2 className="mt-5 font-heading text-xl font-semibold">Xaman handoff preview</h2>
+            <h2 className="mt-5 font-heading text-xl font-semibold">
+              Xaman handoff preview
+            </h2>
             <p className="mt-2 max-w-sm leading-7 text-muted">
-              The recipient, amount, Source Tag, and opaque InvoiceID are fixed before Xaman opens.
+              The recipient, amount, Source Tag, and opaque InvoiceID are fixed
+              before Xaman opens.
             </p>
           </div>
         ) : state.kind === "waiting" ? (
           <div className="text-center">
-            <LoaderCircle aria-hidden="true" className="mx-auto size-10 animate-spin text-brand" />
-            <h2 className="mt-4 font-heading text-xl font-semibold">Waiting for approval in Xaman</h2>
-            <p className="mt-2 text-muted">Review the Testnet transaction in your wallet before signing.</p>
+            <LoaderCircle
+              aria-hidden="true"
+              className="mx-auto size-10 animate-spin text-brand"
+            />
+            <h2 className="mt-4 font-heading text-xl font-semibold">
+              Waiting for approval in Xaman
+            </h2>
+            <p className="mt-2 text-muted">
+              Review the Testnet transaction in your wallet before signing.
+            </p>
             {/* The QR URL is produced by Xaman for this short-lived payload. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={state.payload.qrPng} alt="QR code to open this Xaman Testnet sign request" className="mx-auto mt-6 size-52 rounded-lg border border-border" />
-            <a href={state.payload.deepLink} className="mt-5 inline-flex items-center gap-2 font-semibold text-brand underline underline-offset-4">
-              Open securely in Xaman <ExternalLink aria-hidden="true" className="size-4" />
+            <img
+              src={state.payload.qrPng}
+              alt="QR code to open this Xaman Testnet sign request"
+              className="mx-auto mt-6 size-52 rounded-lg border border-border"
+            />
+            <a
+              href={state.payload.deepLink}
+              className="mt-5 inline-flex items-center gap-2 font-semibold text-brand underline underline-offset-4"
+            >
+              Open securely in Xaman
+              <ExternalLink aria-hidden="true" className="size-4" />
             </a>
+            <div className="mt-5">
+              <Button
+                variant="secondary"
+                onClick={() => void handleStatusCheck(state.payload)}
+                disabled={isChecking}
+              >
+                {isChecking ? (
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="size-4 animate-spin"
+                  />
+                ) : (
+                  <RefreshCw aria-hidden="true" className="size-4" />
+                )}
+                Check status
+              </Button>
+            </div>
+            {statusError && (
+              <p role="alert" className="mt-4 text-sm text-danger">
+                {statusError}
+              </p>
+            )}
           </div>
         ) : state.kind === "submitted" ? (
           <div>
             <CheckCircle2 aria-hidden="true" className="size-11 text-success" />
-            <h2 className="mt-4 font-heading text-2xl font-semibold">Transaction submitted</h2>
+            <h2 className="mt-4 font-heading text-2xl font-semibold">
+              Transaction submitted
+            </h2>
             <p className="mt-2 leading-7 text-muted">
-              Xaman returned a transaction ID. This is not yet displayed as paid or verified; validated-ledger verification is the next safety gate.
+              Xaman returned a transaction ID. This is not yet displayed as paid
+              or verified; validated-ledger verification is the next safety gate.
             </p>
-            <p className="mt-5 break-all rounded-lg bg-background p-4 font-mono text-xs">{state.txid}</p>
+            <p className="mt-5 break-all rounded-lg bg-background p-4 font-mono text-xs">
+              {state.txid}
+            </p>
           </div>
         ) : (
           <div>
             <XCircle aria-hidden="true" className="size-11 text-warning" />
             <h2 className="mt-4 font-heading text-2xl font-semibold">
-              {state.kind === "expired" ? "Sign request expired" : "Payment not signed"}
+              {state.kind === "expired"
+                ? "Sign request expired"
+                : "Payment not signed"}
             </h2>
             <p className="mt-2 leading-7 text-muted">
-              No payment is recorded. Create a new request only after checking the recipient and amount again.
+              No payment is recorded. Create a new request only after checking
+              the recipient and amount again.
             </p>
-            <Button className="mt-6" variant="secondary" onClick={() => setState({ kind: "idle" })}>
+            <Button
+              className="mt-6"
+              variant="secondary"
+              onClick={() => setState({ kind: "idle" })}
+            >
               Start again
             </Button>
           </div>
         )}
 
         {terminalPayload && (
-          <p className="mt-6 text-xs text-muted">Payload: {terminalPayload.payloadId}</p>
+          <p className="mt-6 text-xs text-muted">
+            Payload: {terminalPayload.payloadId}
+          </p>
         )}
       </section>
     </div>
