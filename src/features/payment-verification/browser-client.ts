@@ -1,19 +1,13 @@
-import type { PaymentVerificationOutcome } from "./types";
+import {
+  paymentVerificationOutcomeSchema,
+  type PaymentVerificationOutcome,
+} from "./types";
 
 export class PaymentVerificationRequestError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "PaymentVerificationRequestError";
   }
-}
-
-function isOutcome(value: unknown): value is PaymentVerificationOutcome {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const status = (value as Record<string, unknown>).status;
-  return status === "verified" || status === "pending" || status === "failed";
 }
 
 function unavailable(message?: unknown): PaymentVerificationOutcome {
@@ -26,6 +20,12 @@ function unavailable(message?: unknown): PaymentVerificationOutcome {
         ? message
         : "The validated ledger is temporarily unavailable. Check again.",
   };
+}
+
+function expectedHttpStatus(outcome: PaymentVerificationOutcome) {
+  if (outcome.status === "verified") return 200;
+  if (outcome.status === "pending") return 202;
+  return 422;
 }
 
 export async function requestPaymentVerification(
@@ -45,13 +45,9 @@ export async function requestPaymentVerification(
   }
 
   const body: unknown = await response.json().catch(() => null);
-  if (
-    (response.status === 200 ||
-      response.status === 202 ||
-      response.status === 422) &&
-    isOutcome(body)
-  ) {
-    return body;
+  const parsed = paymentVerificationOutcomeSchema.safeParse(body);
+  if (parsed.success && response.status === expectedHttpStatus(parsed.data)) {
+    return parsed.data;
   }
 
   const message =
