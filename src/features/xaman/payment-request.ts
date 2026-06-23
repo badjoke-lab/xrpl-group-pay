@@ -54,7 +54,7 @@ export function normalizePaymentInput(input: CreatePaymentInput) {
     );
   }
 
-  if (BigInt(amountDrops) <= 0n) {
+  if (BigInt(amountDrops) <= BigInt(0)) {
     throw new PaymentInputError("The XRP amount must be greater than zero.");
   }
 
