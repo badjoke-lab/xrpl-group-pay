@@ -1,0 +1,127 @@
+name: Bootstrap application foundation
+
+on:
+  push:
+    branches:
+      - chore/pr-002-app-foundation
+    paths:
+      - .github/workflows/bootstrap-app-foundation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: chore/pr-002-app-foundation
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+
+      - name: Generate current Next.js scaffold
+        shell: bash
+        run: |
+          set -euo pipefail
+          scaffold="$RUNNER_TEMP/xrpl-group-pay-scaffold"
+          rm -rf "$scaffold"
+
+          pnpm dlx create-next-app@16.2.9 "$scaffold" \
+            --typescript \
+            --tailwind \
+            --eslint \
+            --app \
+            --src-dir \
+            --import-alias '@/*' \
+            --use-pnpm \
+            --yes
+
+          rm -rf src public
+          cp -R "$scaffold/src" ./src
+          cp -R "$scaffold/public" ./public
+          cp "$scaffold/package.json" ./package.json
+          cp "$scaffold/pnpm-lock.yaml" ./pnpm-lock.yaml
+          cp "$scaffold/tsconfig.json" ./tsconfig.json
+          cp "$scaffold/eslint.config.mjs" ./eslint.config.mjs
+          cp "$scaffold/postcss.config.mjs" ./postcss.config.mjs
+          cp "$scaffold/next.config.ts" ./next.config.ts
+
+      - name: Add application and quality dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm add --save-exact \
+            zod@latest \
+            clsx@latest \
+            tailwind-merge@latest \
+            lucide-react@latest \
+            motion@latest
+          pnpm add --save-dev --save-exact \
+            @opennextjs/cloudflare@latest \
+            wrangler@latest \
+            vitest@latest \
+            jsdom@latest \
+            @testing-library/react@latest \
+            @testing-library/jest-dom@latest \
+            @playwright/test@latest \
+            storybook@latest \
+            @storybook/nextjs-vite@latest \
+            @storybook/addon-a11y@latest
+
+      - name: Normalize package metadata and scripts
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          pkg.name = 'xrpl-group-pay';
+          pkg.private = true;
+          pkg.version = '0.1.0';
+          pkg.packageManager = 'pnpm@10.15.1';
+          pkg.engines = { node: '>=20.9.0' };
+          pkg.scripts = {
+            dev: 'next dev',
+            build: 'next build',
+            start: 'next start',
+            lint: 'eslint . --max-warnings=0',
+            typecheck: 'tsc --noEmit',
+            test: 'vitest run',
+            'test:watch': 'vitest',
+            'test:e2e': 'playwright test',
+            storybook: 'storybook dev -p 6006',
+            'build-storybook': 'storybook build',
+            'check:env': 'node scripts/check-env.mjs',
+            'build:worker': 'opennextjs-cloudflare build',
+            preview: 'opennextjs-cloudflare build && opennextjs-cloudflare preview',
+            deploy: 'opennextjs-cloudflare build && opennextjs-cloudflare deploy',
+            'cf-typegen': 'wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts',
+            validate: 'pnpm check:env && pnpm lint && pnpm typecheck && pnpm test && pnpm build'
+          };
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          NODE
+          pnpm install --lockfile-only
+
+      - name: Remove bootstrap workflow
+        run: rm .github/workflows/bootstrap-app-foundation.yml
+
+      - name: Commit generated foundation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'chore: scaffold Next.js application foundation'
+          git push origin HEAD:chore/pr-002-app-foundation
