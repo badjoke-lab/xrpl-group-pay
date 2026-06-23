@@ -3,7 +3,7 @@
 **Status:** Draft for PR 1  
 **Document class:** Public
 
-This register contains product, technical, and official-requirement decisions that affect implementation. It excludes private operational strategy and personal context.
+This register contains product, technical, and official-requirement decisions that affect implementation.
 
 ## Status values
 
