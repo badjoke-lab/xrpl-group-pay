@@ -4,7 +4,7 @@ XRPL Group Pay is a non-custodial shared-expense settlement application built on
 
 A bill creator allocates an XRP amount to each participant. Participants review and sign their own XRP Payments in Xaman, funds move directly to the recipient, and the application verifies each result on the XRP Ledger before marking it paid.
 
-> The executable foundation is now in place. XRPL and Xaman transaction functionality is introduced in the next vertical-slice implementation.
+> The application foundation and first Xaman Testnet payment handoff are implemented. Validated-ledger verification remains the next safety gate before any payment can be marked paid.
 
 ## Core principles
 
@@ -29,11 +29,27 @@ A bill creator allocates an XRP amount to each participant. Participants review 
 - Environment validation with an explicit Mainnet build gate.
 - GitHub Actions checks for lint, types, tests, Storybook, Next.js, and Worker output.
 
+## Testnet payment handoff
+
+The `/testnet/payment` vertical slice currently:
+
+- validates a classic XRPL destination and XRP amount;
+- converts XRP to drops with the official `xrpl` library;
+- adds the configured UInt32 `SourceTag` and a random 256-bit `InvoiceID`;
+- creates a Xaman Payment Sign Request from the server only;
+- forces the request to XRPL Testnet;
+- provides Xaman deep-link and QR handoff;
+- uses Xaman WebSocket resolution events, browser focus, and a manual status check instead of API polling;
+- records signed, rejected, expired, and submitted states;
+- displays `submitted` only after Xaman returns a transaction ID.
+
+`submitted` is intentionally not equivalent to `paid`. Strict XRPL validated-ledger verification is not part of this slice.
+
 ## Local development
 
 Requirements:
 
-- Node.js 20.9 or later. The repository pins Node.js 22.16.0 for development and CI.
+- Node.js 20.19 or later. The repository pins Node.js 22.16.0 for development and CI.
 - pnpm 10.15.1.
 
 ```bash
@@ -44,6 +60,16 @@ pnpm dev
 ```
 
 Open `http://localhost:3000`.
+
+The application builds without Xaman credentials. Creating a Testnet Sign Request fails closed until these server-side values are configured:
+
+```text
+XAMAN_API_KEY=<developer-console-api-key>
+XAMAN_API_SECRET=<developer-console-api-secret>
+XRPL_SOURCE_TAG=<uint32-testnet-source-tag>
+```
+
+Never expose `XAMAN_API_SECRET` through a `NEXT_PUBLIC_` variable or client-side code.
 
 ## Quality commands
 
