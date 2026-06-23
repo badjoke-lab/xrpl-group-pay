@@ -13,6 +13,8 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const MAX_VERIFICATION_REQUEST_BYTES = 512;
+
 const verificationInputSchema = z
   .object({ payloadId: z.string().uuid() })
   .strict();
@@ -22,6 +24,18 @@ function json(body: unknown, status: number) {
     status,
     headers: { "Cache-Control": "no-store" },
   });
+}
+
+function requestTooLarge() {
+  return json(
+    {
+      error: {
+        code: "VERIFICATION_REQUEST_TOO_LARGE",
+        message: "The verification request is too large.",
+      },
+    },
+    413,
+  );
 }
 
 export async function POST(request: Request) {
@@ -38,19 +52,24 @@ export async function POST(request: Request) {
     );
   }
 
+  const contentLengthHeader = request.headers.get("content-length");
+  if (contentLengthHeader !== null) {
+    const contentLength = Number(contentLengthHeader);
+    if (
+      Number.isFinite(contentLength) &&
+      contentLength > MAX_VERIFICATION_REQUEST_BYTES
+    ) {
+      return requestTooLarge();
+    }
+  }
+
   let input: z.infer<typeof verificationInputSchema>;
   try {
     const raw = await request.text();
-    if (new TextEncoder().encode(raw).byteLength > 512) {
-      return json(
-        {
-          error: {
-            code: "VERIFICATION_REQUEST_TOO_LARGE",
-            message: "The verification request is too large.",
-          },
-        },
-        413,
-      );
+    if (
+      new TextEncoder().encode(raw).byteLength > MAX_VERIFICATION_REQUEST_BYTES
+    ) {
+      return requestTooLarge();
     }
     input = verificationInputSchema.parse(JSON.parse(raw) as unknown);
   } catch {
