@@ -1,3 +1,4 @@
+import { classicAddressToXAddress } from "xrpl";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -30,13 +31,23 @@ describe("buildTestnetPaymentPayload", () => {
     });
   });
 
-  it("rejects invalid addresses and zero amounts", () => {
+  it("rejects invalid addresses, X-Addresses, and zero amounts", () => {
     expect(() =>
       buildTestnetPaymentPayload(
         { destination: "not-an-address", amountXrp: "1" },
         1,
       ),
     ).toThrow(PaymentInputError);
+
+    expect(() =>
+      buildTestnetPaymentPayload(
+        {
+          destination: classicAddressToXAddress(DESTINATION, 9, true),
+          amountXrp: "1",
+        },
+        1,
+      ),
+    ).toThrow(/classic XRPL address/);
 
     expect(() =>
       buildTestnetPaymentPayload(
