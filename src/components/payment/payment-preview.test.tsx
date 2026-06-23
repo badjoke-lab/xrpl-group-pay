@@ -15,7 +15,7 @@ describe("PaymentPreview", () => {
     );
 
     expect(screen.getByRole("heading", { name: "XRPL Meetup Dinner" })).toBeVisible();
-    expect(screen.getByText("4", { exact: false })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Pay 4 XRP" })).toBeDisabled();
     expect(screen.getByText("rABC…9XYZ")).toBeVisible();
     expect(screen.getByText("Testnet")).toBeVisible();
     expect(screen.getByText("Group Pay never holds your funds")).toBeVisible();

@@ -6,7 +6,7 @@ test("renders the product foundation", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: /Split the cost/i }),
   ).toBeVisible();
-  await expect(page.getByText("Testnet", { exact: true })).toBeVisible();
+  await expect(page.getByText("Testnet", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Group Pay never holds your funds")).toBeVisible();
 });
 
