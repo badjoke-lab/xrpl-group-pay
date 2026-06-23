@@ -14,7 +14,7 @@ function response(body: unknown, status: number) {
 
 describe("requestPaymentVerification", () => {
   it.each([200, 202, 422])(
-    "accepts a typed verification outcome with HTTP %s",
+    "accepts a complete verification outcome with HTTP %s",
     async (status) => {
       const outcome =
         status === 200
@@ -91,10 +91,20 @@ describe("requestPaymentVerification", () => {
     });
   });
 
-  it("rejects malformed successful responses", async () => {
-    const fetcher = vi
-      .fn()
-      .mockResolvedValue(response({ unexpected: true }, 200));
+  it.each([
+    [{ unexpected: true }, 200],
+    [{ status: "verified" }, 200],
+    [
+      {
+        status: "pending",
+        reason: "TRANSACTION_NOT_FOUND",
+        transactionId: "A".repeat(64),
+        message: "Pending",
+      },
+      200,
+    ],
+  ])("rejects malformed or status-inconsistent responses", async (body, status) => {
+    const fetcher = vi.fn().mockResolvedValue(response(body, status));
 
     await expect(
       requestPaymentVerification(
