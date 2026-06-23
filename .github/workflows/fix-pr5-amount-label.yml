@@ -1,0 +1,43 @@
+name: Fix PR5 amount label
+
+on:
+  push:
+    branches:
+      - feat/pr-005-validated-ledger-verification
+    paths:
+      - .github/workflows/fix-pr5-amount-label.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/pr-005-validated-ledger-verification
+          fetch-depth: 0
+
+      - name: Add explicit Amount label
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/components/payment/testnet-payment-form.tsx')
+          text = path.read_text()
+          old = '                name="amountXrp"\n                required'
+          new = '                name="amountXrp"\n                aria-label="Amount"\n                required'
+          if old not in text:
+              raise SystemExit('Amount input marker not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          rm .github/workflows/fix-pr5-amount-label.yml
+
+      - name: Commit fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/payment/testnet-payment-form.tsx .github/workflows/fix-pr5-amount-label.yml
+          git commit -m 'fix: give the XRP amount input an accessible name'
+          git push origin HEAD:feat/pr-005-validated-ledger-verification
