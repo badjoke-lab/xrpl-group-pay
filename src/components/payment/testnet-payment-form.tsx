@@ -273,6 +273,7 @@ export function TestnetPaymentForm() {
             <div className="mt-2 flex rounded-md border border-border bg-background focus-within:border-brand focus-within:ring-3 focus-within:ring-focus/20">
               <input
                 name="amountXrp"
+                aria-label="Amount"
                 required
                 inputMode="decimal"
                 placeholder="4"
