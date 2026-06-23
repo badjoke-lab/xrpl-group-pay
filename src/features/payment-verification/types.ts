@@ -15,6 +15,7 @@ export const verificationPendingReasonSchema = z.enum([
 
 export const verificationFailureReasonSchema = z.enum([
   "INVALID_XAMAN_TEMPLATE",
+  "SLOT_EXPECTATION_MISMATCH",
   "HASH_MISMATCH",
   "TRANSACTION_FAILED",
   "WRONG_TRANSACTION_TYPE",
