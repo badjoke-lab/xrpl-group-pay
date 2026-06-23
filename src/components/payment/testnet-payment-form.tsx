@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  CheckCircle2,
   Clock3,
   ExternalLink,
   LoaderCircle,
