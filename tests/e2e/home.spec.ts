@@ -14,7 +14,7 @@ test("renders the Xaman Testnet payment vertical slice", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: /Send one XRP Payment through Xaman/i }),
   ).toBeVisible();
-  await expect(page.getByLabelText("Recipient XRPL address")).toBeVisible();
+  await expect(page.getByLabel("Recipient XRPL address")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Continue to Xaman" }),
   ).toBeVisible();
