@@ -16,16 +16,33 @@ function isOutcome(value: unknown): value is PaymentVerificationOutcome {
   return status === "verified" || status === "pending" || status === "failed";
 }
 
+function unavailable(message?: unknown): PaymentVerificationOutcome {
+  return {
+    status: "pending",
+    reason: "VERIFICATION_UNAVAILABLE",
+    transactionId: null,
+    message:
+      typeof message === "string"
+        ? message
+        : "The validated ledger is temporarily unavailable. Check again.",
+  };
+}
+
 export async function requestPaymentVerification(
   payloadId: string,
   fetcher: typeof fetch = fetch,
 ): Promise<PaymentVerificationOutcome> {
-  const response = await fetcher("/api/payments/verify", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ payloadId }),
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetcher("/api/payments/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payloadId }),
+      cache: "no-store",
+    });
+  } catch {
+    return unavailable();
+  }
 
   const body: unknown = await response.json().catch(() => null);
   if (
@@ -42,9 +59,13 @@ export async function requestPaymentVerification(
       ? (body as { error?: { message?: unknown } }).error?.message
       : undefined;
 
+  if (response.status >= 500) {
+    return unavailable(message);
+  }
+
   throw new PaymentVerificationRequestError(
     typeof message === "string"
       ? message
-      : "The validated ledger could not be checked.",
+      : "The verification response was invalid.",
   );
 }
