@@ -160,7 +160,7 @@ function makeProof(
 }
 
 describe("recordVerifiedPayment", () => {
-  it("creates one durable receipt and treats an exact retry as idempotent", async () => {
+  it("keeps a later re-verification of the same ledger facts idempotent", async () => {
     const database = new MemoryD1();
     const first = await recordVerifiedPayment(
       database,
@@ -169,7 +169,7 @@ describe("recordVerifiedPayment", () => {
     );
     const retry = await recordVerifiedPayment(
       database,
-      makeProof(),
+      makeProof({ verifiedAt: "2026-06-23T01:03:03.000Z" }),
       new Date("2026-06-23T01:03:04.000Z"),
     );
 
