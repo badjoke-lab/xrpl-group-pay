@@ -12,7 +12,10 @@ export const dynamic = "force-dynamic";
 const payloadIdSchema = z.string().uuid();
 
 function errorResponse(message: string, code: string, status: number) {
-  return Response.json({ error: { code, message } }, { status });
+  return Response.json(
+    { error: { code, message } },
+    { status, headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 export async function GET(
@@ -40,7 +43,11 @@ export async function GET(
     );
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return errorResponse("Invalid payload identifier.", "INVALID_PAYLOAD_ID", 400);
+      return errorResponse(
+        "Invalid payload identifier.",
+        "INVALID_PAYLOAD_ID",
+        400,
+      );
     }
 
     if (error instanceof XamanConfigurationError) {
