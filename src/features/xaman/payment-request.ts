@@ -1,4 +1,4 @@
-import { isValidAddress, xrpToDrops } from "xrpl";
+import { isValidClassicAddress, xrpToDrops } from "xrpl";
 
 import type { CreatePaymentInput } from "./schemas";
 
@@ -41,7 +41,7 @@ export function createInvoiceId(randomBytes?: Uint8Array) {
 
 export function normalizePaymentInput(input: CreatePaymentInput) {
   const destination = input.destination.trim();
-  if (!isValidAddress(destination)) {
+  if (!isValidClassicAddress(destination)) {
     throw new PaymentInputError("Enter a valid classic XRPL address.");
   }
 
