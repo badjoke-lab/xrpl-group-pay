@@ -8,7 +8,7 @@ import {
 const DESTINATION = "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh";
 
 describe("createPaymentInputSchema", () => {
-  it("accepts a bounded XRP payment request", () => {
+  it("accepts bounded XRP payment requests with or without a Destination Tag", () => {
     expect(
       createPaymentInputSchema.parse({
         destination: DESTINATION,
@@ -19,6 +19,18 @@ describe("createPaymentInputSchema", () => {
       destination: DESTINATION,
       amountXrp: "4.000001",
       destinationTag: "4294967295",
+    });
+
+    expect(
+      createPaymentInputSchema.parse({
+        destination: DESTINATION,
+        amountXrp: "1",
+        destinationTag: "",
+      }),
+    ).toEqual({
+      destination: DESTINATION,
+      amountXrp: "1",
+      destinationTag: "",
     });
   });
 
