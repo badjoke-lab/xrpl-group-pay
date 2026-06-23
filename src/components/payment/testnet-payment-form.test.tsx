@@ -39,6 +39,7 @@ describe("TestnetPaymentForm", () => {
       screen.getByRole("heading", { name: "Create a Testnet Payment" }),
     ).toBeVisible();
     expect(screen.getByLabelText("Recipient XRPL address")).toBeRequired();
+    expect(screen.getByRole("textbox", { name: "Amount" })).toBeRequired();
     expect(
       screen.getByRole("button", { name: "Continue to Xaman" }),
     ).toBeEnabled();
@@ -102,7 +103,7 @@ describe("TestnetPaymentForm", () => {
     fireEvent.change(screen.getByLabelText("Recipient XRPL address"), {
       target: { value: "rPEPPER7kfTD9w2To4CQk6UCfuHM9c6GDY" },
     });
-    fireEvent.change(screen.getByLabelText("Amount"), {
+    fireEvent.change(screen.getByRole("textbox", { name: "Amount" }), {
       target: { value: "4" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Continue to Xaman" }));
