@@ -34,6 +34,15 @@ describe("requestPaymentVerification", () => {
                 idempotencyKey: `testnet:${"A".repeat(64)}`,
                 verifiedAt: "2026-06-23T00:00:00.000Z",
               },
+              receipt: {
+                receiptId: `testnet:${"A".repeat(64)}`,
+                status: "created",
+                network: "testnet",
+                transactionId: "A".repeat(64),
+                invoiceId: "B".repeat(64),
+                recordedAt: "2026-06-23T00:00:01.000Z",
+                proofDigest: "C".repeat(64),
+              },
             }
           : status === 202
             ? {
@@ -94,6 +103,26 @@ describe("requestPaymentVerification", () => {
   it.each([
     [{ unexpected: true }, 200],
     [{ status: "verified" }, 200],
+    [
+      {
+        status: "verified",
+        proof: {
+          network: "testnet",
+          transactionId: "A".repeat(64),
+          ledgerIndex: 1,
+          sender: "rSender",
+          destination: "rDestination",
+          amountDrops: "1",
+          deliveredAmountDrops: "1",
+          sourceTag: 1,
+          destinationTag: null,
+          invoiceId: "B".repeat(64),
+          idempotencyKey: `testnet:${"A".repeat(64)}`,
+          verifiedAt: "2026-06-23T00:00:00.000Z",
+        },
+      },
+      200,
+    ],
     [
       {
         status: "pending",
