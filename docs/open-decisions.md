@@ -26,8 +26,8 @@ SUPERSEDED
 | OD-005 | How is Payment volume calculated? | Sum verified XRP `delivered_amount` | Metric methodology or organizer response | Before metrics implementation | ASSUMPTION |
 | OD-006 | Xaman SDK or direct REST wrapper on Cloudflare Workers? | Use a small server-only REST wrapper around the official payload endpoints | Official API contract, credential-boundary tests, and OpenNext Worker build | Testnet payment handoff | DECIDED |
 | OD-007 | Primary hosting platform? | Cloudflare Workers through OpenNext; change only after measured incompatibility | Next.js build, OpenNext Worker build, and later production smoke test | Application foundation | DECIDED |
-| OD-008 | Database? | Cloudflare D1 after runtime decision | Atomicity, unique constraint, and migration tests | Persistence PR | ASSUMPTION |
-| OD-009 | ORM or typed SQL? | Use the smallest layer that preserves migrations and types | Bundle and runtime comparison | Persistence PR | OPEN |
+| OD-008 | Database? | Cloudflare D1 with versioned migrations; begin with verified Payment receipts and add bill entities in later migrations | Local D1 migration application, uniqueness tests, and OpenNext Worker build | Verified receipt persistence | DECIDED |
+| OD-009 | ORM or typed SQL? | Use prepared typed SQL through a minimal D1 contract; do not add an ORM until measured schema complexity justifies it | Strict TypeScript, adapter tests, migration tests, and Worker build | Verified receipt persistence | DECIDED |
 | OD-010 | Primary XRPL endpoints and failover? | Query Ripple Testnet first and XRPL Labs Testnet second with `tx` API v2 | Official public-server list, failover tests, and Worker build | Validated-ledger verification | DECIDED |
 | OD-011 | Participant identity in initial MVP? | Creator provides expected XRPL address | Usability test | Initial group-payment flow | ASSUMPTION |
 | OD-012 | Future self-claim flow? | Xaman SignIn can bind a wallet to an open slot | Threat model and user test | Post-MVP | OPEN |
@@ -46,7 +46,8 @@ SUPERSEDED
 | OD-025 | Error monitoring provider? | Optional only with strict redaction | Secret and capability leakage test | Before Mainnet | OPEN |
 | OD-026 | Circle integration boundary? | Keep payment verification reusable; do not implement Circle entities in MVP | Architecture review | Product specification | DECIDED |
 | OD-027 | What is the source of expected Payment values during verification? | Server-fetch the Xaman payload by UUID and use its original template, signer, and txid; never trust client-supplied expected fields | Xaman response types and tamper-boundary tests | Validated-ledger verification | DECIDED |
-| OD-028 | When is duplicate processing durably prevented? | Emit `testnet:<txid>` now; claim durable prevention only after a database unique constraint exists | Persistence and concurrency tests | Persistence PR | DECIDED |
+| OD-028 | When is duplicate processing durably prevented? | Enforce unique `network + transaction_id` and `network + invoice_id` receipt constraints now; add the atomic bill/slot paid transition with the bill data model | D1 migration, conflict tests, concurrent retry tests, and later bill transaction tests | Receipt layer decided; bill layer pending | DECIDED |
+| OD-029 | Which fields define an identical verified Payment proof? | Hash immutable ledger and expected-Payment facts; exclude verification and receipt observation timestamps so later re-verification remains idempotent | Re-verification test with different observation timestamps | Verified receipt persistence | DECIDED |
 
 ## Decision record template
 
