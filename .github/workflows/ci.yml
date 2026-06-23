@@ -50,7 +50,18 @@ jobs:
         run: pnpm lint
 
       - name: Type-check
-        run: pnpm typecheck
+        id: typecheck
+        run: |
+          set -o pipefail
+          pnpm typecheck 2>&1 | tee typecheck.log
+
+      - name: Upload type-check diagnostics
+        if: failure() && steps.typecheck.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: typecheck-diagnostics
+          path: typecheck.log
+          retention-days: 1
 
       - name: Run unit and component tests
         run: pnpm test
