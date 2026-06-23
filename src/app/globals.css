@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+:root {
+  --app-background: #f7f4f1;
+  --app-surface: #ffffff;
+  --app-surface-subtle: #f2ecef;
+  --app-foreground: #171821;
+  --app-muted: #6f6b73;
+  --app-border: #e7e0dc;
+  --app-brand: #4b1d5a;
+  --app-brand-hover: #3b1747;
+  --app-brand-subtle: #efe5f1;
+  --app-action: #f36f5a;
+  --app-action-hover: #db5c49;
+  --app-success: #168a62;
+  --app-success-subtle: #e5f5ef;
+  --app-warning: #d58a22;
+  --app-warning-subtle: #fff2dd;
+  --app-danger: #c84545;
+  --app-focus: #7a3d8c;
+  --app-font-body: Inter, Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --app-font-heading: Manrope, Inter, Geist, ui-sans-serif, system-ui, sans-serif;
+}
+
+@theme inline {
+  --color-background: var(--app-background);
+  --color-surface: var(--app-surface);
+  --color-surface-subtle: var(--app-surface-subtle);
+  --color-foreground: var(--app-foreground);
+  --color-muted: var(--app-muted);
+  --color-border: var(--app-border);
+  --color-brand: var(--app-brand);
+  --color-brand-hover: var(--app-brand-hover);
+  --color-brand-subtle: var(--app-brand-subtle);
+  --color-action: var(--app-action);
+  --color-action-hover: var(--app-action-hover);
+  --color-success: var(--app-success);
+  --color-success-subtle: var(--app-success-subtle);
+  --color-warning: var(--app-warning);
+  --color-warning-subtle: var(--app-warning-subtle);
+  --color-danger: var(--app-danger);
+  --color-focus: var(--app-focus);
+  --font-sans: var(--app-font-body);
+  --font-heading: var(--app-font-heading);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-pill: 999px;
+  --shadow-sm: 0 1px 2px rgb(23 24 33 / 0.05);
+  --shadow-md: 0 12px 32px rgb(75 29 90 / 0.09);
+  --duration-fast: 160ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--app-background);
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--app-background);
+  color: var(--app-foreground);
+  font-family: var(--app-font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--app-brand-subtle);
+  color: var(--app-brand);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
