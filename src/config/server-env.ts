@@ -2,6 +2,8 @@ import "server-only";
 
 import { z } from "zod";
 
+const XAMAN_API_BASE_URL = "https://xumm.app/api/v1/platform" as const;
+
 const uint32Text = z
   .string()
   .regex(/^\d+$/, "XRPL_SOURCE_TAG must be an unsigned integer.")
@@ -12,12 +14,9 @@ const uint32Text = z
   );
 
 const xamanEnvironmentSchema = z.object({
-  XAMAN_API_KEY: z.string().trim().min(1),
-  XAMAN_API_SECRET: z.string().trim().min(1),
-  XAMAN_API_BASE_URL: z
-    .string()
-    .url()
-    .default("https://xumm.app/api/v1/platform"),
+  XAMAN_API_KEY: z.string().trim().min(1).max(256),
+  XAMAN_API_SECRET: z.string().trim().min(1).max(256),
+  XAMAN_API_BASE_URL: z.literal(XAMAN_API_BASE_URL).default(XAMAN_API_BASE_URL),
   XRPL_SOURCE_TAG: uint32Text,
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
   APP_NETWORK: z.literal("testnet").default("testnet"),
