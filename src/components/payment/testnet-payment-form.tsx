@@ -1,16 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
+  Clock3,
   ExternalLink,
   LoaderCircle,
   RefreshCw,
+  ShieldCheck,
   Smartphone,
+  TriangleAlert,
   XCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { requestPaymentVerification } from "@/features/payment-verification/browser-client";
+import type {
+  LedgerVerificationProof,
+  PaymentVerificationOutcome,
+} from "@/features/payment-verification/types";
 import { shouldRefreshFromXamanWebsocket } from "@/features/xaman/status";
 
 type CreatedPayload = {
@@ -39,7 +47,20 @@ type ViewState =
   | { kind: "idle" }
   | { kind: "creating" }
   | { kind: "waiting"; payload: CreatedPayload }
-  | { kind: "submitted"; payload: CreatedPayload; txid: string }
+  | { kind: "verifying"; payload: CreatedPayload; txid: string }
+  | {
+      kind: "verificationPending";
+      payload: CreatedPayload;
+      txid: string;
+      message: string;
+    }
+  | { kind: "verified"; payload: CreatedPayload; proof: LedgerVerificationProof }
+  | {
+      kind: "verificationFailed";
+      payload: CreatedPayload;
+      txid: string;
+      message: string;
+    }
   | { kind: "rejected"; payload: CreatedPayload }
   | { kind: "expired"; payload: CreatedPayload }
   | { kind: "error"; message: string };
@@ -56,23 +77,87 @@ export function TestnetPaymentForm() {
   const [state, setState] = useState<ViewState>({ kind: "idle" });
   const [isChecking, setIsChecking] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const verificationInFlight = useRef(new Set<string>());
 
-  const refreshStatus = useCallback(async (payload: CreatedPayload) => {
-    const response = await fetch(`/api/xaman/payloads/${payload.payloadId}`, {
-      cache: "no-store",
-    });
-    const status = (await readJson(response)) as PayloadStatus;
+  const applyVerificationOutcome = useCallback(
+    (
+      payload: CreatedPayload,
+      transactionId: string,
+      outcome: PaymentVerificationOutcome,
+    ) => {
+      if (outcome.status === "verified") {
+        setState({ kind: "verified", payload, proof: outcome.proof });
+        return;
+      }
 
-    if (status.status === "submitted" && status.txid) {
-      setState({ kind: "submitted", payload, txid: status.txid });
-    } else if (status.status === "rejected") {
-      setState({ kind: "rejected", payload });
-    } else if (status.status === "expired") {
-      setState({ kind: "expired", payload });
-    }
+      if (outcome.status === "pending") {
+        setState({
+          kind: "verificationPending",
+          payload,
+          txid: outcome.transactionId ?? transactionId,
+          message: outcome.message,
+        });
+        return;
+      }
 
-    return status;
-  }, []);
+      setState({
+        kind: "verificationFailed",
+        payload,
+        txid: outcome.transactionId ?? transactionId,
+        message: outcome.message,
+      });
+    },
+    [],
+  );
+
+  const verifySubmittedPayment = useCallback(
+    async (payload: CreatedPayload, transactionId: string) => {
+      if (verificationInFlight.current.has(payload.payloadId)) {
+        return;
+      }
+
+      verificationInFlight.current.add(payload.payloadId);
+      setState({ kind: "verifying", payload, txid: transactionId });
+
+      try {
+        const outcome = await requestPaymentVerification(payload.payloadId);
+        applyVerificationOutcome(payload, transactionId, outcome);
+      } catch (error) {
+        setState({
+          kind: "verificationFailed",
+          payload,
+          txid: transactionId,
+          message:
+            error instanceof Error
+              ? error.message
+              : "The validated ledger could not be checked.",
+        });
+      } finally {
+        verificationInFlight.current.delete(payload.payloadId);
+      }
+    },
+    [applyVerificationOutcome],
+  );
+
+  const refreshStatus = useCallback(
+    async (payload: CreatedPayload) => {
+      const response = await fetch(`/api/xaman/payloads/${payload.payloadId}`, {
+        cache: "no-store",
+      });
+      const status = (await readJson(response)) as PayloadStatus;
+
+      if (status.status === "submitted" && status.txid) {
+        await verifySubmittedPayment(payload, status.txid);
+      } else if (status.status === "rejected") {
+        setState({ kind: "rejected", payload });
+      } else if (status.status === "expired") {
+        setState({ kind: "expired", payload });
+      }
+
+      return status;
+    },
+    [verifySubmittedPayment],
+  );
 
   useEffect(() => {
     if (state.kind !== "waiting") return;
@@ -156,11 +241,7 @@ export function TestnetPaymentForm() {
   }
 
   const terminalPayload =
-    state.kind === "submitted" ||
-    state.kind === "rejected" ||
-    state.kind === "expired"
-      ? state.payload
-      : null;
+    "payload" in state ? state.payload : null;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_0.9fr]">
@@ -308,19 +389,103 @@ export function TestnetPaymentForm() {
               </p>
             )}
           </div>
-        ) : state.kind === "submitted" ? (
-          <div>
-            <CheckCircle2 aria-hidden="true" className="size-11 text-success" />
-            <h2 className="mt-4 font-heading text-2xl font-semibold">
-              Transaction submitted
+        ) : state.kind === "verifying" ? (
+          <div className="flex min-h-80 flex-col items-center justify-center text-center">
+            <LoaderCircle
+              aria-hidden="true"
+              className="size-11 animate-spin text-brand"
+            />
+            <h2 className="mt-5 font-heading text-2xl font-semibold">
+              Verifying on XRPL
             </h2>
-            <p className="mt-2 leading-7 text-muted">
-              Xaman returned a transaction ID. This is not yet displayed as paid
-              or verified; validated-ledger verification is the next safety gate.
+            <p className="mt-2 max-w-sm leading-7 text-muted">
+              The signed transaction is being compared with a validated Testnet
+              ledger. A transaction ID alone is not enough.
             </p>
             <p className="mt-5 break-all rounded-lg bg-background p-4 font-mono text-xs">
               {state.txid}
             </p>
+          </div>
+        ) : state.kind === "verificationPending" ? (
+          <div>
+            <Clock3 aria-hidden="true" className="size-11 text-warning" />
+            <h2 className="mt-4 font-heading text-2xl font-semibold">
+              Waiting for validated ledger
+            </h2>
+            <p className="mt-2 leading-7 text-muted">{state.message}</p>
+            <p className="mt-5 break-all rounded-lg bg-background p-4 font-mono text-xs">
+              {state.txid}
+            </p>
+            <Button
+              className="mt-6"
+              variant="secondary"
+              onClick={() =>
+                void verifySubmittedPayment(state.payload, state.txid)
+              }
+            >
+              <RefreshCw aria-hidden="true" className="size-4" />
+              Check validated ledger
+            </Button>
+          </div>
+        ) : state.kind === "verified" ? (
+          <div>
+            <ShieldCheck aria-hidden="true" className="size-11 text-success" />
+            <h2 className="mt-4 font-heading text-2xl font-semibold">
+              Ledger verified
+            </h2>
+            <p className="mt-2 leading-7 text-muted">
+              The Payment matches the Xaman Sign Request and a validated XRPL
+              Testnet ledger.
+            </p>
+            <dl className="mt-6 grid gap-4 rounded-lg bg-success-subtle p-5 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-muted">Delivered</dt>
+                <dd className="mt-1 font-mono font-semibold">
+                  {state.proof.deliveredAmountDrops} drops
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted">Ledger index</dt>
+                <dd className="mt-1 font-mono font-semibold">
+                  {state.proof.ledgerIndex}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-muted">Transaction ID</dt>
+                <dd className="mt-1 break-all font-mono text-xs font-semibold">
+                  {state.proof.transactionId}
+                </dd>
+              </div>
+            </dl>
+            <p className="mt-4 text-sm text-muted">
+              Durable bill status and duplicate enforcement are added with
+              persistence; this screen proves the current transaction only.
+            </p>
+          </div>
+        ) : state.kind === "verificationFailed" ? (
+          <div>
+            <TriangleAlert aria-hidden="true" className="size-11 text-danger" />
+            <h2 className="mt-4 font-heading text-2xl font-semibold">
+              Ledger verification failed
+            </h2>
+            <p className="mt-2 leading-7 text-muted">{state.message}</p>
+            <p className="mt-5 break-all rounded-lg bg-background p-4 font-mono text-xs">
+              {state.txid}
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  void verifySubmittedPayment(state.payload, state.txid)
+                }
+              >
+                <RefreshCw aria-hidden="true" className="size-4" />
+                Check again
+              </Button>
+              <Button variant="ghost" onClick={() => setState({ kind: "idle" })}>
+                Start again
+              </Button>
+            </div>
           </div>
         ) : (
           <div>
