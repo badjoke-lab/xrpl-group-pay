@@ -46,6 +46,9 @@ jobs:
       - name: Validate environment boundary
         run: pnpm check:env
 
+      - name: Apply D1 migrations locally
+        run: pnpm db:migrate:local
+
       - name: Lint
         run: pnpm lint
 
