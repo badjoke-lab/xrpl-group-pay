@@ -18,11 +18,14 @@ import {
 class Statement implements D1PreparedStatementLike {
   constructor(
     readonly row: Record<string, unknown> | null,
+    readonly onBind: (statement: Statement) => void,
     readonly values: D1ValueLike[] = [],
   ) {}
 
   bind(...values: D1ValueLike[]) {
-    return new Statement(this.row, values);
+    const bound = new Statement(this.row, this.onBind, values);
+    this.onBind(bound);
+    return bound;
   }
 
   async first<Row = Record<string, unknown>>() {
@@ -40,8 +43,11 @@ class Database implements D1DatabaseLike {
   constructor(readonly row: Record<string, unknown> | null) {}
 
   prepare() {
-    this.statement = new Statement(this.row);
-    return this.statement;
+    const statement = new Statement(this.row, (bound) => {
+      this.statement = bound;
+    });
+    this.statement = statement;
+    return statement;
   }
 
   async batch<Row = Record<string, unknown>>() {
