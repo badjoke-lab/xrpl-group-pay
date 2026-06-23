@@ -4,6 +4,16 @@ import {
   getXamanEnvironment,
   XamanConfigurationError,
 } from "@/config/server-env";
+import {
+  getPaymentsDatabase,
+  PaymentsDatabaseUnavailableError,
+} from "@/features/persistence/cloudflare-d1";
+import {
+  PaymentReceiptConflictError,
+  PaymentReceiptDatabaseError,
+  PaymentReceiptInputError,
+  recordVerifiedPayment,
+} from "@/features/persistence/verified-payment-receipts";
 import { verifyXamanPayment } from "@/features/payment-verification/service";
 import { XamanApiError, XamanClient } from "@/features/xaman/client";
 import {
@@ -101,7 +111,10 @@ export async function POST(request: Request) {
     if (outcome.status === "failed") {
       return json(outcome, 422);
     }
-    return json(outcome, 200);
+
+    const database = await getPaymentsDatabase();
+    const receipt = await recordVerifiedPayment(database, outcome.proof);
+    return json({ ...outcome, receipt }, 200);
   } catch (error) {
     if (error instanceof XamanConfigurationError) {
       return json(
@@ -121,11 +134,42 @@ export async function POST(request: Request) {
         502,
       );
     }
+    if (
+      error instanceof PaymentsDatabaseUnavailableError ||
+      error instanceof PaymentReceiptDatabaseError
+    ) {
+      return json(
+        {
+          error: {
+            code: "RECEIPT_STORAGE_UNAVAILABLE",
+            message: error.message,
+          },
+        },
+        503,
+      );
+    }
+    if (error instanceof PaymentReceiptConflictError) {
+      return json(
+        { error: { code: error.code, message: error.message } },
+        409,
+      );
+    }
+    if (error instanceof PaymentReceiptInputError) {
+      return json(
+        {
+          error: {
+            code: "INVALID_VERIFIED_RECEIPT",
+            message: "The verified Payment proof could not be normalized.",
+          },
+        },
+        500,
+      );
+    }
     return json(
       {
         error: {
           code: "PAYMENT_VERIFICATION_FAILED",
-          message: "The Payment could not be verified.",
+          message: "The Payment could not be verified and recorded.",
         },
       },
       500,
