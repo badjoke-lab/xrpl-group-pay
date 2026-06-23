@@ -1,7 +1,8 @@
 export type VerificationPendingReason =
   | "XAMAN_NOT_RESOLVED"
   | "TRANSACTION_NOT_FOUND"
-  | "TRANSACTION_NOT_VALIDATED";
+  | "TRANSACTION_NOT_VALIDATED"
+  | "VERIFICATION_UNAVAILABLE";
 
 export type VerificationFailureReason =
   | "INVALID_XAMAN_TEMPLATE"
