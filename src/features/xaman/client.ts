@@ -33,14 +33,20 @@ export class XamanClient {
     headers.set("X-API-Key", this.environment.XAMAN_API_KEY);
     headers.set("X-API-Secret", this.environment.XAMAN_API_SECRET);
 
-    const response = await this.fetcher(
-      `${this.environment.XAMAN_API_BASE_URL}${path}`,
-      {
-        ...init,
-        headers,
-        cache: "no-store",
-      },
-    );
+    let response: Response;
+    try {
+      response = await this.fetcher(
+        `${this.environment.XAMAN_API_BASE_URL}${path}`,
+        {
+          ...init,
+          headers,
+          cache: "no-store",
+          signal: init.signal ?? AbortSignal.timeout(10_000),
+        },
+      );
+    } catch {
+      throw new XamanApiError("Xaman could not be reached.", 502);
+    }
 
     const body: unknown = await response.json().catch(() => null);
     if (!response.ok) {
@@ -60,8 +66,13 @@ export class XamanClient {
       method: "POST",
       body: JSON.stringify(request),
     });
+    const parsed = xamanCreatePayloadResponseSchema.safeParse(body);
 
-    return xamanCreatePayloadResponseSchema.parse(body);
+    if (!parsed.success) {
+      throw new XamanApiError("Xaman returned an invalid payload response.", 502);
+    }
+
+    return parsed.data;
   }
 
   async getPayload(payloadId: string): Promise<XamanPayloadResponse> {
@@ -69,7 +80,12 @@ export class XamanClient {
       `/payload/${encodeURIComponent(payloadId)}`,
       { method: "GET" },
     );
+    const parsed = xamanPayloadResponseSchema.safeParse(body);
 
-    return xamanPayloadResponseSchema.parse(body);
+    if (!parsed.success) {
+      throw new XamanApiError("Xaman returned an invalid status response.", 502);
+    }
+
+    return parsed.data;
   }
 }
