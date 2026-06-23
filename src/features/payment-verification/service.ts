@@ -5,9 +5,7 @@ import {
 import type { PaymentVerificationOutcome } from "./types";
 import { verifyXrpPayment } from "./verifier";
 import type { XamanPayloadResponse } from "@/features/xaman/schemas";
-import {
-  XrplTransactionPendingError,
-} from "@/features/xrpl/client";
+import { XrplTransactionPendingError } from "@/features/xrpl/client";
 import type { XrplTxResult } from "@/features/xrpl/schemas";
 
 export type PaymentVerificationDependencies = {
@@ -65,7 +63,8 @@ export async function verifyXamanPayment(
         status: "pending",
         reason: "TRANSACTION_NOT_FOUND",
         transactionId: expected.transactionId,
-        message: "The transaction is not available on a validated Testnet ledger yet.",
+        message:
+          "The transaction is not available on a validated Testnet ledger yet.",
       };
     }
     throw error;
