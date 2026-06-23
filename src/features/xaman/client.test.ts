@@ -41,10 +41,17 @@ describe("XamanClient", () => {
       ),
     );
 
-    await new XamanClient(environment, fetcher as typeof fetch).createPayload(request);
+    await new XamanClient(
+      environment,
+      fetcher as unknown as typeof fetch,
+    ).createPayload(request);
 
-    const [, init] = fetcher.mock.calls[0];
+    expect(fetcher).toHaveBeenCalledOnce();
+    const call = fetcher.mock.calls[0];
+    expect(call).toBeDefined();
+    const init = call?.[1] as RequestInit;
     const headers = new Headers(init.headers);
+
     expect(headers.get("X-API-Key")).toBe("key");
     expect(headers.get("X-API-Secret")).toBe("secret");
     expect(JSON.parse(init.body as string)).toEqual(request);
