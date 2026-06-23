@@ -8,6 +8,7 @@ import {
   getPaymentsDatabase,
   PaymentsDatabaseUnavailableError,
 } from "@/features/persistence/cloudflare-d1";
+import type { RecordedPaymentReceipt } from "@/features/persistence/types";
 import {
   PaymentReceiptConflictError,
   PaymentReceiptDatabaseError,
@@ -15,6 +16,10 @@ import {
   recordVerifiedPayment,
 } from "@/features/persistence/verified-payment-receipts";
 import { verifyXamanPayment } from "@/features/payment-verification/service";
+import type {
+  LedgerVerificationProof,
+  PaymentVerificationOutcome,
+} from "@/features/payment-verification/types";
 import { XamanApiError, XamanClient } from "@/features/xaman/client";
 import {
   XrplNodeUnavailableError,
@@ -28,6 +33,29 @@ const MAX_VERIFICATION_REQUEST_BYTES = 512;
 const verificationInputSchema = z
   .object({ payloadId: z.string().uuid() })
   .strict();
+
+export type VerificationRouteDependencies = {
+  verifyPayment(payloadId: string): Promise<PaymentVerificationOutcome>;
+  recordPayment(proof: LedgerVerificationProof): Promise<RecordedPaymentReceipt>;
+};
+
+const defaultDependencies: VerificationRouteDependencies = {
+  async verifyPayment(payloadId) {
+    const environment = getXamanEnvironment();
+    const xaman = new XamanClient(environment);
+    const xrpl = new XrplTestnetClient();
+    return verifyXamanPayment(payloadId, {
+      getXamanPayload: (id) => xaman.getPayload(id),
+      getXrplTransaction: (transactionId) =>
+        xrpl.getTransaction(transactionId),
+      sourceTag: environment.XRPL_SOURCE_TAG,
+    });
+  },
+  async recordPayment(proof) {
+    const database = await getPaymentsDatabase();
+    return recordVerifiedPayment(database, proof);
+  },
+};
 
 function json(body: unknown, status: number) {
   return Response.json(body, {
@@ -48,7 +76,10 @@ function requestTooLarge() {
   );
 }
 
-export async function POST(request: Request) {
+export async function handleVerificationRequest(
+  request: Request,
+  dependencies: VerificationRouteDependencies = defaultDependencies,
+) {
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().startsWith("application/json")) {
     return json(
@@ -95,15 +126,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const environment = getXamanEnvironment();
-    const xaman = new XamanClient(environment);
-    const xrpl = new XrplTestnetClient();
-    const outcome = await verifyXamanPayment(input.payloadId, {
-      getXamanPayload: (payloadId) => xaman.getPayload(payloadId),
-      getXrplTransaction: (transactionId) =>
-        xrpl.getTransaction(transactionId),
-      sourceTag: environment.XRPL_SOURCE_TAG,
-    });
+    const outcome = await dependencies.verifyPayment(input.payloadId);
 
     if (outcome.status === "pending") {
       return json(outcome, 202);
@@ -112,8 +135,7 @@ export async function POST(request: Request) {
       return json(outcome, 422);
     }
 
-    const database = await getPaymentsDatabase();
-    const receipt = await recordVerifiedPayment(database, outcome.proof);
+    const receipt = await dependencies.recordPayment(outcome.proof);
     return json({ ...outcome, receipt }, 200);
   } catch (error) {
     if (error instanceof XamanConfigurationError) {
@@ -175,4 +197,8 @@ export async function POST(request: Request) {
       500,
     );
   }
+}
+
+export function POST(request: Request) {
+  return handleVerificationRequest(request);
 }
