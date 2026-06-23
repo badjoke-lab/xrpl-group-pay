@@ -13,13 +13,66 @@ import { createPaymentInputSchema } from "@/features/xaman/schemas";
 
 export const dynamic = "force-dynamic";
 
+const MAX_PAYMENT_REQUEST_BYTES = 2_048;
+
 function errorResponse(message: string, code: string, status: number) {
-  return Response.json({ error: { code, message } }, { status });
+  return Response.json(
+    { error: { code, message } },
+    { status, headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 export async function POST(request: Request) {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().startsWith("application/json")) {
+    return errorResponse(
+      "Send the payment request as JSON.",
+      "UNSUPPORTED_MEDIA_TYPE",
+      415,
+    );
+  }
+
+  const contentLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > MAX_PAYMENT_REQUEST_BYTES) {
+    return errorResponse(
+      "The payment request is too large.",
+      "PAYMENT_REQUEST_TOO_LARGE",
+      413,
+    );
+  }
+
+  let rawBody: string;
   try {
-    const input = createPaymentInputSchema.parse(await request.json());
+    rawBody = await request.text();
+  } catch {
+    return errorResponse(
+      "The payment request body could not be read.",
+      "INVALID_JSON",
+      400,
+    );
+  }
+
+  if (new TextEncoder().encode(rawBody).byteLength > MAX_PAYMENT_REQUEST_BYTES) {
+    return errorResponse(
+      "The payment request is too large.",
+      "PAYMENT_REQUEST_TOO_LARGE",
+      413,
+    );
+  }
+
+  let body: unknown;
+  try {
+    body = JSON.parse(rawBody) as unknown;
+  } catch {
+    return errorResponse(
+      "The payment request must contain valid JSON.",
+      "INVALID_JSON",
+      400,
+    );
+  }
+
+  try {
+    const input = createPaymentInputSchema.parse(body);
     const environment = getXamanEnvironment();
     const paymentRequest = buildTestnetPaymentPayload(
       input,
