@@ -4,7 +4,7 @@ XRPL Group Pay is a non-custodial shared-expense settlement application built on
 
 A bill creator allocates an XRP amount to each participant. Participants review and sign their own XRP Payments in Xaman, funds move directly to the recipient, and the application verifies each result on the XRP Ledger before marking it paid.
 
-> The application foundation and first Xaman Testnet payment handoff are implemented. Validated-ledger verification remains the next safety gate before any payment can be marked paid.
+> The application foundation, Xaman Testnet payment handoff, and strict validated-ledger verification are implemented. Bill persistence and durable duplicate prevention are the next product-state gates before a payment can be stored as paid.
 
 ## Core principles
 
@@ -40,10 +40,28 @@ The `/testnet/payment` vertical slice currently:
 - forces the request to XRPL Testnet;
 - provides Xaman deep-link and QR handoff;
 - uses Xaman WebSocket resolution events, browser focus, and a manual status check instead of API polling;
-- records signed, rejected, expired, and submitted states;
-- displays `submitted` only after Xaman returns a transaction ID.
+- records signed, rejected, expired, submitted, verification-pending, verification-failed, and ledger-verified states.
 
-`submitted` is intentionally not equivalent to `paid`. Strict XRPL validated-ledger verification is not part of this slice.
+## Validated-ledger verification
+
+The browser sends only the Xaman payload UUID to the verification endpoint. The server re-fetches the Xaman payload and uses its original transaction template, signer account, and transaction ID as the expected values.
+
+The verifier then queries two XRPL Testnet JSON-RPC endpoints and requires:
+
+- a validated transaction;
+- `tesSUCCESS`;
+- `TransactionType = Payment`;
+- the expected signer and destination;
+- native XRP only;
+- the expected transaction amount and actual `delivered_amount`;
+- the configured Source Tag;
+- exact Destination Tag presence and value;
+- the expected InvoiceID;
+- no Partial Payment flag;
+- no cross-currency fields;
+- a transaction hash matching Xaman's result.
+
+A successful check displays `Ledger verified`. This proves the current transaction, but does not yet persist a bill-level `paid` state. The verifier emits a deterministic `testnet:<transactionId>` idempotency key for the later database uniqueness constraint.
 
 ## Local development
 
@@ -61,7 +79,7 @@ pnpm dev
 
 Open `http://localhost:3000`.
 
-The application builds without Xaman credentials. Creating a Testnet Sign Request fails closed until these server-side values are configured:
+The application builds without Xaman credentials. Creating or verifying a Testnet Sign Request fails closed until these server-side values are configured:
 
 ```text
 XAMAN_API_KEY=<developer-console-api-key>
@@ -137,7 +155,7 @@ Later phases are product directions and are not included in the initial release.
 
 Do not submit private keys or seeds to this application.
 
-A transaction hash is not accepted as payment proof by itself. The application verifies the transaction type, network, result, sender, destination, tags, InvoiceID, XRP amount, delivered amount, and duplicate-processing status.
+A transaction hash is not accepted as payment proof by itself. Durable duplicate prevention is not claimed until the later persistence layer enforces a unique transaction key.
 
 ## License
 
