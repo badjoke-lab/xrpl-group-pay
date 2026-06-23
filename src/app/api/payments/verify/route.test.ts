@@ -36,15 +36,26 @@ describe("POST /api/payments/verify", () => {
     expect(invalidId.status).toBe(400);
   });
 
-  it("rejects oversized verification bodies", async () => {
-    const response = await POST(
+  it("rejects oversized verification bodies and declared lengths", async () => {
+    const oversizedBody = await POST(
       new Request("http://localhost/api/payments/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ payloadId: "x".repeat(600) }),
       }),
     );
+    expect(oversizedBody.status).toBe(413);
 
-    expect(response.status).toBe(413);
+    const oversizedDeclaredLength = await POST(
+      new Request("http://localhost/api/payments/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": "513",
+        },
+        body: "{}",
+      }),
+    );
+    expect(oversizedDeclaredLength.status).toBe(413);
   });
 });
