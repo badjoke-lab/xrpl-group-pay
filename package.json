@@ -1,0 +1,57 @@
+{
+  "name": "xrpl-group-pay",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "check:env": "node scripts/check-env.mjs",
+    "build:worker": "opennextjs-cloudflare build",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "validate": "pnpm check:env && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+  },
+  "dependencies": {
+    "clsx": "2.1.1",
+    "lucide-react": "1.21.0",
+    "motion": "12.40.0",
+    "next": "16.2.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "tailwind-merge": "3.6.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@opennextjs/cloudflare": "1.19.11",
+    "@playwright/test": "1.61.0",
+    "@storybook/addon-a11y": "10.4.6",
+    "@storybook/nextjs-vite": "10.4.6",
+    "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "jsdom": "29.1.1",
+    "storybook": "10.4.6",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "4.1.9",
+    "wrangler": "4.103.0"
+  },
+  "packageManager": "pnpm@10.15.1",
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}
