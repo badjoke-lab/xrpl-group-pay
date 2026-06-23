@@ -2,13 +2,13 @@ import "server-only";
 
 import type { XamanEnvironment } from "@/config/server-env";
 
+import type { XamanPaymentPayloadRequest } from "./payment-request";
 import {
   xamanCreatePayloadResponseSchema,
   xamanPayloadResponseSchema,
   type XamanCreatePayloadResponse,
   type XamanPayloadResponse,
 } from "./schemas";
-import type { XamanPaymentPayloadRequest } from "./payment-request";
 
 export class XamanApiError extends Error {
   constructor(
@@ -27,24 +27,27 @@ export class XamanClient {
   ) {}
 
   private async request(path: string, init: RequestInit) {
+    const headers = new Headers(init.headers);
+    headers.set("Accept", "application/json");
+    headers.set("Content-Type", "application/json");
+    headers.set("X-API-Key", this.environment.XAMAN_API_KEY);
+    headers.set("X-API-Secret", this.environment.XAMAN_API_SECRET);
+
     const response = await this.fetcher(
       `${this.environment.XAMAN_API_BASE_URL}${path}`,
       {
         ...init,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "X-API-Key": this.environment.XAMAN_API_KEY,
-          "X-API-Secret": this.environment.XAMAN_API_SECRET,
-          ...init.headers,
-        },
+        headers,
         cache: "no-store",
       },
     );
 
-    const body = await response.json().catch(() => null);
+    const body: unknown = await response.json().catch(() => null);
     if (!response.ok) {
-      throw new XamanApiError("Xaman rejected the payload request.", response.status);
+      throw new XamanApiError(
+        "Xaman rejected the payload request.",
+        response.status,
+      );
     }
 
     return body;
@@ -62,9 +65,10 @@ export class XamanClient {
   }
 
   async getPayload(payloadId: string): Promise<XamanPayloadResponse> {
-    const body = await this.request(`/payload/${encodeURIComponent(payloadId)}`, {
-      method: "GET",
-    });
+    const body = await this.request(
+      `/payload/${encodeURIComponent(payloadId)}`,
+      { method: "GET" },
+    );
 
     return xamanPayloadResponseSchema.parse(body);
   }
