@@ -18,11 +18,13 @@ env:
   NEXT_PUBLIC_APP_NETWORK: testnet
   NEXT_PUBLIC_APP_URL: http://localhost:3000
   ALLOW_MAINNET_BUILD: "false"
+  STORYBOOK_DISABLE_TELEMETRY: "1"
 
 jobs:
   quality:
     name: Quality and runtime compatibility
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -57,14 +59,17 @@ jobs:
         run: pnpm build
 
       - name: Build Storybook
-        run: pnpm build-storybook
+        timeout-minutes: 5
+        run: pnpm build-storybook --quiet
 
       - name: Build Cloudflare Worker output
+        timeout-minutes: 10
         run: pnpm build:worker
 
   e2e:
     name: Browser smoke tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
