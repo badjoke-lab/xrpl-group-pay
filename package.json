@@ -15,12 +15,15 @@
     "storybook:smoke": "storybook dev -p 6006 --ci --smoke-test --no-open --no-version-updates --disable-telemetry --quiet",
     "build-storybook": "storybook build --disable-telemetry",
     "check:env": "node scripts/check-env.mjs",
+    "db:migrate:local": "wrangler d1 migrations apply xrpl-group-pay-testnet --local",
+    "db:migrations:list": "wrangler d1 migrations list xrpl-group-pay-testnet --local",
+    "db:check:local": "node scripts/check-d1-receipt-schema.mjs",
     "build:worker": "opennextjs-cloudflare build",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "validate": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "validate": "pnpm db:migrate:local && pnpm db:check:local && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "dependencies": {
     "clsx": "2.1.1",

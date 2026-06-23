@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { recordedPaymentReceiptSchema } from "@/features/persistence/types";
+
 const transactionHashSchema = z.string().regex(/^[A-F0-9]{64}$/i);
 const dropsSchema = z.string().regex(/^(?:0|[1-9]\d*)$/);
 const uint32Schema = z.number().int().min(0).max(4_294_967_295);
@@ -76,6 +78,19 @@ export const paymentVerificationOutcomeSchema = z.discriminatedUnion("status", [
   failedOutcomeSchema,
 ]);
 
+const recordedVerifiedOutcomeSchema = z
+  .object({
+    status: z.literal("verified"),
+    proof: ledgerVerificationProofSchema,
+    receipt: recordedPaymentReceiptSchema,
+  })
+  .strict();
+
+export const paymentVerificationApiOutcomeSchema = z.discriminatedUnion(
+  "status",
+  [recordedVerifiedOutcomeSchema, pendingOutcomeSchema, failedOutcomeSchema],
+);
+
 export type VerificationPendingReason = z.infer<
   typeof verificationPendingReasonSchema
 >;
@@ -87,4 +102,7 @@ export type LedgerVerificationProof = z.infer<
 >;
 export type PaymentVerificationOutcome = z.infer<
   typeof paymentVerificationOutcomeSchema
+>;
+export type PaymentVerificationApiOutcome = z.infer<
+  typeof paymentVerificationApiOutcomeSchema
 >;

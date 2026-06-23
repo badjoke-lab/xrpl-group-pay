@@ -46,7 +46,7 @@ describe("TestnetPaymentForm", () => {
     expect(screen.getByText(/forces Xaman to use XRPL Testnet/i)).toBeVisible();
   });
 
-  it("moves from Xaman submission to a validated-ledger proof", async () => {
+  it("moves from Xaman submission to a stored validated-ledger proof", async () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(
@@ -92,6 +92,15 @@ describe("TestnetPaymentForm", () => {
             invoiceId: "B".repeat(64),
             idempotencyKey: `testnet:${TXID}`,
             verifiedAt: "2026-06-23T01:02:03.000Z",
+          },
+          receipt: {
+            receiptId: `testnet:${TXID}`,
+            status: "created",
+            network: "testnet",
+            transactionId: TXID,
+            invoiceId: "B".repeat(64),
+            recordedAt: "2026-06-23T01:02:04.000Z",
+            proofDigest: "C".repeat(64),
           },
         }),
       );

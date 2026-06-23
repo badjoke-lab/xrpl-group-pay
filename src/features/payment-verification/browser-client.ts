@@ -1,6 +1,6 @@
 import {
-  paymentVerificationOutcomeSchema,
-  type PaymentVerificationOutcome,
+  paymentVerificationApiOutcomeSchema,
+  type PaymentVerificationApiOutcome,
 } from "./types";
 
 export class PaymentVerificationRequestError extends Error {
@@ -10,7 +10,7 @@ export class PaymentVerificationRequestError extends Error {
   }
 }
 
-function unavailable(message?: unknown): PaymentVerificationOutcome {
+function unavailable(message?: unknown): PaymentVerificationApiOutcome {
   return {
     status: "pending",
     reason: "VERIFICATION_UNAVAILABLE",
@@ -18,11 +18,11 @@ function unavailable(message?: unknown): PaymentVerificationOutcome {
     message:
       typeof message === "string"
         ? message
-        : "The validated ledger is temporarily unavailable. Check again.",
+        : "The validated ledger or receipt storage is temporarily unavailable. Check again.",
   };
 }
 
-function expectedHttpStatus(outcome: PaymentVerificationOutcome) {
+function expectedHttpStatus(outcome: PaymentVerificationApiOutcome) {
   if (outcome.status === "verified") return 200;
   if (outcome.status === "pending") return 202;
   return 422;
@@ -31,7 +31,7 @@ function expectedHttpStatus(outcome: PaymentVerificationOutcome) {
 export async function requestPaymentVerification(
   payloadId: string,
   fetcher: typeof fetch = fetch,
-): Promise<PaymentVerificationOutcome> {
+): Promise<PaymentVerificationApiOutcome> {
   let response: Response;
   try {
     response = await fetcher("/api/payments/verify", {
@@ -45,7 +45,7 @@ export async function requestPaymentVerification(
   }
 
   const body: unknown = await response.json().catch(() => null);
-  const parsed = paymentVerificationOutcomeSchema.safeParse(body);
+  const parsed = paymentVerificationApiOutcomeSchema.safeParse(body);
   if (parsed.success && response.status === expectedHttpStatus(parsed.data)) {
     return parsed.data;
   }

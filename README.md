@@ -4,7 +4,7 @@ XRPL Group Pay is a non-custodial shared-expense settlement application built on
 
 A bill creator allocates an XRP amount to each participant. Participants review and sign their own XRP Payments in Xaman, funds move directly to the recipient, and the application verifies each result on the XRP Ledger before marking it paid.
 
-> The application foundation, Xaman Testnet payment handoff, and strict validated-ledger verification are implemented. Bill persistence and durable duplicate prevention are the next product-state gates before a payment can be stored as paid.
+> The application foundation, Xaman Testnet payment handoff, strict validated-ledger verification, and durable verified-Payment receipts are implemented. Bill and participant-slot persistence are the next product-state gates before a bill-level payment can be marked paid.
 
 ## Core principles
 
@@ -26,8 +26,9 @@ A bill creator allocates an XRP amount to each participant. Participants review 
 - Vitest and Testing Library.
 - Playwright desktop and mobile smoke tests.
 - Cloudflare Workers through the OpenNext adapter.
+- Cloudflare D1 migrations for durable payment receipts.
 - Environment validation with an explicit Mainnet build gate.
-- GitHub Actions checks for lint, types, tests, Storybook, Next.js, and Worker output.
+- GitHub Actions checks for migrations, lint, types, tests, Storybook, Next.js, Worker output, and browser smoke tests.
 
 ## Testnet payment handoff
 
@@ -61,7 +62,20 @@ The verifier then queries two XRPL Testnet JSON-RPC endpoints and requires:
 - no cross-currency fields;
 - a transaction hash matching Xaman's result.
 
-A successful check displays `Ledger verified`. This proves the current transaction, but does not yet persist a bill-level `paid` state. The verifier emits a deterministic `testnet:<transactionId>` idempotency key for the later database uniqueness constraint.
+## Durable payment receipts
+
+A successful verification response is returned only after the normalized proof is stored in D1.
+
+The receipt layer:
+
+- uses `network + transaction_id` as the durable transaction uniqueness boundary;
+- uses `network + invoice_id` to prevent a payment slot identifier from being reused by another transaction;
+- treats repeated observations of the same immutable ledger facts as idempotent success;
+- rejects different verified facts for an already-recorded transaction;
+- preserves the first receipt timestamp;
+- returns a retryable error when storage is unavailable.
+
+A stored receipt proves that the current transaction was verified and durably deduplicated. It does not yet atomically mark a bill or participant slot as paid.
 
 ## Local development
 
@@ -74,6 +88,7 @@ Requirements:
 corepack enable
 pnpm install --frozen-lockfile
 cp .env.example .env.local
+pnpm db:migrate:local
 pnpm dev
 ```
 
@@ -93,6 +108,7 @@ Never expose `XAMAN_API_SECRET` through a `NEXT_PUBLIC_` variable or client-side
 
 ```bash
 pnpm check:env
+pnpm db:migrate:local
 pnpm lint
 pnpm typecheck
 pnpm test
@@ -108,10 +124,13 @@ Next.js development runs in Node.js. Before deployment, verify the application i
 
 ```bash
 cp .dev.vars.example .dev.vars
+pnpm db:migrate:local
 pnpm preview
 ```
 
-No deployment command is run automatically by CI.
+The checked-in D1 configuration uses an all-zero placeholder database ID for local development. Create the remote database and replace that placeholder before deployment. See [`docs/d1-provisioning.md`](docs/d1-provisioning.md).
+
+No deployment command or remote migration runs automatically in CI.
 
 ## Environment safety
 
@@ -139,6 +158,7 @@ The `docs/` directory defines:
 - UI/UX and design tokens.
 - Responsive, motion, and accessibility behavior.
 - Screen inventory and state machines.
+- Persistence scope and D1 provisioning.
 - Open technical decisions.
 
 ## Planned product phases
@@ -155,7 +175,7 @@ Later phases are product directions and are not included in the initial release.
 
 Do not submit private keys or seeds to this application.
 
-A transaction hash is not accepted as payment proof by itself. Durable duplicate prevention is not claimed until the later persistence layer enforces a unique transaction key.
+A transaction hash is not accepted as payment proof by itself. Receipt-level duplicate prevention is enforced in D1, while bill-level atomic payment state remains a later persistence boundary.
 
 ## License
 
