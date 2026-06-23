@@ -59,7 +59,7 @@ describe("requestPaymentVerification", () => {
     },
   );
 
-  it("rejects malformed and infrastructure error responses", async () => {
+  it("keeps infrastructure failures retryable", async () => {
     const fetcher = vi.fn().mockResolvedValue(
       response(
         { error: { message: "XRPL Testnet is temporarily unavailable." } },
@@ -72,11 +72,35 @@ describe("requestPaymentVerification", () => {
         "123e4567-e89b-12d3-a456-426614174000",
         fetcher as unknown as typeof fetch,
       ),
-    ).rejects.toEqual(
-      expect.objectContaining<Partial<PaymentVerificationRequestError>>({
-        name: "PaymentVerificationRequestError",
-        message: "XRPL Testnet is temporarily unavailable.",
-      }),
-    );
+    ).resolves.toEqual({
+      status: "pending",
+      reason: "VERIFICATION_UNAVAILABLE",
+      transactionId: null,
+      message: "XRPL Testnet is temporarily unavailable.",
+    });
+
+    const unreachable = vi.fn().mockRejectedValue(new Error("offline"));
+    await expect(
+      requestPaymentVerification(
+        "123e4567-e89b-12d3-a456-426614174000",
+        unreachable as unknown as typeof fetch,
+      ),
+    ).resolves.toMatchObject({
+      status: "pending",
+      reason: "VERIFICATION_UNAVAILABLE",
+    });
+  });
+
+  it("rejects malformed successful responses", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(response({ unexpected: true }, 200));
+
+    await expect(
+      requestPaymentVerification(
+        "123e4567-e89b-12d3-a456-426614174000",
+        fetcher as unknown as typeof fetch,
+      ),
+    ).rejects.toBeInstanceOf(PaymentVerificationRequestError);
   });
 });
