@@ -1,0 +1,1 @@
+-- Payment slot persistence migration.
