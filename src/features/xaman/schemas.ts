@@ -1,16 +1,8 @@
 import { z } from "zod";
 
-const uint32 = z
-  .number()
-  .int()
-  .min(0)
-  .max(4_294_967_295);
+const uint32 = z.number().int().min(0).max(4_294_967_295);
 
-const uint32Text = z
-  .string()
-  .trim()
-  .max(10)
-  .regex(/^\d+$/);
+const uint32Text = z.string().trim().max(10).regex(/^\d+$/);
 
 const httpsUrl = z
   .string()
@@ -31,9 +23,7 @@ export const createPaymentInputSchema = z
       .min(1)
       .max(64)
       .regex(/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/),
-    destinationTag: z
-      .union([z.literal(""), uint32Text, uint32])
-      .optional(),
+    destinationTag: z.union([z.literal(""), uint32Text, uint32]).optional(),
   })
   .strict();
 
@@ -70,6 +60,7 @@ export const xamanPayloadResponseSchema = z
       .object({
         exists: z.boolean().optional(),
         uuid: z.string().uuid().optional(),
+        submit: z.boolean().optional(),
         resolved: z.boolean(),
         signed: z.boolean(),
         cancelled: z.boolean().optional().default(false),
@@ -77,6 +68,18 @@ export const xamanPayloadResponseSchema = z
         opened_by_deeplink: z.boolean().optional(),
       })
       .passthrough(),
+    payload: z
+      .object({
+        tx_type: z.string(),
+        tx_destination: z.string().nullable().optional(),
+        tx_destination_tag: uint32.nullable().optional(),
+        request_json: z.record(z.string(), z.unknown()),
+        created_at: z.string().optional(),
+        expires_at: z.string().optional(),
+        expires_in_seconds: z.number().optional(),
+      })
+      .passthrough()
+      .optional(),
     response: z
       .object({
         txid: z
@@ -85,6 +88,7 @@ export const xamanPayloadResponseSchema = z
           .nullable()
           .optional(),
         hex: z.string().nullable().optional(),
+        account: z.string().nullable().optional(),
         resolved_at: z.string().nullable().optional(),
       })
       .passthrough(),

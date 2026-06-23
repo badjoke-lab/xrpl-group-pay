@@ -1,0 +1,115 @@
+import { z } from "zod";
+
+import {
+  getXamanEnvironment,
+  XamanConfigurationError,
+} from "@/config/server-env";
+import { verifyXamanPayment } from "@/features/payment-verification/service";
+import { XamanApiError, XamanClient } from "@/features/xaman/client";
+import {
+  XrplNodeUnavailableError,
+  XrplTestnetClient,
+} from "@/features/xrpl/client";
+
+export const dynamic = "force-dynamic";
+
+const verificationInputSchema = z
+  .object({ payloadId: z.string().uuid() })
+  .strict();
+
+function json(body: unknown, status: number) {
+  return Response.json(body, {
+    status,
+    headers: { "Cache-Control": "no-store" },
+  });
+}
+
+export async function POST(request: Request) {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().startsWith("application/json")) {
+    return json(
+      {
+        error: {
+          code: "UNSUPPORTED_MEDIA_TYPE",
+          message: "Send the verification request as JSON.",
+        },
+      },
+      415,
+    );
+  }
+
+  let input: z.infer<typeof verificationInputSchema>;
+  try {
+    const raw = await request.text();
+    if (new TextEncoder().encode(raw).byteLength > 512) {
+      return json(
+        {
+          error: {
+            code: "VERIFICATION_REQUEST_TOO_LARGE",
+            message: "The verification request is too large.",
+          },
+        },
+        413,
+      );
+    }
+    input = verificationInputSchema.parse(JSON.parse(raw) as unknown);
+  } catch {
+    return json(
+      {
+        error: {
+          code: "INVALID_VERIFICATION_INPUT",
+          message: "Provide a valid Xaman payload identifier.",
+        },
+      },
+      400,
+    );
+  }
+
+  try {
+    const environment = getXamanEnvironment();
+    const xaman = new XamanClient(environment);
+    const xrpl = new XrplTestnetClient();
+    const outcome = await verifyXamanPayment(input.payloadId, {
+      getXamanPayload: (payloadId) => xaman.getPayload(payloadId),
+      getXrplTransaction: (transactionId) =>
+        xrpl.getTransaction(transactionId),
+      sourceTag: environment.XRPL_SOURCE_TAG,
+    });
+
+    if (outcome.status === "pending") {
+      return json(outcome, 202);
+    }
+    if (outcome.status === "failed") {
+      return json(outcome, 422);
+    }
+    return json(outcome, 200);
+  } catch (error) {
+    if (error instanceof XamanConfigurationError) {
+      return json(
+        { error: { code: "XAMAN_NOT_CONFIGURED", message: error.message } },
+        503,
+      );
+    }
+    if (error instanceof XamanApiError) {
+      return json(
+        { error: { code: "XAMAN_API_ERROR", message: error.message } },
+        502,
+      );
+    }
+    if (error instanceof XrplNodeUnavailableError) {
+      return json(
+        { error: { code: "XRPL_UNAVAILABLE", message: error.message } },
+        502,
+      );
+    }
+    return json(
+      {
+        error: {
+          code: "PAYMENT_VERIFICATION_FAILED",
+          message: "The Payment could not be verified.",
+        },
+      },
+      500,
+    );
+  }
+}
