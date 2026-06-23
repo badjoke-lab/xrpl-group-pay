@@ -64,7 +64,18 @@ jobs:
           retention-days: 1
 
       - name: Run unit and component tests
-        run: pnpm test
+        id: tests
+        run: |
+          set -o pipefail
+          pnpm test 2>&1 | tee tests.log
+
+      - name: Upload test diagnostics
+        if: failure() && steps.tests.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-diagnostics
+          path: tests.log
+          retention-days: 1
 
       - name: Build Next.js application
         run: pnpm build
