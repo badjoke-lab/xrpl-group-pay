@@ -4,7 +4,7 @@ import {
   getXamanEnvironment,
   XamanConfigurationError,
 } from "@/config/server-env";
-import { createStoredSlotPayload } from "@/features/bills/create-slot-payload";
+import { createPersistedSlotPayload } from "@/features/bills/create-persisted-payload";
 import {
   PaymentSlotNotFoundError,
   PaymentSlotStateError,
@@ -13,7 +13,13 @@ import {
   getPaymentsDatabase,
   PaymentsDatabaseUnavailableError,
 } from "@/features/persistence/cloudflare-d1";
-import { XamanApiError, XamanClient } from "@/features/xaman/client";
+import {
+  ActiveRequestError,
+  RequestPersistenceError,
+} from "@/features/persistence/request-state-errors";
+import { WalletProviderError } from "@/features/wallet-providers/types";
+import { XamanApiError } from "@/features/xaman/client";
+import { createXamanProvider } from "@/features/xaman/provider";
 
 export const dynamic = "force-dynamic";
 
@@ -31,10 +37,10 @@ const defaultDependencies: SlotPayloadRouteDependencies = {
   async createPayload(paymentToken) {
     const database = await getPaymentsDatabase();
     const environment = getXamanEnvironment();
-    const xaman = new XamanClient(environment);
-    return createStoredSlotPayload(database, paymentToken, {
+    const provider = createXamanProvider(environment);
+    return createPersistedSlotPayload(database, paymentToken, {
       sourceTag: environment.XRPL_SOURCE_TAG,
-      createXamanPayload: (request) => xaman.createPayload(request),
+      createPayload: (request) => provider.createPayloadRequest(request),
     });
   },
 };
@@ -110,9 +116,21 @@ export async function handleCreateSlotPayloadRequest(
         409,
       );
     }
+    if (error instanceof ActiveRequestError) {
+      return json(
+        {
+          error: {
+            code: "ACTIVE_HANDOFF_EXISTS",
+            message: error.message,
+          },
+        },
+        409,
+      );
+    }
     if (
       error instanceof PaymentsDatabaseUnavailableError ||
-      error instanceof XamanConfigurationError
+      error instanceof XamanConfigurationError ||
+      error instanceof RequestPersistenceError
     ) {
       return json(
         {
@@ -124,9 +142,22 @@ export async function handleCreateSlotPayloadRequest(
         503,
       );
     }
+    if (error instanceof WalletProviderError) {
+      return json(
+        {
+          error: {
+            code: "WALLET_PROVIDER_ERROR",
+            provider: error.providerId,
+            reason: error.code,
+            message: error.message,
+          },
+        },
+        error.code === "UNSUPPORTED_INTENT" ? 422 : 502,
+      );
+    }
     if (error instanceof XamanApiError) {
       return json(
-        { error: { code: "XAMAN_API_ERROR", message: error.message } },
+        { error: { code: "WALLET_PROVIDER_ERROR", message: error.message } },
         502,
       );
     }
@@ -134,7 +165,7 @@ export async function handleCreateSlotPayloadRequest(
       {
         error: {
           code: "PAYLOAD_CREATION_FAILED",
-          message: "The Xaman Sign Request could not be created.",
+          message: "The Wallet Handoff could not be created.",
         },
       },
       500,
