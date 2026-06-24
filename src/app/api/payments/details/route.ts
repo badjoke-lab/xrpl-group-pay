@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 import {
-  getXamanEnvironment,
-  XamanConfigurationError,
-} from "@/config/server-env";
+  getConfiguredSourceTag,
+  SourceTagConfigurationError,
+} from "@/config/source-tag";
 import { loadPayablePaymentDetails } from "@/features/bills/payment-details";
 import {
   PaymentSlotNotFoundError,
@@ -29,11 +29,10 @@ export type PaymentDetailsRouteDependencies = {
 const defaultDependencies: PaymentDetailsRouteDependencies = {
   async loadDetails(paymentToken) {
     const database = await getPaymentsDatabase();
-    const environment = getXamanEnvironment();
     return loadPayablePaymentDetails(
       database,
       paymentToken,
-      environment.XRPL_SOURCE_TAG,
+      getConfiguredSourceTag(),
     );
   },
 };
@@ -111,7 +110,7 @@ export async function handlePaymentDetailsRequest(
     }
     if (
       error instanceof PaymentsDatabaseUnavailableError ||
-      error instanceof XamanConfigurationError
+      error instanceof SourceTagConfigurationError
     ) {
       return json(
         {
