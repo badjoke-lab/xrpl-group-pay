@@ -1,49 +1,90 @@
 # XRPL Group Pay — D1 Provisioning
 
-## Purpose
+**Status:** Active  
+**Scope:** Local, Testnet, and Mainnet D1 provisioning and migration controls  
+**Last reviewed:** 2026-06-24  
+**Document class:** Public
 
-The `PAYMENTS_DB` binding stores only server-verified XRP Payment receipts. It does not store seeds, private keys, raw signed blobs, participant capabilities, or bill titles.
+## 1. Purpose
 
-## Local database
+The `PAYMENTS_DB` binding stores Bills, PaymentSlots, capability hashes, verified receipts, accepted transaction references, progress state, and public proof lookup data.
 
-The repository uses an all-zero D1 identifier so local migrations and Worker builds can run without a production database.
+It does not store wallet signing material or raw signed transaction data by default.
+
+## 2. Local database
+
+The repository uses a non-deployable placeholder D1 identifier so local migrations and Worker builds can run without a production database.
 
 ```bash
 pnpm db:migrate:local
+pnpm db:check:local
 pnpm preview
 ```
 
-The all-zero identifier is intentionally not deployable.
-
-## Create the Testnet database
+## 3. Testnet database
 
 ```bash
 pnpm exec wrangler d1 create xrpl-group-pay-testnet
-```
-
-Copy the returned database ID into `wrangler.jsonc` for both `database_id` and `preview_database_id`, replacing the all-zero placeholder.
-
-Apply migrations by immutable database name:
-
-```bash
 pnpm exec wrangler d1 migrations apply xrpl-group-pay-testnet --remote
 ```
 
-No remote migration or deployment runs in CI.
+Replace the local placeholder only in the approved Testnet configuration. CI does not apply remote migrations.
 
-## Release checks
+## 4. Mainnet database
 
-Before a public preview:
+Mainnet uses a separate immutable database name, identifier, environment configuration, and migration procedure.
 
-1. Confirm the binding name is `PAYMENTS_DB`.
-2. Confirm the real database ID replaced the placeholder.
-3. Apply all migrations remotely.
-4. Execute one credentialed Testnet Payment.
-5. Confirm the first verification returns a created receipt.
-6. Confirm an exact retry returns the existing receipt.
-7. Confirm another transaction cannot reuse the same InvoiceID.
-8. Confirm application logs contain no Xaman credentials or capability tokens.
+```bash
+pnpm exec wrangler d1 create xrpl-group-pay-mainnet
+pnpm exec wrangler d1 migrations apply xrpl-group-pay-mainnet --remote
+```
 
-## Scope boundary
+Testnet data is not copied automatically to Mainnet.
 
-This database currently contains verified Payment receipts only. Bills, participant slots, capability hashes, Xaman payload lifecycle records, retention jobs, and bill-level paid transitions are separate later migrations.
+## 5. Forward migration policy
+
+- migrations are versioned and append-only after release;
+- schema changes move forward rather than editing applied migration files;
+- migrations preserve readable XRP records;
+- existing XRP proof digests remain unchanged;
+- issued-asset receipt fields are added through a new migration;
+- network, asset, issuer, and Receipt Contract constraints are checked;
+- a migration is tested from both an empty database and the current production-shaped schema.
+
+## 6. Asset-aware migration gate
+
+Before applying the XRP/RLUSD migration remotely:
+
+1. validate XRP legacy fixtures;
+2. validate official Testnet and Mainnet RLUSD Asset Registry values;
+3. verify issuer presence for issued assets and absence for native XRP;
+4. verify canonical obligation and settlement units;
+5. verify Receipt Contract assignment;
+6. verify transaction and InvoiceID uniqueness;
+7. verify a failed migration does not deploy application code expecting the new schema.
+
+## 7. Testnet release checks
+
+1. Confirm the binding targets the Testnet database.
+2. Apply all migrations remotely.
+3. Create and settle one XRP Testnet Bill.
+4. Confirm exact re-verification returns the existing XRP receipt.
+5. After RLUSD implementation, create and settle one official RLUSD Testnet Bill.
+6. Confirm wrong issuer and wrong network are rejected.
+7. Confirm logs and public pages do not expose complete private shared links.
+
+## 8. Mainnet release checks
+
+1. Confirm the binding targets only the Mainnet database.
+2. Confirm Mainnet XRPL endpoints and Asset Registry values.
+3. Apply migrations under the production checklist.
+4. Run controlled small-value XRP settlement and proof.
+5. Run controlled small-value RLUSD settlement and proof.
+6. Verify asset-specific limits and Source Tag.
+7. Verify emergency disable behavior does not alter stored receipts.
+
+## 9. Recovery
+
+Application deployment may be disabled or rolled back independently of immutable migration history. A corrective migration is preferred over rewriting an applied migration.
+
+Durable receipts and accepted ledger facts are not deleted merely to make a failed deployment appear successful.

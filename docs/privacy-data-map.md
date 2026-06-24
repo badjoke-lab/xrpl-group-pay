@@ -1,226 +1,100 @@
 # XRPL Group Pay — Privacy Data Map
 
-**Status:** Draft for PR 1  
-**Document class:** Public  
-**Principle:** Collect the minimum data required to coordinate and verify payments.
+**Status:** Active  
+**Scope:** Approved Make Waves v1 data map  
+**Last reviewed:** 2026-06-24  
+**Document class:** Public
 
-## 1. Privacy principles
+## 1. Principle
 
-1. No private keys or seeds.
-2. No personal information in XRPL Memos.
-3. No requirement for real names.
-4. Participant labels are optional and may be pseudonyms.
-5. Capability tokens are treated as secrets.
-6. Public XRPL data is not represented as private.
-7. Logs contain operational facts, not payment-page secrets.
-8. Retention is limited and documented.
-9. Payment and management pages avoid third-party tracking scripts.
+XRPL Group Pay stores only the data needed to create Bills, coordinate participants, verify settlement, show progress, and publish reviewed proof fields.
 
-## 2. Data classification
+The product does not require real names and does not place Bill titles, participant labels, contact details, or expense descriptions in XRPL Memos.
 
-### Public
+## 2. Public ledger facts
 
-Already public on the XRP Ledger or intentionally published in a proof:
+A validated XRPL Payment can reveal transaction identifier, ledger index, sender, destination, asset identity, currency and issuer for RLUSD, requested and delivered amount, tags, InvoiceID, result, validation status, and ledger time.
 
-- Transaction hash.
-- Ledger index.
-- Sender XRPL address.
-- Destination XRPL address.
-- XRP amount.
-- Source Tag.
-- Destination Tag, when present.
-- InvoiceID.
-- Transaction result.
-- Validation status.
+These facts remain public on XRPL independently of the application.
 
-### Private application data
+## 3. Private application facts
 
-- Bill title.
-- Participant label.
-- Bill state.
-- Payment-slot state.
-- Expected payer address before it appears on-ledger.
-- Capability-protected progress data.
-- Internal entity IDs.
-- Xaman payload identifier.
-- Operational timestamps.
+- Bill title and participant label;
+- Bill and PaymentSlot state;
+- expected payer before payment;
+- Accounting Currency and obligation amount;
+- Allocation Strategy and metadata;
+- creator share;
+- Wallet Provider request state;
+- selected interface locale;
+- later Settlement Quote details.
 
-### Restricted
+## 4. Stored settlement facts
 
-- Xaman API key and secret.
-- Webhook verification secret.
-- Management capability.
-- Participant capability.
-- Secret environment configuration.
-- Raw authorization headers.
-- Temporary diagnostic payloads containing sensitive operational data.
+The application may store network, Payment Rail, Settlement Asset ID, exact currency and issuer, canonical obligation and Settlement Amount units, destination, tags, InvoiceID, verified transaction facts, Receipt Contract, proof digest, and lifecycle timestamps.
 
-The application never intentionally collects seeds or private keys. If such content is submitted to an input unexpectedly, it must not be stored and must trigger a security review.
+RLUSD is never represented by ticker alone in stored verification or proof data.
 
-## 3. Data inventory
+## 5. RLUSD readiness
 
-| Data | Source | Purpose | Classification | Stored |
-|---|---|---|---|---|
-| Bill title | Creator | Identify bill off-chain | Private | Yes |
-| Total drops | Creator | Validate allocation | Private, later inferable | Yes |
-| Destination address | Creator | Build and verify Payment | Public after payment | Yes |
-| Destination Tag | Creator | Route recipient credit | Public after payment | Yes when supplied |
-| Creator share | Creator | Reconcile total | Private | Yes |
-| Participant label | Creator | Human-readable coordination | Private | Optional |
-| Expected payer address | Creator or future wallet claim | Verify sender | Private before payment, public after | Yes |
-| Expected drops | Creator | Build and verify Payment | Private before payment | Yes |
-| InvoiceID | Application | Slot correlation | Public after payment | Yes |
-| Source Tag | Deployment config | Attribution | Public | Yes/reference |
-| Xaman payload UUID | Xaman | Track sign request | Private | Yes |
-| Payload status | Xaman | Drive state | Private | Yes |
-| Transaction hash | Xaman/XRPL | Verification and proof | Public | Yes |
-| Validated transaction facts | XRPL | Payment proof | Public | Yes |
-| Capability token | Application | Authorization | Restricted | Hash only where practical |
-| IP address | Network infrastructure | Security/rate limit | Private | Avoid persistent application storage |
-| User agent | Browser | Compatibility/security | Private | Minimized |
-| Logs | Application | Reliability/security | Private | Yes, redacted |
+Recipient readiness may inspect the destination account and official-issuer trust-line state. Store only the normalized result and observation time needed to explain and audit the readiness decision.
 
-## 4. On-chain disclosure
+Readiness data is not automatically published in a transaction proof.
 
-XRPL transactions are public by design. A successful Payment can expose:
+## 6. Shared links and locale
 
-- Sender address.
-- Destination address.
-- Amount.
-- Tags.
-- InvoiceID.
-- Time and ledger location.
+Participant payment, read-only progress, creator management, and public proof access remain separate.
 
-The application must tell users before Mainnet signing that this information cannot be removed from the ledger.
+Switching between English, Japanese, and Korean preserves the same access scope and must not expose private Bill or participant content through public metadata.
 
-InvoiceID must remain opaque. It must not encode:
+## 7. Public proof
 
-- Bill title.
-- Participant name.
-- Email.
-- Phone number.
-- Event name.
-- Detailed purchase description.
+Public proof uses a Receipt Contract-specific allowlist. It excludes Bill title, participant label, Wallet Provider request details, private application identifiers, and operational diagnostics. Issued-asset proof shows the issuer in full.
 
-## 5. Capability URLs
+## 8. Localization
 
-Capability URLs provide access without requiring an account.
+System labels, warnings, states, and errors are translated. User-entered content is not translated automatically.
 
-Controls:
+Stored values, API fields, Payment Intents, receipts, and proof digests are identical across locales.
 
-- Cryptographic randomness.
-- Hash at rest.
-- Role separation.
-- No capability in logs.
-- No third-party analytics.
-- No capability included in screenshots by default.
-- Revocation for unused payment links.
-- Rotation for management access.
-- `Referrer-Policy: no-referrer`.
-
-## 6. Proposed retention schedule
-
-This schedule is an initial product policy and may be revised before Mainnet release.
+## 9. Retention
 
 | Data | Proposed retention |
 |---|---|
-| Abandoned draft bill | 30 days after last activity |
-| Expired unused Xaman payload | 30 days after expiry |
-| Normalized webhook event | 30 days after resolution |
-| Raw webhook body | Not retained after verification, except short-lived secure diagnostics |
+| Browser-local abandoned draft | Not stored by the server |
+| Expired unused wallet handoff | 30 days after expiry |
+| Normalized provider event | 30 days after resolution |
 | Application logs | 14 days |
-| Rate-limit identifiers | Maximum 24 hours unless investigating abuse |
-| Active bill | Until final state |
-| Settled/expired/cancelled bill data | 365 days after final state |
-| Management and participant capability hashes | Delete or invalidate when retention period ends |
-| Public transaction facts required for proof | Up to 365 days in application; remain public on XRPL independently |
-| Security incident evidence | As required for the incident, access restricted and documented |
+| Active Bill | Until final state |
+| Final Bill and PaymentSlot data | 365 days after final state |
+| Public receipt facts | Up to 365 days in the application; ledger facts remain public |
 
-Before deletion, the application may offer a user-initiated export.
+The schedule is reviewed before Mainnet release.
 
-## 7. Deletion behavior
+## 10. Deletion
 
-Deleting application data cannot delete XRPL transaction data.
+Application deletion may remove off-chain titles, labels, unused expected payer data, provider references, locale preferences, and progress records according to retention policy. It cannot remove or rewrite XRPL history.
 
-Application deletion may remove:
+## 11. Operational records
 
-- Bill title.
-- Participant labels.
-- Capability hashes.
-- Expected but unused payer addresses.
-- Off-chain progress records no longer required.
-- Xaman payload references.
-- Application proof page.
+Operational records use request IDs, operation names, normalized error codes, network, Payment Rail, Wallet Provider ID, Asset ID, locale, and shortened transaction identifiers.
 
-The privacy notice must distinguish application deletion from ledger immutability.
+They do not include private Bill contents, participant labels, complete shared links, or complete provider responses unless a specific short-lived diagnostic is approved.
 
-## 8. Logging and monitoring
+## 12. User notices
 
-Do not log:
+Before Bill freeze, show destination, Settlement Asset, public-ledger disclosure, storage purpose, and RLUSD issuer/readiness information where applicable.
 
-- Capability tokens.
-- Xaman secret.
-- Authorization headers.
-- Complete management URLs.
-- Seed/private-key-like input.
-- Participant labels.
-- Raw signed blobs by default.
+Before payment, show asset, amount, destination, tags, network, Wallet Provider, the distinction between RLUSD amount and XRP network fee, and the fact that Group Pay cannot reverse validated settlement.
 
-Logs should use:
+## 13. Mainnet privacy gate
 
-- Request correlation IDs.
-- Internal non-secret entity IDs.
-- Error codes.
-- Network.
-- Operation name.
-- Truncated transaction hash where necessary.
-
-## 9. Third parties
-
-Expected categories:
-
-- Hosting provider.
-- Database provider.
-- Xaman.
-- XRPL node provider.
-- Error-monitoring provider, only if configured with strict redaction.
-
-A third-party processor must not receive capability tokens or unrestricted page contents merely for analytics.
-
-## 10. User-facing notices
-
-Before creating a bill:
-
-- Recipient address must be correct.
-- Payment records are public on XRPL.
-- The application does not hold funds.
-- Off-chain bill data is stored for coordination.
-
-Before paying:
-
-- Amount, destination, Destination Tag, and network.
-- Xaman will request the signature.
-- A validated Mainnet payment cannot be removed from XRPL.
-- Group Pay verifies but cannot reverse the payment.
-
-## 11. Data-subject operations
-
-Where applicable, the product should support:
-
-- Export of application-held bill data.
-- Deletion of capability-protected off-chain data.
-- Correction before bill freezing.
-- Contact route for privacy requests.
-- Clear explanation of on-chain data limitations.
-
-## 12. Mainnet privacy gate
-
-Mainnet release requires:
-
-- Published privacy notice.
-- Approved retention schedule.
-- Capability-token redaction test.
-- No third-party analytics on sensitive routes.
-- Verified database access controls.
-- Data deletion test.
-- On-chain disclosure warning reviewed in the UI.
+- published privacy notice;
+- approved retention policy;
+- shared-link redaction tests;
+- no third-party analytics on sensitive routes;
+- database-access review;
+- deletion and retention tests;
+- English, Japanese, and Korean disclosure warnings;
+- issued-asset proof review;
+- locale-routing review.
