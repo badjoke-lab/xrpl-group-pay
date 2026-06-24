@@ -41,14 +41,6 @@ function shortValue(value: string, start = 12, end = 10) {
     : value;
 }
 
-function formatTimestamp(value: string) {
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "medium",
-    timeZone: "UTC",
-  }).format(new Date(value));
-}
-
 function requestErrorMessage(error: unknown) {
   return error instanceof PublicProofRequestError
     ? error.message
@@ -178,8 +170,9 @@ function ProofSnapshot({ proof }: { proof: PublicTransactionProof }) {
               Verified transaction facts
             </h3>
             <p className="mt-1 text-sm text-muted">
-              Bill titles, participant labels, expected pre-payment data, and
-              Xaman payload identifiers are not included.
+              Bill titles, participant labels, expected pre-payment data,
+              operational timestamps, and Xaman payload identifiers are not
+              included.
             </p>
           </div>
         </div>
@@ -200,22 +193,21 @@ function ProofSnapshot({ proof }: { proof: PublicTransactionProof }) {
           <ProofField label="Source Tag" value={String(proof.sourceTag)} />
           <ProofField
             label="Destination Tag"
-            value={proof.destinationTag === null ? "Not present" : String(proof.destinationTag)}
-          />
-          <ProofField
-            label="Ledger verified at"
-            value={`${formatTimestamp(proof.verifiedAt)} UTC`}
-          />
-          <ProofField
-            label="Receipt recorded at"
-            value={`${formatTimestamp(proof.recordedAt)} UTC`}
+            value={
+              proof.destinationTag === null
+                ? "Not present"
+                : String(proof.destinationTag)
+            }
           />
         </dl>
       </section>
 
       <section className="rounded-xl border border-border bg-background p-5 sm:p-6">
         <div className="flex items-start gap-3">
-          <Fingerprint aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-brand" />
+          <Fingerprint
+            aria-hidden="true"
+            className="mt-0.5 size-5 shrink-0 text-brand"
+          />
           <div className="min-w-0">
             <h3 className="font-semibold">Proof digest</h3>
             <p className="mt-1 text-sm leading-6 text-muted">
@@ -295,7 +287,10 @@ function ProofError({
 }) {
   return (
     <section className="mx-auto max-w-xl rounded-xl border border-danger/25 bg-surface p-7 text-center shadow-sm sm:p-9">
-      <CircleAlert aria-hidden="true" className="mx-auto size-11 text-danger" />
+      <CircleAlert
+        aria-hidden="true"
+        className="mx-auto size-11 text-danger"
+      />
       <h2 className="mt-4 font-heading text-2xl font-semibold">{title}</h2>
       <p className="mt-3 leading-7 text-muted">{message}</p>
       {action && <div className="mt-6">{action}</div>}
