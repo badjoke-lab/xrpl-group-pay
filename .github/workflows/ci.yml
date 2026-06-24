@@ -53,7 +53,18 @@ jobs:
         run: pnpm db:check:local
 
       - name: Lint
-        run: pnpm lint
+        id: lint
+        run: |
+          set -o pipefail
+          pnpm lint 2>&1 | tee lint.log
+
+      - name: Upload lint diagnostics
+        if: failure() && steps.lint.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-diagnostics
+          path: lint.log
+          retention-days: 1
 
       - name: Type-check
         id: typecheck
@@ -120,4 +131,15 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run browser smoke tests
-        run: pnpm test:e2e
+        id: e2e
+        run: |
+          set -o pipefail
+          pnpm test:e2e 2>&1 | tee e2e.log
+
+      - name: Upload browser diagnostics
+        if: failure() && steps.e2e.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-diagnostics
+          path: e2e.log
+          retention-days: 1
