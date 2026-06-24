@@ -46,8 +46,9 @@ SUPERSEDED
 | OD-025 | Error monitoring provider? | Optional only with strict redaction | Secret and capability leakage test | Before Mainnet | OPEN |
 | OD-026 | Circle integration boundary? | Keep payment verification reusable; do not implement Circle entities in MVP | Architecture review | Product specification | DECIDED |
 | OD-027 | What is the source of expected Payment values during verification? | Server-fetch the Xaman payload by UUID and use its original template, signer, and txid; never trust client-supplied expected fields | Xaman response types and tamper-boundary tests | Validated-ledger verification | DECIDED |
-| OD-028 | When is duplicate processing durably prevented? | Enforce unique `network + transaction_id` and `network + invoice_id` receipt constraints now; add the atomic bill/slot paid transition with the bill data model | D1 migration, conflict tests, concurrent retry tests, and later bill transaction tests | Receipt layer decided; bill layer pending | DECIDED |
+| OD-028 | When is duplicate processing durably prevented? | Enforce unique `network + transaction_id` and `network + invoice_id`, then atomically insert or reuse the receipt, mark the slot paid, and recompute the bill; exact retries are idempotent and a competing transaction is rejected | D1 migration, readback, conflict, and concurrent-winner tests | Bill and slot persistence | DECIDED |
 | OD-029 | Which fields define an identical verified Payment proof? | Hash immutable ledger and expected-Payment facts; exclude verification and receipt observation timestamps so later re-verification remains idempotent | Re-verification test with different observation timestamps | Verified receipt persistence | DECIDED |
+| OD-030 | What does a read-only bill-progress capability reveal? | Show amounts, slot states, and verified public transaction references; hide participant labels, expected payer addresses, and InvoiceIDs. The creator capability may show the full management view | Capability-role, redaction, API, and UI tests | Bill progress view | DECIDED |
 
 ## Decision record template
 

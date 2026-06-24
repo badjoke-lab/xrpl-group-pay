@@ -4,7 +4,7 @@ XRPL Group Pay is a non-custodial shared-expense settlement application built on
 
 A bill creator allocates an XRP amount to each participant. Participants open their own capability link, review and sign an exact XRP Payment in Xaman, and send funds directly to the creator. The application marks a participant slot paid only after the submitted transaction is verified on a validated XRP Ledger.
 
-> The current application is Testnet-only. It implements frozen bills, participant payment slots, capability-bound Xaman handoff, validated-ledger verification, durable receipts, and atomic bill-state updates.
+> The current application is Testnet-only. It implements frozen bills, participant payment slots, capability-bound Xaman handoff, validated-ledger verification, durable receipts, atomic bill-state updates, and capability-protected bill progress.
 
 ## Core principles
 
@@ -40,9 +40,10 @@ The `/testnet/bill` creator flow:
 - creates one frozen Bill and all PaymentSlots in a single D1 batch;
 - creates independent 256-bit capability tokens and stores only their SHA-256 hashes;
 - assigns a unique opaque InvoiceID to every participant slot;
-- returns each raw capability once so the creator can share a separate participant link.
+- returns each raw capability once so the creator can share a separate participant link;
+- exposes separate creator-progress and read-only-progress capabilities.
 
-Participant links place the capability in the URL fragment. The page request therefore does not include the capability in its path or query string. Each link must still be treated as a private invitation.
+Capabilities are placed in URL fragments. The initial page request therefore does not include them in its path or query string. Each link must still be treated as a private invitation.
 
 ## Participant payment handoff
 
@@ -95,6 +96,17 @@ The settlement boundary:
 - prevents a receipt from being inserted when the slot is no longer eligible;
 - does not overwrite a slot placed in `needs_review`;
 - returns retryable errors when storage is unavailable.
+
+## Bill progress and role separation
+
+The `/testnet/bill/progress#token=...` flow loads the Bill and every PaymentSlot in one D1 batch through a hashed capability.
+
+- The creator capability shows participant labels, expected payer addresses, InvoiceIDs, amounts, slot states, and verified transaction references.
+- The read-only capability shows amounts, slot states, and verified public transaction references while hiding participant labels, expected payer addresses, and InvoiceIDs.
+- Malformed and unknown capabilities use the same not-found response.
+- Progress responses use `Cache-Control: no-store`.
+- The browser never sends a capability in the page path or query string.
+- A settled banner appears only when the durable Bill state is `settled`.
 
 ## Local development
 
