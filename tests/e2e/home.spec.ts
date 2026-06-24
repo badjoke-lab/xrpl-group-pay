@@ -146,8 +146,8 @@ test("renders a public verified transaction proof", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "3 XRP delivered" }),
   ).toBeVisible();
-  await expect(page.getByText("tesSUCCESS")).toBeVisible();
-  await expect(page.getByText("Validated")).toBeVisible();
+  await expect(page.getByText("tesSUCCESS", { exact: true })).toBeVisible();
+  await expect(page.getByText("Validated", { exact: true })).toBeVisible();
   await expect(page.getByText("Bill titles", { exact: false })).toBeVisible();
   await expect(page.getByText("XRPL Meetup Dinner")).toHaveCount(0);
 });
