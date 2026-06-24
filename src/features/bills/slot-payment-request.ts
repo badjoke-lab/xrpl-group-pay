@@ -1,8 +1,5 @@
 import type { PaymentIntent } from "@/features/payment-intents/types";
 import { createXrpPaymentIntent } from "@/features/payment-intents/xrp";
-import type { XamanPaymentPayloadRequest } from "@/features/xaman/payment-request";
-import { TESTNET_FORCE_NETWORK } from "@/features/xaman/payment-request";
-import { buildXrpPaymentTransaction } from "@/features/xrpl/payment-builder";
 
 import type { ResolvedPaymentSlot } from "./payment-slot";
 
@@ -34,21 +31,4 @@ export function buildStoredSlotPaymentIntent(
     revision: 1,
     now,
   });
-}
-
-export function buildStoredSlotPaymentPayload(
-  slot: ResolvedPaymentSlot,
-  sourceTag: number,
-  now = new Date(),
-): XamanPaymentPayloadRequest {
-  const intent = buildStoredSlotPaymentIntent(slot, sourceTag, now);
-
-  return {
-    txjson: buildXrpPaymentTransaction(intent),
-    options: {
-      submit: true,
-      expire: 5,
-      force_network: TESTNET_FORCE_NETWORK,
-    },
-  };
 }
