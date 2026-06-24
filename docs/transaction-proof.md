@@ -50,8 +50,6 @@ The proof API publishes only facts that are already public on the XRP Ledger or 
 - Source Tag;
 - optional Destination Tag;
 - InvoiceID;
-- verification timestamp;
-- receipt-recording timestamp;
 - proof digest.
 
 ## 4. Excluded fields
@@ -65,6 +63,7 @@ The proof API and page do not publish:
 - expected payer data before the payment appeared on-ledger;
 - Xaman payload UUID;
 - internal Bill, PaymentSlot, or receipt IDs;
+- verification and receipt-recording timestamps;
 - operational diagnostics.
 
 A proof viewer cannot edit the bill, alter a payment slot, or initiate a replacement payment.
@@ -95,4 +94,4 @@ The application does not use third-party analytics on proof pages. Logs must not
 
 The public page reads the durable receipt created by the validated-ledger verification pipeline. Viewing a proof does not resubmit a transaction, move funds, or mutate bill state.
 
-A proof receipt records what Group Pay verified at the stated time. The underlying XRP Ledger transaction remains independently public and immutable.
+The proof records the exact public ledger facts accepted by the verification pipeline. The underlying XRP Ledger transaction remains independently public and immutable.
