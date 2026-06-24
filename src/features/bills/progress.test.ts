@@ -134,6 +134,12 @@ describe("loadBillProgressByToken", () => {
           invoiceId: "A".repeat(64),
           paidTransactionId: "C".repeat(64),
         },
+        {
+          participantLabel: "Blair",
+          expectedPayerAddress: "rBlair",
+          invoiceId: "B".repeat(64),
+          status: "needs_review",
+        },
       ],
     });
 
