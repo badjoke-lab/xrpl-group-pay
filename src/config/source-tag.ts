@@ -18,7 +18,7 @@ export class SourceTagConfigurationError extends Error {
 }
 
 export function getConfiguredSourceTag(
-  input: { XRPL_SOURCE_TAG?: string } = process.env,
+  input: Record<string, string | undefined> = process.env,
 ): number {
   const parsed = sourceTagSchema.safeParse(input.XRPL_SOURCE_TAG);
   if (!parsed.success) throw new SourceTagConfigurationError();
