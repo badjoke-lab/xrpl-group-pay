@@ -40,6 +40,7 @@ class SettlementDatabase implements D1DatabaseLike {
   constructor(
     readonly receiptChanges = 1,
     readonly fail = false,
+    readonly readTransactionId = TXID,
   ) {}
 
   prepare(query: string) {
@@ -60,14 +61,14 @@ class SettlementDatabase implements D1DatabaseLike {
         success: true,
         results: [
           {
-            receipt_id: `testnet:${TXID}`,
-            transaction_id: TXID,
+            receipt_id: `testnet:${this.readTransactionId}`,
+            transaction_id: this.readTransactionId,
             invoice_id: INVOICE_ID,
             recorded_at: "2026-06-24T00:00:01.000Z",
             proof_digest: PROOF_DIGEST,
             slot_public_id: SLOT_PUBLIC_ID,
             slot_status: "paid",
-            paid_tx_hash: TXID,
+            paid_tx_hash: this.readTransactionId,
             paid_at: "2026-06-24T00:00:01.000Z",
             bill_public_id: BILL_PUBLIC_ID,
             bill_status: "partially_paid",
@@ -175,6 +176,22 @@ describe("settleVerifiedPaymentSlot", () => {
       settleVerifiedPaymentSlot(
         new SettlementDatabase(),
         slot({ slotStatus: "paid", paidTransactionId: "C".repeat(64) }),
+        proof(),
+      ),
+    ).rejects.toEqual(
+      expect.objectContaining<Partial<PaymentSlotSettlementConflictError>>({
+        code: "SLOT_ALREADY_PAID",
+      }),
+    );
+  });
+
+  it("reports a different transaction that wins a concurrent settlement", async () => {
+    const competingTransactionId = "C".repeat(64);
+
+    await expect(
+      settleVerifiedPaymentSlot(
+        new SettlementDatabase(0, false, competingTransactionId),
+        slot(),
         proof(),
       ),
     ).rejects.toEqual(
