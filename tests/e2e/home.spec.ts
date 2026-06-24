@@ -69,11 +69,11 @@ test("renders capability-bound bill progress", async ({ page }) => {
           {
             publicId: "00000000-0000-4000-8000-000000000002",
             participantLabel: "Alex",
-            expectedPayerAddress: "rAlex",
+            expectedPayerAddress: "rPayerOne",
             expectedAmountDrops: "3000000",
-            invoiceId: "A".repeat(64),
+            invoiceId: "AB".repeat(32),
             status: "paid",
-            paidTransactionId: "B".repeat(64),
+            paidTransactionId: "BC".repeat(32),
             paidLedgerIndex: 12345,
             paidAt: "2026-06-24T00:05:00.000Z",
             updatedAt: "2026-06-24T00:05:00.000Z",
@@ -81,9 +81,9 @@ test("renders capability-bound bill progress", async ({ page }) => {
           {
             publicId: "00000000-0000-4000-8000-000000000003",
             participantLabel: "Blair",
-            expectedPayerAddress: "rBlair",
+            expectedPayerAddress: "rPayerTwo",
             expectedAmountDrops: "5000000",
-            invoiceId: "C".repeat(64),
+            invoiceId: "CD".repeat(32),
             status: "unpaid",
             paidTransactionId: null,
             paidLedgerIndex: null,
@@ -105,7 +105,7 @@ test("renders capability-bound bill progress", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByText("Creator view")).toBeVisible();
   await expect(page.getByText("1/2 paid")).toBeVisible();
-  await expect(page.getByText("Alex")).toBeVisible();
+  await expect(page.getByText("Alex", { exact: true })).toBeVisible();
 });
 
 test("exposes a no-store health endpoint", async ({ request }) => {
