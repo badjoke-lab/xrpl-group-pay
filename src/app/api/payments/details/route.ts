@@ -16,6 +16,8 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const MAX_PAYMENT_DETAILS_REQUEST_BYTES = 256;
+
 const inputSchema = z
   .object({
     paymentToken: z.string().regex(/^[a-f0-9]{64}$/i),
@@ -44,6 +46,18 @@ function json(body: unknown, status: number) {
   });
 }
 
+function tooLarge() {
+  return json(
+    {
+      error: {
+        code: "PAYMENT_DETAILS_REQUEST_TOO_LARGE",
+        message: "The payment details request is too large.",
+      },
+    },
+    413,
+  );
+}
+
 export async function handlePaymentDetailsRequest(
   request: Request,
   dependencies: PaymentDetailsRouteDependencies = defaultDependencies,
@@ -61,19 +75,22 @@ export async function handlePaymentDetailsRequest(
     );
   }
 
+  const declaredLength = Number(request.headers.get("content-length"));
+  if (
+    Number.isFinite(declaredLength) &&
+    declaredLength > MAX_PAYMENT_DETAILS_REQUEST_BYTES
+  ) {
+    return tooLarge();
+  }
+
   let input: z.infer<typeof inputSchema>;
   try {
     const raw = await request.text();
-    if (new TextEncoder().encode(raw).byteLength > 256) {
-      return json(
-        {
-          error: {
-            code: "PAYMENT_DETAILS_REQUEST_TOO_LARGE",
-            message: "The payment details request is too large.",
-          },
-        },
-        413,
-      );
+    if (
+      new TextEncoder().encode(raw).byteLength >
+      MAX_PAYMENT_DETAILS_REQUEST_BYTES
+    ) {
+      return tooLarge();
     }
     input = inputSchema.parse(JSON.parse(raw) as unknown);
   } catch {
