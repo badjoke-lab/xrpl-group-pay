@@ -1,213 +1,158 @@
 # XRPL Group Pay — Threat Model
 
-**Status:** Draft for PR 1  
-**Document class:** Public  
-**Method:** Asset, actor, trust-boundary, abuse-case, and mitigation analysis
+**Status:** Active  
+**Scope:** Approved Make Waves v1 security model  
+**Last reviewed:** 2026-06-24  
+**Document class:** Public
 
 ## 1. Security objectives
 
 1. Never mark an invalid transaction as paid.
-2. Never cause the user to sign a different destination or amount than the reviewed bill.
-3. Never expose a private key, seed, API secret, or management capability.
-4. Never process one transaction as payment for multiple slots.
-5. Preserve strict Testnet/Mainnet separation.
-6. Minimize privacy leakage from shared URLs, logs, and on-chain fields.
-7. Remain safely recoverable from duplicate notifications and temporary network failure.
+2. Never present a destination, asset, amount, network, tag, or InvoiceID different from the frozen Payment Intent.
+3. Never expose wallet credentials, signing material, or capabilities.
+4. Never reuse one transaction for multiple PaymentSlots.
+5. Preserve Testnet/Mainnet and issuer separation.
+6. Preserve existing XRP receipt and proof meaning while adding RLUSD.
+7. Fail closed when asset identity, readiness, or ledger facts are uncertain.
 
-## 2. Protected assets
+## 2. Protected facts
 
-- User XRP.
-- User signing intent.
-- Frozen destination and amount.
-- Payment-slot InvoiceID.
-- Make Waves or other configured Source Tag.
-- Creator management capability.
-- Participant capability.
-- Xaman API credentials.
-- Webhook verification secret.
-- Database integrity.
-- Transaction-verification result.
-- Privacy of participant labels and bill metadata.
-- Availability of payment and verification flows.
+- user-controlled XRP and RLUSD;
+- user signing intent;
+- frozen destination, network, asset, and amount;
+- official network-specific RLUSD identity;
+- Source Tag and InvoiceID;
+- creator, participant, and progress capabilities;
+- Wallet Provider credentials and request binding;
+- Asset Registry integrity;
+- verification results, receipts, and proof digests;
+- private Bill and participant metadata;
+- future quote source, timestamp, expiry, and adjustment history.
 
-## 3. Actors
-
-### Legitimate actors
-
-- Bill creator.
-- Expected payer.
-- Proof viewer.
-- Application operator.
-- Xaman.
-- XRPL node provider.
-- Hosting and database provider.
-
-### Threat actors
-
-- Person who obtains a participant link.
-- Person who obtains a management link.
-- Malicious bill creator.
-- Malicious payer.
-- Webhook forger.
-- Automated abuse client.
-- Dependency or supply-chain attacker.
-- Infrastructure attacker.
-- Opportunistic observer of public XRPL data.
-
-## 4. Trust boundaries
+## 3. Trust boundaries
 
 ```text
 Browser
-  | HTTPS
-Application server
-  | API credentials / signed webhook
-Xaman
-  | signed transaction
-XRPL network
-  | validated ledger data
-Application verification service
-  | atomic database transition
-Database
+  -> application server
+  -> Wallet Provider
+  -> XRPL network
+  -> verification service
+  -> database
 ```
 
-No response crossing a boundary is treated as final without validation appropriate to that boundary.
+Additional inputs cross separate boundaries:
 
-## 5. Threat register
+- Asset Registry configuration;
+- RLUSD issuer and trust-line state;
+- localization catalogs;
+- future quote sources.
 
-| ID | Threat | Impact | Required mitigation |
-|---|---|---|---|
-| T01 | Shared participant URL is leaked | Unauthorized person views or attempts the payment | High-entropy token, minimal disclosed data, optional expected payer, ability to revoke unused slot |
-| T02 | Creator management URL is leaked | Bill mutation or private progress disclosure | Separate high-entropy token, store hash, never log token, rotation/revocation support |
-| T03 | Amount changed between review and signing | User signs wrong amount | Freeze slot, build payload from server state, show final confirmation, verify on-ledger amount |
-| T04 | Destination changed | Funds sent to attacker | Freeze destination, server-side payload construction, show destination, on-ledger destination verification |
-| T05 | Destination Tag omitted or changed | Funds miscredited | Freeze optional tag, show it, compare exact presence/value |
-| T06 | Source Tag omitted or changed | Attribution and verification failure | Server-side configuration, include in template, compare validated transaction |
-| T07 | InvoiceID collision | Wrong slot correlation | Cryptographically secure 256-bit values, unique database constraint |
-| T08 | Fake transaction hash submitted | False paid state | Fetch from expected XRPL network, validate all transaction fields |
-| T09 | Transaction not yet validated | Reorg or provisional result treated as final | Keep validating state until `validated=true` |
-| T10 | Non-success result | Failed transaction treated as payment | Require metadata result `tesSUCCESS` |
-| T11 | Partial Payment attack | Less value delivered than expected | Reject partial-payment flag and compare `delivered_amount` |
-| T12 | Issued-currency payment | Wrong asset accepted | Require string drops for `Amount` and `delivered_amount` |
-| T13 | Wrong sender | Another account takes a participant slot | Compare `Account` with expected payer; route mismatch to review |
-| T14 | Wrong network | Testnet transaction satisfies Mainnet bill | Store network on every entity, query expected network only, compare Xaman network result |
-| T15 | Same transaction reused | Multiple slots paid by one transaction | Unique `(network, tx_hash)` constraint |
-| T16 | Duplicate webhook | State or metrics double counted | Idempotent handler and atomic state transition |
-| T17 | Webhook forged | Attacker triggers false processing | Verify Xaman webhook signature; re-fetch payload independently |
-| T18 | Payload result modified client-side | Browser claims payment | Ignore client claims as evidence; server re-fetches payload and ledger transaction |
-| T19 | Race between webhook and page polling | Inconsistent state | One verification service, transactional compare-and-set |
-| T20 | Bill changed after links issued | Signed conditions differ from displayed bill | Freeze payment-critical fields after publication |
-| T21 | Capability tokens appear in logs | Long-lived unauthorized access | Path/query redaction, no third-party analytics on capability pages |
-| T22 | Xaman secret exposed to client | API abuse | Server-only secrets, build-time client bundle checks |
-| T23 | Raw webhook bodies retained | Unnecessary personal or security data | Verify in memory; retain minimal normalized event |
-| T24 | Node returns temporary not-found | Valid payment marked failed | Retry with bounded backoff and explicit `not_yet_found` state |
-| T25 | Node inconsistency or outage | Verification unavailable | Redundant endpoints, timeout, retry, no optimistic paid state |
-| T26 | Automated payload creation | Rate-limit or cost abuse | Per-IP and per-capability limits, one active payload per slot, expiry |
-| T27 | Malicious bill title or participant label | Stored XSS | Schema limits, escaping, no raw HTML |
-| T28 | Very large amount or integer error | Incorrect XRP amount | Parse decimal safely to integer drops, no floating-point storage, upper limits |
-| T29 | Dependency compromise | Credential theft or malicious transaction | Lockfile, trusted registry, audit, minimal dependencies, update review |
-| T30 | Mainnet enabled by mistake | Real-value loss during testing | Explicit deployment gate, separate secrets and databases, prominent network UI |
-| T31 | Public proof leaks labels | Privacy loss | Default pseudonymous proof, separate optional disclosure controls |
-| T32 | Enumeration of public IDs | Bill discovery | Random identifiers, uniform invalid response, rate limiting |
-| T33 | CSRF on creator actions | Unauthorized mutation | Same-site cookies where used, origin checks, explicit confirmation |
-| T34 | Open redirect in Xaman return flow | Phishing | Allowlisted return origins and fixed server-generated paths |
-| T35 | Stale or replayed Xaman payload | Old request accepted | Payload-to-slot binding, expiry, one active request, compare frozen revision |
+No boundary response is final without the validation appropriate to that boundary.
 
-## 6. Payment verification algorithm
+## 4. Required threat controls
+
+| ID | Risk | Required control |
+|---|---|---|
+| T01 | Participant or creator capability leaks | High entropy, role separation, hashing, redaction, revocation |
+| T02 | Amount or destination changes after review | Frozen Payment Intent, final confirmation, exact ledger comparison |
+| T03 | Tags or InvoiceID differ | Exact presence and value checks |
+| T04 | Fake or provisional transaction | Fetch from expected network, require validated and `tesSUCCESS` |
+| T05 | Partial Payment | Reject Partial Payment and verify delivered amount |
+| T06 | Wrong asset type | Dispatch by frozen AssetDescriptor |
+| T07 | Wrong RLUSD issuer or same ticker from another issuer | Exact network-specific currency and issuer checks |
+| T08 | Testnet and Mainnet asset definitions mix | Separate Asset Registry entries, endpoints, databases, and deployment values |
+| T09 | Wrong payer | Exact sender comparison and a defined review state |
+| T10 | Transaction reused | Unique network plus transaction identifier |
+| T11 | Provider status treated as proof | Provider status only starts independent ledger verification |
+| T12 | Provider changes the request | Bind provider request to frozen Payment Intent and Bill revision |
+| T13 | Duplicate callback or polling race | Idempotent processing and atomic compare-and-set |
+| T14 | Capability appears in logs or localized URLs | Redaction, safe routing, no third-party analytics on sensitive routes |
+| T15 | Provider credential reaches the client | Server-only configuration and bundle checks |
+| T16 | Temporary node failure | Retryable not-found and unvalidated states, no optimistic success |
+| T17 | Numeric precision error | Fixed-precision integer units, explicit scale, no floating-point authority |
+| T18 | RLUSD trust line missing or insufficient | Recipient readiness check before Bill freeze |
+| T19 | Issuer condition blocks payment | Inspect implemented ledger conditions and explain residual limitations |
+| T20 | Asset Registry changes unexpectedly | Reviewed configuration, fixtures, and release checks |
+| T21 | Mainnet enabled accidentally | Separate environments and prominent real-value confirmation |
+| T22 | Proof exposes private Bill data | Contract-specific public allowlist and digest recomputation |
+| T23 | Stale signing request remains usable | Expiry, one active handoff, intent and revision binding |
+| T24 | Locale changes financial meaning | Canonical units, explicit asset labels, locale-independent API values |
+| T25 | Translation omits a safety warning | Complete critical catalogs and English fallback |
+| T26 | Future quote expires or changes | Immutable revision, expiry, and participant re-confirmation |
+| T27 | Future adjustment is hidden | Retain suggested and final amounts and show the reason |
+| T28 | Mixed-asset progress combines unlike units | Recompute progress in Accounting Currency only |
+
+## 5. Verification algorithm
 
 ```text
-1. Load payment slot, bill, frozen revision, and expected network.
-2. Load normalized Xaman payload result from the server.
-3. Require resolved and signed.
-4. Extract transaction hash and reported network.
-5. Fetch transaction from the expected XRPL endpoint.
-6. If not found, remain pending until retry budget or explicit expiry.
-7. Require validated.
-8. Require Payment and tesSUCCESS.
-9. Compare sender, destination, optional Destination Tag, Source Tag, InvoiceID.
-10. Require XRP drops and exact expected Amount.
-11. Require exact delivered_amount.
-12. Reject partial-payment and unsupported path fields.
-13. Begin database transaction.
-14. Insert unique transaction observation.
-15. Compare-and-set slot to paid.
-16. Recompute bill state.
-17. Commit.
+1. Load PaymentSlot, Bill revision, Payment Intent, AssetDescriptor, and network.
+2. Load the server-side Wallet Provider result.
+3. Require a signed or submitted state and a transaction identifier.
+4. Confirm that the provider request is bound to the frozen intent.
+5. Fetch the transaction from the expected XRPL endpoint.
+6. Return a retryable state if it is missing or unvalidated.
+7. Require Payment and tesSUCCESS.
+8. Compare sender, destination, Destination Tag, Source Tag, and InvoiceID.
+9. Dispatch to the frozen asset Verification Strategy.
+10. For XRP, compare exact drops and delivered drops.
+11. For RLUSD, compare exact currency, official issuer, value, and delivered amount.
+12. Reject Partial Payment and unsupported conversion fields.
+13. Atomically insert or reuse the versioned receipt.
+14. Mark the PaymentSlot paid and recompute the Bill.
 ```
 
-## 7. Capability design requirements
+## 6. RLUSD readiness
 
-- At least 128 bits of random entropy.
-- URL-safe encoding.
-- Hash at rest for management and participant capabilities.
-- Constant-time comparison where applicable.
-- Rotation and revocation for creator capability.
-- No capability in Referer headers to third-party content.
-- `Referrer-Policy: no-referrer`.
-- No external scripts on payment, management, and proof pages unless reviewed.
+Before an RLUSD Bill is frozen:
 
-## 8. Input limits
+```text
+1. Load the official network-specific AssetDescriptor.
+2. Validate the destination account.
+3. Query the official issuer trust line.
+4. Confirm that the implemented receive checks pass for the required amount.
+5. Reject wrong issuer, missing line, insufficient capacity, or blocking state.
+6. Show the readiness result during creator review.
+```
 
-Initial proposed limits:
+Readiness is a preflight, not a guarantee that the issuer, wallet, or network will remain available.
 
-- Bill title: 1–100 Unicode characters.
-- Participant label: 0–60 Unicode characters.
-- Participants per bill: 2–50.
-- XRP precision: maximum 6 decimal places.
-- Amount: positive integer drops, bounded by a configurable maximum.
-- Destination Tag: UInt32.
-- Source Tag: UInt32.
-- XRPL addresses: validated by the XRPL library and network-independent syntax checks.
-- No user-provided HTML.
-- No user-provided Memo content.
+## 7. Input and logging rules
 
-## 9. Logging policy
+Initial limits include bounded Unicode titles and labels, 2–50 participants, asset-specific precision, positive integer units, exact Percentage totals, positive Shares, UInt32 tags, and validated XRPL addresses.
 
-Allowed:
+Logs may contain request IDs, operation names, normalized error codes, network, provider ID, asset ID, locale, and non-secret entity IDs.
 
-- Internal request ID.
-- Route name without capability token.
-- Normalized error code.
-- Network.
-- Non-secret entity IDs.
-- Truncated transaction hash where operationally useful.
+Logs must not contain capabilities, provider credentials, signing material, full private URLs, raw authorization headers, raw signed transactions by default, participant labels, or unnecessary provider responses.
 
-Forbidden:
+## 8. Release gates
 
-- Xaman API secret.
-- Full capability token.
-- Seed or private key.
-- Signed transaction blob unless an approved diagnostic mode is active.
-- Raw authorization header.
-- Full webhook body after normalization.
-- Participant label in infrastructure logs.
+### Testnet
 
-## 10. Security release gates
+- XRP mismatch fixtures rejected;
+- RLUSD wrong-currency and wrong-issuer fixtures rejected;
+- duplicate and concurrency tests pass;
+- trust-line readiness tests pass;
+- Wallet Provider credentials remain server-side;
+- English, Japanese, and Korean critical warnings are covered;
+- existing XRP proof digest fixtures remain unchanged.
 
-### Testnet gate
+### Mainnet
 
-- All mismatch fixtures rejected.
-- Duplicate webhook test passes.
-- Wrong-network test passes.
-- Capability leakage review passes.
-- Xaman secrets absent from client bundle.
+- separate Mainnet secrets, database, endpoints, and Asset Registry entries;
+- conservative limits by asset;
+- explicit Mainnet and asset confirmation;
+- incident and disable procedures;
+- controlled XRP Mainnet settlement and proof;
+- controlled RLUSD Mainnet settlement and proof.
 
-### Mainnet gate
+## 9. Residual risks
 
-- Testnet gate passed.
-- Separate Mainnet secrets and database.
-- Mainnet amount limit.
-- Prominent network and real-value warning.
-- Dependency audit clean or risk accepted in writing.
-- Incident and rollback procedure documented.
-- Controlled small-value transaction test passed.
-
-## 11. Residual risks
-
-- A user can still approve a malicious or mistaken bill created by another person.
-- A public XRPL transaction exposes addresses and amounts.
-- A bill label can become identifying when combined with off-chain knowledge.
-- The operator cannot reverse a validated payment.
-- Xaman, node providers, or hosting providers may be unavailable.
-- Strict technical verification cannot prove that the underlying real-world expense was legitimate.
+- a user can approve a mistaken Bill;
+- public XRPL transactions expose settlement facts;
+- the application cannot reverse a validated transaction;
+- Wallet Providers, nodes, issuers, and hosting providers may become unavailable;
+- verification cannot prove that the real-world expense was legitimate;
+- readiness cannot guarantee future issuer policy;
+- later quote values may become stale after expiry.
 
 These risks must be disclosed rather than represented as eliminated.
