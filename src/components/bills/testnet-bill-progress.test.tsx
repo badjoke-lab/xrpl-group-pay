@@ -1,0 +1,155 @@
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { TestnetBillProgress } from "./testnet-bill-progress";
+
+const TOKEN = "ab".repeat(32);
+
+const progress = {
+  access: "admin",
+  bill: {
+    publicId: "00000000-0000-4000-8000-000000000001",
+    title: "XRPL Meetup Dinner",
+    network: "testnet",
+    destinationAddress: "rDestination",
+    destinationTag: null,
+    totalDrops: "10000000",
+    creatorShareDrops: "2000000",
+    status: "partially_paid",
+    revision: 1,
+    frozenAt: "2026-06-24T00:00:00.000Z",
+    updatedAt: "2026-06-24T00:05:00.000Z",
+  },
+  summary: {
+    participantCount: 2,
+    paidCount: 1,
+    pendingCount: 1,
+    reviewCount: 0,
+    expectedExternalDrops: "8000000",
+    paidDrops: "3000000",
+  },
+  slots: [
+    {
+      publicId: "00000000-0000-4000-8000-000000000002",
+      participantLabel: "Alex",
+      expectedPayerAddress: "rAlex",
+      expectedAmountDrops: "3000000",
+      invoiceId: "A".repeat(64),
+      status: "paid",
+      paidTransactionId: "B".repeat(64),
+      paidLedgerIndex: 12345,
+      paidAt: "2026-06-24T00:05:00.000Z",
+      updatedAt: "2026-06-24T00:05:00.000Z",
+    },
+    {
+      publicId: "00000000-0000-4000-8000-000000000003",
+      participantLabel: "Blair",
+      expectedPayerAddress: "rBlair",
+      expectedAmountDrops: "5000000",
+      invoiceId: "C".repeat(64),
+      status: "unpaid",
+      paidTransactionId: null,
+      paidLedgerIndex: null,
+      paidAt: null,
+      updatedAt: "2026-06-24T00:00:00.000Z",
+    },
+  ],
+};
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+describe("TestnetBillProgress", () => {
+  it("renders independent participant states for the creator", async () => {
+    const fetcher = vi.fn().mockResolvedValue(jsonResponse(progress));
+    vi.stubGlobal("fetch", fetcher);
+
+    render(<TestnetBillProgress capabilityToken={TOKEN} />);
+
+    expect(
+      await screen.findByRole("heading", { name: "XRPL Meetup Dinner" }),
+    ).toBeVisible();
+    expect(screen.getByText("Creator view")).toBeVisible();
+    expect(screen.getByText("1/2 paid")).toBeVisible();
+    expect(screen.getByText("Alex")).toBeVisible();
+    expect(screen.getByText("Blair")).toBeVisible();
+    expect(screen.getByText("Paid")).toBeVisible();
+    expect(screen.getByText("Unpaid")).toBeVisible();
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/bills/progress",
+      expect.objectContaining({
+        body: JSON.stringify({ capabilityToken: TOKEN }),
+      }),
+    );
+  });
+
+  it("keeps participant identity hidden in the read-only view", async () => {
+    const readOnly = {
+      ...progress,
+      access: "public",
+      slots: progress.slots.map((slot) => ({
+        ...slot,
+        participantLabel: null,
+        expectedPayerAddress: null,
+        invoiceId: null,
+      })),
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(readOnly)));
+
+    render(<TestnetBillProgress capabilityToken={TOKEN} />);
+
+    expect(await screen.findByText("Read-only view")).toBeVisible();
+    expect(screen.queryByText("Alex")).toBeNull();
+    expect(screen.queryByText("rAlex")).toBeNull();
+    expect(screen.getByText("Payment slot 1")).toBeVisible();
+  });
+
+  it("shows a uniform invalid-link state without making a request", () => {
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+
+    render(<TestnetBillProgress capabilityToken="invalid" />);
+
+    expect(
+      screen.getByRole("heading", { name: "Bill progress link unavailable" }),
+    ).toBeVisible();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("allows a failed progress request to be retried", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(
+          { error: { message: "The bill progress is temporarily unavailable." } },
+          503,
+        ),
+      )
+      .mockResolvedValueOnce(jsonResponse(progress));
+    vi.stubGlobal("fetch", fetcher);
+
+    render(<TestnetBillProgress capabilityToken={TOKEN} />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Bill progress unavailable" }),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: "XRPL Meetup Dinner" }),
+      ).toBeVisible();
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+});
