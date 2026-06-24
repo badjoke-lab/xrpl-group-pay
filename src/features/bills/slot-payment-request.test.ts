@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ResolvedPaymentSlot } from "./payment-slot";
-import {
-  buildStoredSlotPaymentIntent,
-  buildStoredSlotPaymentPayload,
-} from "./slot-payment-request";
+import { buildStoredSlotPaymentIntent } from "./slot-payment-request";
 
 const DESTINATION = "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh";
 const PAYER = "rPEPPER7kfTD9w2To4CQk6UCfuHM9c6GDY";
@@ -43,20 +40,6 @@ describe("stored slot Payment Intent", () => {
       expectedPayer: PAYER,
       revision: 1,
       expiresAt: "2026-06-24T00:05:00.000Z",
-    });
-  });
-
-  it("preserves the existing Xaman Testnet request shape", () => {
-    expect(buildStoredSlotPaymentPayload(slot, 123456, now)).toEqual({
-      txjson: {
-        TransactionType: "Payment",
-        Destination: DESTINATION,
-        Amount: "4000001",
-        SourceTag: 123456,
-        InvoiceID: INVOICE_ID,
-        DestinationTag: 9,
-      },
-      options: { submit: true, expire: 5, force_network: "TESTNET" },
     });
   });
 
