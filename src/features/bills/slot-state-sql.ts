@@ -7,6 +7,7 @@ export const MARK_SLOT_PAID = `
       paid_at = COALESCE(paid_at, ?4),
       updated_at = ?4
   WHERE id = ?5
+    AND status <> 'needs_review'
     AND invoice_id = ?6
     AND expected_payer_address = ?7
     AND expected_amount_drops = ?8
