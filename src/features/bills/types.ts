@@ -10,6 +10,9 @@ const destinationTagSchema = z.union([
   z.string().trim().regex(/^\d+$/),
 ]);
 
+const dropsSchema = z.string().regex(/^(?:0|[1-9]\d*)$/);
+const positiveDropsSchema = z.string().regex(/^[1-9]\d*$/);
+
 export const createBillInputSchema = z
   .object({
     title: z.string().trim().min(1).max(100),
@@ -34,6 +37,29 @@ export const createBillInputSchema = z
 
 export type CreateBillInput = z.infer<typeof createBillInputSchema>;
 
+export const billReviewSchema = z
+  .object({
+    network: z.literal("testnet"),
+    title: z.string().min(1).max(100),
+    destinationAddress: z.string().min(1),
+    destinationTag: z.number().int().min(0).max(4_294_967_295).nullable(),
+    totalDrops: positiveDropsSchema,
+    creatorShareDrops: dropsSchema,
+    allocatedDrops: positiveDropsSchema,
+    participants: z.array(
+      z
+        .object({
+          participantLabel: z.string().max(60).nullable(),
+          expectedPayerAddress: z.string().min(1),
+          expectedAmountDrops: positiveDropsSchema,
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+
+export type BillReview = z.infer<typeof billReviewSchema>;
+
 export const createdBillSchema = z
   .object({
     bill: z
@@ -43,8 +69,8 @@ export const createdBillSchema = z
         network: z.literal("testnet"),
         destinationAddress: z.string().min(1),
         destinationTag: z.number().int().min(0).max(4_294_967_295).nullable(),
-        totalDrops: z.string().regex(/^(?:0|[1-9]\d*)$/),
-        creatorShareDrops: z.string().regex(/^(?:0|[1-9]\d*)$/),
+        totalDrops: dropsSchema,
+        creatorShareDrops: dropsSchema,
         status: z.literal("open"),
         revision: z.literal(1),
         frozenAt: z.string().datetime(),
@@ -63,7 +89,7 @@ export const createdBillSchema = z
           publicId: z.string().uuid(),
           participantLabel: z.string().max(60).nullable(),
           expectedPayerAddress: z.string().min(1),
-          expectedAmountDrops: z.string().regex(/^[1-9]\d*$/),
+          expectedAmountDrops: positiveDropsSchema,
           invoiceId: z.string().regex(/^[A-F0-9]{64}$/),
           status: z.literal("unpaid"),
           paymentToken: z.string().regex(/^[a-f0-9]{64}$/),
