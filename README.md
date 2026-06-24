@@ -116,8 +116,8 @@ The `/testnet/proof#token=...` flow publishes one durable verified receipt witho
 - The proof identifier is the receipt's canonical SHA-256 proof digest.
 - D1 enforces a unique proof-digest lookup index.
 - The server recomputes the digest from the immutable receipt facts before returning the proof.
-- The page shows the validated status, `tesSUCCESS`, transaction ID, ledger index, sender, destination, requested and delivered XRP drops, tags, InvoiceID, timestamps, and proof digest.
-- Bill titles, participant labels, payment and management capabilities, expected pre-payment data, Xaman payload identifiers, and internal IDs are excluded.
+- The page shows the validated status, `tesSUCCESS`, transaction ID, ledger index, sender, destination, requested and delivered XRP drops, tags, InvoiceID, and proof digest.
+- Bill titles, participant labels, payment and management capabilities, expected pre-payment data, operational timestamps, Xaman payload identifiers, and internal IDs are excluded.
 - Malformed and unknown proof identifiers use one not-found boundary.
 - Proof responses use `Cache-Control: no-store`.
 - Viewing a proof does not resubmit a transaction or mutate bill state.
