@@ -18,8 +18,6 @@ export const publicTransactionProofSchema = z
     sourceTag: uint32Schema,
     destinationTag: uint32Schema.nullable(),
     invoiceId: upperHex256Schema,
-    verifiedAt: z.string().datetime(),
-    recordedAt: z.string().datetime(),
     proofDigest: upperHex256Schema,
   })
   .strict();
