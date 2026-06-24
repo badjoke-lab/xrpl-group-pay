@@ -5,8 +5,10 @@ import { createInvoiceId } from "@/features/xaman/payment-request";
 import type { D1DatabaseLike } from "../persistence/d1-types";
 import { createCapabilityToken, hashCapabilityToken } from "./capabilities";
 import {
+  billReviewSchema,
   createdBillSchema,
   createBillInputSchema,
+  type BillReview,
   type CreateBillInput,
   type CreatedBill,
 } from "./types";
@@ -112,12 +114,7 @@ function parseDestinationTag(value: string | number | undefined) {
   return parsed;
 }
 
-export async function createPublishedBill(
-  database: D1DatabaseLike,
-  rawInput: CreateBillInput,
-  now = new Date(),
-  random: BillRandomSource = defaultRandomSource,
-): Promise<CreatedBill> {
+export function prepareBillReview(rawInput: CreateBillInput): BillReview {
   const input = createBillInputSchema.parse(rawInput);
   const destinationAddress = input.destinationAddress.trim();
   if (!isValidClassicAddress(destinationAddress)) {
@@ -127,7 +124,7 @@ export async function createPublishedBill(
   const destinationTag = parseDestinationTag(input.destinationTag);
   const totalDrops = toDrops(input.totalXrp, false);
   const creatorShareDrops = toDrops(input.creatorShareXrp, true);
-  const normalizedParticipants = input.participants.map((participant) => {
+  const participants = input.participants.map((participant) => {
     const expectedPayerAddress = participant.expectedPayerAddress.trim();
     if (!isValidClassicAddress(expectedPayerAddress)) {
       throw new BillInputError(
@@ -141,7 +138,7 @@ export async function createPublishedBill(
     };
   });
 
-  const allocatedDrops = normalizedParticipants.reduce(
+  const allocatedDrops = participants.reduce(
     (sum, participant) => sum + BigInt(participant.expectedAmountDrops),
     BigInt(creatorShareDrops),
   );
@@ -150,6 +147,26 @@ export async function createPublishedBill(
       "Creator share and participant amounts must equal the bill total.",
     );
   }
+
+  return billReviewSchema.parse({
+    network: "testnet",
+    title: input.title.trim(),
+    destinationAddress,
+    destinationTag,
+    totalDrops,
+    creatorShareDrops,
+    allocatedDrops: allocatedDrops.toString(),
+    participants,
+  });
+}
+
+export async function createPublishedBill(
+  database: D1DatabaseLike,
+  rawInput: CreateBillInput,
+  now = new Date(),
+  random: BillRandomSource = defaultRandomSource,
+): Promise<CreatedBill> {
+  const review = prepareBillReview(rawInput);
 
   const billId = random.uuid();
   const billPublicId = random.uuid();
@@ -162,7 +179,7 @@ export async function createPublishedBill(
   const timestamp = now.toISOString();
 
   const slots = await Promise.all(
-    normalizedParticipants.map(async (participant) => {
+    review.participants.map(async (participant) => {
       const paymentToken = random.token();
       return {
         id: random.uuid(),
@@ -183,11 +200,11 @@ export async function createPublishedBill(
         billPublicId,
         publicTokenHash,
         adminTokenHash,
-        input.title.trim(),
-        destinationAddress,
-        destinationTag,
-        totalDrops,
-        creatorShareDrops,
+        review.title,
+        review.destinationAddress,
+        review.destinationTag,
+        review.totalDrops,
+        review.creatorShareDrops,
         timestamp,
       ),
     ...slots.map((slot) =>
@@ -223,12 +240,12 @@ export async function createPublishedBill(
   return createdBillSchema.parse({
     bill: {
       publicId: billPublicId,
-      title: input.title.trim(),
-      network: "testnet",
-      destinationAddress,
-      destinationTag,
-      totalDrops,
-      creatorShareDrops,
+      title: review.title,
+      network: review.network,
+      destinationAddress: review.destinationAddress,
+      destinationTag: review.destinationTag,
+      totalDrops: review.totalDrops,
+      creatorShareDrops: review.creatorShareDrops,
       status: "open",
       revision: 1,
       frozenAt: timestamp,
