@@ -1,11 +1,31 @@
 "use client";
 
-import { useState } from "react";
-import { LoaderCircle, Plus, Trash2, Users } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  CheckCircle2,
+  CircleAlert,
+  LoaderCircle,
+  Plus,
+  Trash2,
+  Users,
+} from "lucide-react";
 
 import { CreatedBillShare } from "@/components/bills/created-bill-share";
+import { TestnetBillReview } from "@/components/bills/testnet-bill-review";
 import { Button } from "@/components/ui/button";
-import type { CreatedBill } from "@/features/bills/types";
+import {
+  calculateAllocationPreview,
+  formatDropsAsXrp,
+} from "@/features/bills/allocation-preview";
+import {
+  BillReviewRequestError,
+  requestBillReview,
+} from "@/features/bills/review-bill-client";
+import type {
+  BillReview,
+  CreateBillInput,
+  CreatedBill,
+} from "@/features/bills/types";
 
 type ParticipantDraft = {
   id: string;
@@ -14,12 +34,32 @@ type ParticipantDraft = {
   amountXrp: string;
 };
 
+type BillDraft = {
+  title: string;
+  destinationAddress: string;
+  destinationTag: string;
+  totalXrp: string;
+  creatorShareXrp: string;
+  participants: ParticipantDraft[];
+};
+
 function participant(): ParticipantDraft {
   return {
     id: crypto.randomUUID(),
     label: "",
     expectedPayerAddress: "",
     amountXrp: "",
+  };
+}
+
+function draft(): BillDraft {
+  return {
+    title: "",
+    destinationAddress: "",
+    destinationTag: "",
+    totalXrp: "",
+    creatorShareXrp: "",
+    participants: [participant(), participant()],
   };
 }
 
@@ -33,62 +73,96 @@ async function readJson(response: Response) {
   return body;
 }
 
+function toInput(value: BillDraft): CreateBillInput {
+  const destinationTag = value.destinationTag.trim();
+  return {
+    title: value.title,
+    destinationAddress: value.destinationAddress,
+    ...(destinationTag ? { destinationTag } : {}),
+    totalXrp: value.totalXrp,
+    creatorShareXrp: value.creatorShareXrp,
+    participants: value.participants.map(
+      ({ label, expectedPayerAddress, amountXrp }) => ({
+        ...(label.trim() ? { label } : {}),
+        expectedPayerAddress,
+        amountXrp,
+      }),
+    ),
+  };
+}
+
 export function TestnetBillForm() {
-  const [participants, setParticipants] = useState<ParticipantDraft[]>([
-    participant(),
-    participant(),
-  ]);
+  const [billDraft, setBillDraft] = useState<BillDraft>(() => draft());
+  const [review, setReview] = useState<BillReview | null>(null);
   const [created, setCreated] = useState<CreatedBill | null>(null);
+  const [reviewing, setReviewing] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const allocation = useMemo(
+    () =>
+      calculateAllocationPreview({
+        totalXrp: billDraft.totalXrp,
+        creatorShareXrp: billDraft.creatorShareXrp,
+        participantAmountsXrp: billDraft.participants.map(
+          (item) => item.amountXrp,
+        ),
+      }),
+    [billDraft],
+  );
+
+  function updateBill(field: keyof Omit<BillDraft, "participants">, value: string) {
+    setBillDraft((current) => ({ ...current, [field]: value }));
+  }
 
   function updateParticipant(
     id: string,
     field: keyof Omit<ParticipantDraft, "id">,
     value: string,
   ) {
-    setParticipants((current) =>
-      current.map((item) =>
+    setBillDraft((current) => ({
+      ...current,
+      participants: current.participants.map((item) =>
         item.id === id ? { ...item, [field]: value } : item,
       ),
-    );
+    }));
   }
 
   function removeParticipant(id: string) {
-    setParticipants((current) =>
-      current.length <= 2
-        ? current
-        : current.filter((item) => item.id !== id),
-    );
+    setBillDraft((current) => ({
+      ...current,
+      participants:
+        current.participants.length <= 2
+          ? current.participants
+          : current.participants.filter((item) => item.id !== id),
+    }));
   }
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submitReview(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setReviewing(true);
+    setError(null);
+    try {
+      setReview(await requestBillReview(toInput(billDraft)));
+    } catch (cause) {
+      setError(
+        cause instanceof BillReviewRequestError
+          ? cause.message
+          : "The bill could not be reviewed.",
+      );
+    } finally {
+      setReviewing(false);
+    }
+  }
+
+  async function confirmCreation() {
     setCreating(true);
     setError(null);
-
-    const form = new FormData(event.currentTarget);
-    const destinationTag = String(form.get("destinationTag") ?? "").trim();
-    const input = {
-      title: String(form.get("title") ?? ""),
-      destinationAddress: String(form.get("destinationAddress") ?? ""),
-      ...(destinationTag ? { destinationTag } : {}),
-      totalXrp: String(form.get("totalXrp") ?? ""),
-      creatorShareXrp: String(form.get("creatorShareXrp") ?? ""),
-      participants: participants.map(
-        ({ label, expectedPayerAddress, amountXrp }) => ({
-          ...(label.trim() ? { label } : {}),
-          expectedPayerAddress,
-          amountXrp,
-        }),
-      ),
-    };
-
     try {
       const response = await fetch("/api/bills", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
+        body: JSON.stringify(toInput(billDraft)),
         cache: "no-store",
       });
       setCreated((await readJson(response)) as CreatedBill);
@@ -103,15 +177,33 @@ export function TestnetBillForm() {
     }
   }
 
-  if (created) {
+  function reset() {
+    setBillDraft(draft());
+    setReview(null);
+    setCreated(null);
+    setError(null);
+  }
+
+  if (created) return <CreatedBillShare created={created} onReset={reset} />;
+
+  if (review) {
     return (
-      <CreatedBillShare created={created} onReset={() => setCreated(null)} />
+      <TestnetBillReview
+        review={review}
+        creating={creating}
+        error={error}
+        onBack={() => {
+          setReview(null);
+          setError(null);
+        }}
+        onConfirm={() => void confirmCreation()}
+      />
     );
   }
 
   return (
     <form
-      onSubmit={submit}
+      onSubmit={submitReview}
       className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8"
     >
       <div className="flex items-start gap-4">
@@ -126,8 +218,8 @@ export function TestnetBillForm() {
             Assign each participant an XRP share
           </h2>
           <p className="mt-2 leading-7 text-muted">
-            The creator share and participant amounts must equal the total
-            exactly.
+            Enter the bill conditions first. Nothing is frozen until the review
+            step is confirmed.
           </p>
         </div>
       </div>
@@ -135,20 +227,23 @@ export function TestnetBillForm() {
       <div className="mt-8 grid gap-5 sm:grid-cols-2">
         <Field
           label="Bill title"
-          name="title"
+          value={billDraft.title}
+          onChange={(value) => updateBill("title", value)}
           placeholder="XRPL Meetup Dinner"
           required
         />
         <Field
           label="Creator destination address"
-          name="destinationAddress"
+          value={billDraft.destinationAddress}
+          onChange={(value) => updateBill("destinationAddress", value)}
           placeholder="r..."
           required
           mono
         />
         <Field
           label="Total"
-          name="totalXrp"
+          value={billDraft.totalXrp}
+          onChange={(value) => updateBill("totalXrp", value)}
           placeholder="10"
           required
           suffix="XRP"
@@ -156,7 +251,8 @@ export function TestnetBillForm() {
         />
         <Field
           label="Creator share"
-          name="creatorShareXrp"
+          value={billDraft.creatorShareXrp}
+          onChange={(value) => updateBill("creatorShareXrp", value)}
           placeholder="2"
           required
           suffix="XRP"
@@ -164,7 +260,8 @@ export function TestnetBillForm() {
         />
         <Field
           label="Destination Tag"
-          name="destinationTag"
+          value={billDraft.destinationTag}
+          onChange={(value) => updateBill("destinationTag", value)}
           placeholder="Optional"
           inputMode="numeric"
         />
@@ -181,9 +278,12 @@ export function TestnetBillForm() {
           type="button"
           variant="secondary"
           onClick={() =>
-            setParticipants((current) => [...current, participant()])
+            setBillDraft((current) => ({
+              ...current,
+              participants: [...current.participants, participant()],
+            }))
           }
-          disabled={participants.length >= 50}
+          disabled={billDraft.participants.length >= 50}
         >
           <Plus aria-hidden="true" className="size-4" />
           Add participant
@@ -191,7 +291,7 @@ export function TestnetBillForm() {
       </div>
 
       <div className="mt-5 space-y-4">
-        {participants.map((item, index) => (
+        {billDraft.participants.map((item, index) => (
           <fieldset
             key={item.id}
             className="rounded-lg border border-border bg-background p-5"
@@ -205,21 +305,19 @@ export function TestnetBillForm() {
                 variant="secondary"
                 aria-label={`Remove participant ${index + 1}`}
                 onClick={() => removeParticipant(item.id)}
-                disabled={participants.length <= 2}
+                disabled={billDraft.participants.length <= 2}
               >
                 <Trash2 aria-hidden="true" className="size-4" />
               </Button>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <ParticipantField
+              <Field
                 label="Label"
                 value={item.label}
-                onChange={(value) =>
-                  updateParticipant(item.id, "label", value)
-                }
+                onChange={(value) => updateParticipant(item.id, "label", value)}
                 placeholder="Alex"
               />
-              <ParticipantField
+              <Field
                 label="Expected payer address"
                 value={item.expectedPayerAddress}
                 onChange={(value) =>
@@ -229,7 +327,7 @@ export function TestnetBillForm() {
                 required
                 mono
               />
-              <ParticipantField
+              <Field
                 label="Assigned amount"
                 value={item.amountXrp}
                 onChange={(value) =>
@@ -245,6 +343,8 @@ export function TestnetBillForm() {
         ))}
       </div>
 
+      <AllocationStatus allocation={allocation} />
+
       {error && (
         <p
           role="alert"
@@ -254,60 +354,62 @@ export function TestnetBillForm() {
         </p>
       )}
 
-      <Button type="submit" className="mt-7 w-full" disabled={creating}>
-        {creating ? (
+      <Button
+        type="submit"
+        className="mt-7 w-full"
+        disabled={reviewing || allocation.status !== "exact"}
+      >
+        {reviewing ? (
           <>
             <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-            Freezing bill and payment slots
+            Validating bill review
           </>
         ) : (
-          "Create participant payment links"
+          "Review bill before freezing"
         )}
       </Button>
     </form>
   );
 }
 
-function Field({
-  label,
-  name,
-  placeholder,
-  required = false,
-  mono = false,
-  suffix,
-  inputMode,
+function AllocationStatus({
+  allocation,
 }: {
-  label: string;
-  name: string;
-  placeholder: string;
-  required?: boolean;
-  mono?: boolean;
-  suffix?: string;
-  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  allocation: ReturnType<typeof calculateAllocationPreview>;
 }) {
+  const exact = allocation.status === "exact";
+  const Icon = exact ? CheckCircle2 : CircleAlert;
+  let message = "Enter the total, creator share, and every participant amount.";
+  if (allocation.status === "under" && allocation.differenceDrops !== null) {
+    message = `${formatDropsAsXrp(allocation.differenceDrops)} XRP remains to allocate.`;
+  }
+  if (allocation.status === "over" && allocation.differenceDrops !== null) {
+    message = `${formatDropsAsXrp(-allocation.differenceDrops)} XRP is allocated above the bill total.`;
+  }
+  if (exact) message = "Creator share and participant amounts match the bill total.";
+
   return (
-    <label className="block">
-      <span className="text-sm font-semibold">{label}</span>
-      <div className="mt-2 flex rounded-md border border-border bg-background focus-within:border-brand focus-within:ring-3 focus-within:ring-focus/20">
-        <input
-          name={name}
-          required={required}
-          placeholder={placeholder}
-          inputMode={inputMode}
-          autoComplete="off"
-          className={`min-h-12 min-w-0 flex-1 bg-transparent px-4 outline-none ${mono ? "font-mono text-sm" : ""}`}
-        />
-        {suffix && (
-          <span className="flex items-center border-l border-border px-4 text-sm font-semibold text-brand">
-            {suffix}
-          </span>
-        )}
+    <div
+      role="status"
+      aria-live="polite"
+      className={`mt-6 flex items-start gap-3 rounded-lg border p-4 ${
+        exact
+          ? "border-success/25 bg-success/10 text-success"
+          : "border-border bg-background text-muted"
+      }`}
+    >
+      <Icon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+      <div>
+        <p className="font-semibold">
+          {exact ? "Allocation exact" : "Allocation incomplete"}
+        </p>
+        <p className="mt-1 text-sm leading-6">{message}</p>
       </div>
-    </label>
+    </div>
   );
 }
 
-function ParticipantField({
+function Field({
   label,
   value,
   onChange,
@@ -329,7 +431,7 @@ function ParticipantField({
   return (
     <label className="block">
       <span className="text-sm font-semibold">{label}</span>
-      <div className="mt-2 flex rounded-md border border-border bg-surface focus-within:border-brand focus-within:ring-3 focus-within:ring-focus/20">
+      <div className="mt-2 flex rounded-md border border-border bg-background focus-within:border-brand focus-within:ring-3 focus-within:ring-focus/20">
         <input
           value={value}
           onChange={(event) => onChange(event.target.value)}

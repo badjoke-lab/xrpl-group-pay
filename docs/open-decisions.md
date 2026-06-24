@@ -50,6 +50,7 @@ SUPERSEDED
 | OD-029 | Which fields define an identical verified Payment proof? | Hash immutable ledger and expected-Payment facts; exclude verification and receipt observation timestamps so later re-verification remains idempotent | Re-verification test with different observation timestamps | Verified receipt persistence | DECIDED |
 | OD-030 | What does a read-only bill-progress capability reveal? | Show amounts, slot states, and verified public transaction references; hide participant labels, expected payer addresses, and InvoiceIDs. The creator capability may show the full management view | Capability-role, redaction, API, and UI tests | Bill progress view | DECIDED |
 | OD-031 | How is a public proof addressed and checked? | Use the receipt proof digest as a public URL-fragment identifier, retrieve it through a unique D1 index, and recompute the digest before publication. Viewing reads the durable receipt and does not mutate or resubmit the transaction | Migration uniqueness check, digest-mismatch test, API test, and browser smoke test | Public proof PR | DECIDED |
+| OD-032 | When does a creator draft become a published Bill? | Keep the editable draft browser-local, run a no-write server review through the same normalization contract, and create the frozen `open` Bill only after explicit final confirmation | Shared validation tests, no-write API test, component state test, and browser flow | Bill review flow | DECIDED |
 
 ## Decision record template
 
