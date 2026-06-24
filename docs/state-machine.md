@@ -1,15 +1,18 @@
 # XRPL Group Pay — State Machines
 
-**Status:** Draft for PR 1  
+**Status:** Active  
+**Scope:** Current XRP states with approved wallet- and asset-aware amendments  
+**Last reviewed:** 2026-06-24  
 **Document class:** Public
 
 ## 1. Principles
 
 - State transitions are server-authoritative.
-- Client navigation does not prove a transition.
-- Webhooks request verification; they do not directly prove payment.
-- Paid and settled transitions are monotonic unless an explicit security incident procedure marks records for review.
-- All transitions are auditable.
+- Client navigation and Wallet Provider status do not prove payment.
+- Paid and settled transitions are monotonic.
+- Every accepted transition is auditable.
+- The state model is provider-neutral even where current storage retains legacy Xaman field names.
+- Asset-specific verification is selected from the frozen Payment Intent.
 
 ## 2. Bill state
 
@@ -23,19 +26,17 @@ cancelled
 needs_review
 ```
 
-### 2.1 Bill transitions
-
 ```mermaid
 stateDiagram-v2
   [*] --> draft
-  draft --> open: publish and freeze
+  draft --> open: review, freeze, and publish
   draft --> cancelled: cancel draft
   open --> partially_paid: first verified slot
   open --> settled: all payable slots verified
   partially_paid --> settled: remaining slots verified
   open --> expired: deadline reached
   partially_paid --> expired: deadline reached
-  open --> cancelled: cancel before any submitted/paid slot
+  open --> cancelled: cancel before accepted payment
   open --> needs_review: critical inconsistency
   partially_paid --> needs_review: critical inconsistency
   needs_review --> open: resolved with no accepted payment
@@ -43,20 +44,19 @@ stateDiagram-v2
   needs_review --> settled: all payable slots verified
 ```
 
-### 2.2 Bill invariants
+Bill invariants:
 
-- `draft` is editable.
-- Payment-critical fields are frozen at `open`.
-- `settled` requires every payable slot to be paid.
-- `cancelled` cannot erase validated transactions.
-- A bill with a paid slot cannot be represented as if no payment occurred.
-- `expired` does not silently accept a late payment; late-payment policy must be explicit.
+- `draft` is editable and browser-local in the current creation flow;
+- payment-critical fields are frozen at `open`;
+- Settlement Asset cannot change after publication;
+- `settled` requires every payable slot to have an accepted receipt;
+- cancellation or expiry cannot erase validated transactions.
 
-## 3. Payment-slot state
+## 3. PaymentSlot state
 
 ```text
 unpaid
-payload_created
+handoff_created
 awaiting_signature
 rejected
 expired
@@ -67,70 +67,72 @@ verification_failed
 needs_review
 ```
 
-### 3.1 Payment-slot transitions
+Current database or UI names such as `payload_created` remain compatibility aliases until a migration explicitly replaces them.
 
 ```mermaid
 stateDiagram-v2
   [*] --> unpaid
-  unpaid --> payload_created: create Xaman payload
-  payload_created --> awaiting_signature: payload available
+  unpaid --> handoff_created: create Wallet Handoff
+  handoff_created --> awaiting_signature: provider request available
   awaiting_signature --> rejected: user rejects
-  awaiting_signature --> expired: payload expires
-  awaiting_signature --> submitted: signed transaction hash received
-  submitted --> validating: verification begins
-  validating --> validating: not found or not yet validated
+  awaiting_signature --> expired: request expires
+  awaiting_signature --> submitted: transaction identifier received
+  submitted --> validating: ledger verification begins
+  validating --> validating: not found or not validated
   validating --> paid: all checks pass atomically
-  validating --> verification_failed: validated failure or permanent mismatch
-  validating --> needs_review: alternative sender or ambiguous observation
-  rejected --> payload_created: retry with same frozen conditions
-  expired --> payload_created: retry with same frozen conditions
-  verification_failed --> payload_created: new request if safe and unpaid
-  needs_review --> paid: manual resolution only if verification contract passes
+  validating --> verification_failed: permanent mismatch
+  validating --> needs_review: allowed review condition
+  rejected --> handoff_created: retry frozen intent
+  expired --> handoff_created: retry frozen intent
+  verification_failed --> handoff_created: safe retry while unpaid
+  needs_review --> paid: verification contract passes
   needs_review --> unpaid: observation rejected
 ```
 
-### 3.2 Payment-slot invariants
+PaymentSlot invariants:
 
-- Only one active Xaman payload is preferred per slot.
-- A retry preserves destination, amount, InvoiceID, Source Tag, and network.
-- `paid` has exactly one accepted transaction hash.
-- `paid` cannot return to `unpaid`.
-- A different sender never becomes paid without the defined review path.
-- A duplicate transaction cannot pay a second slot.
+- one active handoff is preferred per slot;
+- retry preserves frozen Payment Intent and Bill revision;
+- `paid` has one accepted receipt and transaction identifier;
+- `paid` cannot return to `unpaid`;
+- duplicate transaction use cannot pay another slot;
+- provider metadata cannot alter payment conditions.
 
-## 4. Xaman payload state
+## 4. Wallet Handoff state
 
 ```text
 created
+available
 opened
 resolved_unsigned
 resolved_signed
+submitted
 expired
 failed
 ```
 
-```mermaid
-stateDiagram-v2
-  [*] --> created
-  created --> opened
-  created --> resolved_unsigned
-  opened --> resolved_unsigned
-  created --> resolved_signed
-  opened --> resolved_signed
-  created --> expired
-  opened --> expired
-  created --> failed
+Xaman payload lifecycle is the first implementation of this state model.
+
+A signed or submitted handoff still does not map directly to `PaymentSlot.paid`.
+
+## 5. Asset readiness state
+
+```text
+unknown
+checking
+ready
+blocked_missing_account
+blocked_missing_trust_line
+blocked_limit
+blocked_asset_state
+unavailable
 ```
 
-Interpretation:
+For XRP, readiness is normally implicit after address validation. For RLUSD, recipient readiness is checked before Bill freeze.
 
-- `resolved_unsigned`: rejected or closed without signing.
-- `resolved_signed`: a transaction hash is expected, but payment is not yet verified.
-- `failed`: payload creation or retrieval failure.
+Readiness is preflight information and cannot replace ledger verification.
 
-A payload state is never mapped directly to `payment_slot.paid`.
-
-## 5. Transaction observation state
+## 6. Transaction observation state
 
 ```text
 received
@@ -142,24 +144,9 @@ mismatch
 duplicate
 ```
 
-```mermaid
-stateDiagram-v2
-  [*] --> received
-  received --> not_found
-  not_found --> received: retry
-  received --> unvalidated
-  unvalidated --> received: retry
-  received --> validated_success
-  received --> validated_failure
-  validated_success --> mismatch: expected fields do not match
-  validated_success --> duplicate: tx hash already accepted
-```
+A validated-success observation means only that XRPL reported `tesSUCCESS`. The slot is satisfied only after the asset-specific verification contract passes.
 
-A `validated_success` observation means only that XRPL reported `tesSUCCESS`. It does not mean the Group Pay slot is satisfied until all expected-field checks pass.
-
-## 6. Verification result
-
-Structured terminal or retryable results:
+## 7. Verification result
 
 ```text
 VERIFIED
@@ -174,17 +161,18 @@ FAIL_WRONG_DESTINATION_TAG
 FAIL_WRONG_SOURCE_TAG
 FAIL_WRONG_INVOICE_ID
 FAIL_WRONG_ASSET
+FAIL_WRONG_CURRENCY
+FAIL_WRONG_ISSUER
 FAIL_WRONG_AMOUNT
 FAIL_PARTIAL_PAYMENT
+FAIL_UNSUPPORTED_PATH
 FAIL_DUPLICATE_TRANSACTION
 FAIL_SLOT_ALREADY_PAID
 FAIL_MALFORMED_RESPONSE
 REVIEW_ALTERNATIVE_PAYER
 ```
 
-## 7. Bill recomputation
-
-After any slot transition:
+## 8. Bill recomputation
 
 ```text
 if critical review condition:
@@ -199,48 +187,62 @@ else:
     bill = open
 ```
 
-Draft and cancelled states are handled separately and are not overwritten by routine recomputation.
+Progress uses Accounting Currency. Make Waves v1 keeps Accounting Currency equal to Settlement Asset.
 
-## 8. Idempotent event processing
+## 9. Future Settlement Quote state
+
+```text
+draft
+active
+expired
+replaced
+accepted
+consumed
+cancelled
+```
+
+A replaced or expired quote cannot remain signable. A changed quote requires a new participant confirmation and new Wallet Handoff.
+
+## 10. Idempotent events
 
 Event key examples:
 
 ```text
-xaman:{payload_uuid}:{resolution_state}
-xrpl:{network}:{tx_hash}
-slot-verification:{slot_id}:{tx_hash}
+wallet:{provider_id}:{request_id}:{state}
+xrpl:{network}:{transaction_id}
+slot-verification:{slot_id}:{transaction_id}
+readiness:{asset_id}:{destination}:{observation}
+quote:{quote_id}:{revision}:{state}
 ```
 
-Repeated receipt must:
+Repeated processing returns the existing normalized result, avoids duplicate metrics and audit entries, and preserves original accepted timestamps.
 
-- Return the existing normalized result.
-- Avoid duplicate metrics.
-- Avoid duplicate activity entries.
-- Avoid a second bill-state notification.
-- Preserve the original accepted timestamp where appropriate.
-
-## 9. Audit events
-
-Proposed append-only normalized audit types:
+## 11. Audit events
 
 ```text
 BILL_CREATED
+BILL_REVIEWED
 BILL_PUBLISHED
 BILL_EXPIRED
 BILL_CANCELLED
 SLOT_CREATED
-PAYLOAD_CREATED
-PAYLOAD_REJECTED
-PAYLOAD_EXPIRED
+ASSET_READINESS_CHECKED
+HANDOFF_CREATED
+HANDOFF_REJECTED
+HANDOFF_EXPIRED
 TRANSACTION_REPORTED
 TRANSACTION_NOT_FOUND
 TRANSACTION_VALIDATED
 TRANSACTION_REJECTED
+RECEIPT_ACCEPTED
 SLOT_PAID
 SLOT_REVIEW_REQUIRED
 BILL_PARTIALLY_PAID
 BILL_SETTLED
 CAPABILITY_REVOKED
+QUOTE_CREATED
+QUOTE_REPLACED
+QUOTE_EXPIRED
 ```
 
-Audit events must not include raw capability tokens or secrets.
+Audit events do not include complete private shared links or provider server configuration.
