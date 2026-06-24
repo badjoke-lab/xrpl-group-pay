@@ -1,285 +1,296 @@
 # XRPL Group Pay — UI/UX Specification
 
-**Status:** Draft for PR 1  
+**Status:** Active  
+**Scope:** Approved Make Waves v1 experience for XRP, RLUSD, Xaman, and English/Japanese/Korean  
+**Last reviewed:** 2026-06-24  
 **Document class:** Public  
 **Design concept:** Warm Settlement Utility
 
 ## 1. Product experience
 
-The interface must feel like a modern shared-expense product, not a generic crypto wallet. It should communicate:
+The interface must feel like a modern shared-expense product rather than a generic wallet or token dashboard.
 
-- Direct payment.
-- Clear responsibility.
-- Verifiable completion.
-- Human group context.
-- Calm financial safety.
+It communicates:
 
-Xaman is the signing wallet, not the Group Pay brand.
+- direct settlement;
+- clear participant responsibility;
+- exact asset and amount;
+- calm financial safety;
+- verified completion;
+- human group context.
+
+Wallet Providers and assets appear where relevant but do not replace the XRPL Group Pay product identity.
 
 ## 2. Brand direction
 
-### Primary
-
-Deep Plum represents product identity, headings, selected navigation, important financial values, and trusted links.
-
-### Action
-
-Coral represents the primary user action. It is used sparingly so that a payment or creation action is visually unambiguous.
-
-### Status
-
-- Emerald: verified success.
-- Amber: pending attention or time-sensitive warning.
+- Deep Plum: product identity, headings, selected navigation, important financial values.
+- Coral: one primary action per view.
+- Emerald: validated success only.
+- Amber: pending attention, expiry, readiness, or Mainnet caution.
 - Red: blocking error or dangerous mismatch.
-- Neutral gray: unpaid, inactive, or secondary information.
+- Neutral: unpaid, inactive, or secondary information.
+
+XRP, RLUSD, and Wallet Provider branding must not override the Group Pay design system.
 
 ## 3. User roles
 
 ### Payer
 
-Needs a focused, low-navigation flow:
-
 ```text
 Payment details
 -> Final review
--> Xaman handoff
--> Waiting
+-> Wallet Handoff
+-> Waiting for wallet
 -> Ledger verification
 -> Verified result or actionable error
 ```
 
 ### Creator
 
-Needs creation and management workflows:
-
 ```text
-Create bill
--> Allocate shares
--> Review and publish
--> Share participant links
+Create Bill
+-> Select asset
+-> Select allocation strategy
+-> Enter participants
+-> Review and freeze
+-> Share links
 -> Monitor progress
--> View settlement proof
+-> View proof
 ```
 
-### Proof viewer
+### Progress and proof viewer
 
-Needs a read-only, technical but understandable verification page.
+Receives a read-only view with only the information allowed by the corresponding capability or proof contract.
 
-## 4. Mobile experience
+## 4. Mobile and desktop
 
-Mobile is the primary payer environment.
+Mobile is the primary payer environment. Use one primary action, a prominent amount, visible asset and network, and no creator navigation on participant pages.
 
-Rules:
+Desktop is a creator workspace with dense participant editing, a persistent summary, progress, proof, and future group-management space. It is not an enlarged mobile layout.
 
-- One primary action per step.
-- Main action anchored near the bottom where appropriate.
-- Amount is the strongest visual element.
-- Destination is visible before handoff.
-- Xaman handoff has recovery options.
-- Browser return does not assume the transaction is already final.
-- Loading, signing, submission, and validation are distinct states.
-- No desktop sidebar on participant pages.
+## 5. Bill creation content order
 
-## 5. Desktop experience
+1. Bill title.
+2. Network notice.
+3. Settlement Asset.
+4. Destination and optional Destination Tag.
+5. Total and creator share.
+6. Allocation Strategy.
+7. Participants and strategy inputs.
+8. Remainder handling.
+9. RLUSD recipient readiness when applicable.
+10. Default shared-link language.
+11. Review and freeze.
 
-Desktop is a creator workspace, not an enlarged phone.
+Make Waves v1 presents:
 
-Use:
+```text
+Settlement Asset
+[ XRP ] [ RLUSD ]
 
-- Left navigation.
-- Main bill or participant table.
-- Right summary panel.
-- Bulk-friendly participant editing.
-- Persistent bill totals and progress.
-- Visible QR and export actions.
-- More technical detail on proof pages.
+Split method
+[ Equal ] [ Percentage ] [ Shares ] [ Custom ]
+```
 
-## 6. Screen hierarchy
+A published Bill cannot switch assets.
 
-### Payer-critical screens
+## 6. Asset presentation
 
-- C01 Payment details.
-- C02 Final confirmation.
-- C03 Xaman launch and recovery.
-- C04 Awaiting signature.
-- C05 Rejected or expired.
-- C06 Ledger verification.
-- C07 Verified payment.
-- C08 Verification exception.
+### XRP
 
-### Creator-critical screens
+- display `XRP` next to every financial value;
+- use up to six decimals without meaningless trailing zeros;
+- explain that the wallet determines the network fee.
 
-- B01 Bill basics.
-- B02 Participants and amounts.
-- B03 Review.
-- B04 Created and shared.
-- D01 Progress.
-- D02 Settlement complete.
-- E03 Desktop bill detail.
-- E05 Transaction proof.
+### RLUSD
 
-## 7. Payment page content order
+- display `RLUSD`, not a dollar sign alone;
+- label it as official RLUSD on the selected XRPL network;
+- provide access to the full issuer value;
+- show recipient readiness before Bill freeze;
+- explain that the settlement amount is RLUSD while the network fee is paid in XRP.
 
-1. Product identity.
-2. Network badge.
-3. Bill title.
-4. “Your share”.
-5. XRP amount.
-6. Recipient label/address.
-7. Direct-payment, Xaman-signing, and ledger-verification assurances.
-8. Primary payment action.
-9. “Opens securely in Xaman”.
-10. Network-fee disclosure.
+The interface never implies that Group Pay exchanges XRP and RLUSD.
 
-Do not lead with technical fields such as InvoiceID or Source Tag.
+## 7. Allocation presentation
 
-## 8. Final confirmation
+### Equal
+
+Show the calculated obligations and any remainder assignment.
+
+### Percentage
+
+Show each percentage and calculated obligation. The total must visibly equal 100%.
+
+### Shares
+
+Show each weight and calculated obligation. Explain shares as relative weights rather than percentages.
+
+### Custom Amount
+
+Show under-, exact-, and over-allocation states as the creator types.
+
+For every strategy, the final review shows exact participant obligations, not only the strategy inputs.
+
+## 8. Creator review
+
+The review page shows:
+
+- network;
+- Bill title;
+- Accounting Currency and Settlement Asset;
+- destination and optional tag;
+- total and creator share;
+- Allocation Strategy;
+- remainder policy;
+- each participant, expected payer, and final obligation;
+- RLUSD issuer and readiness summary;
+- warning that publication freezes these conditions.
+
+The primary action is `Freeze Bill and create payment links` or its localized equivalent.
+
+## 9. Payer details
+
+Content order:
+
+1. product identity;
+2. network badge;
+3. Bill title;
+4. participant label when allowed;
+5. `Your share`;
+6. exact Settlement Amount and asset;
+7. recipient;
+8. official issuer detail for RLUSD;
+9. direct-payment and ledger-verification explanation;
+10. primary review action.
+
+Technical fields such as InvoiceID and Source Tag are available in details but do not lead the page.
+
+## 10. Final confirmation
 
 Must show:
 
-- Exact XRP amount.
-- Full destination available by expansion or copy.
-- Destination Tag if present.
-- Network.
-- Irreversibility warning for Mainnet.
-- Clear transition to Xaman.
+- exact asset and amount;
+- full destination available by expansion or copy;
+- expected payer;
+- optional Destination Tag;
+- Source Tag;
+- InvoiceID;
+- network;
+- selected Wallet Provider;
+- RLUSD official issuer and XRP fee notice when applicable;
+- Mainnet irreversibility warning.
 
-The CTA is `Continue to Xaman`, not `Payment complete`.
+The action may say `Continue to Xaman` when Xaman is selected. The domain meaning is `Create Wallet Handoff`, not `Payment complete`.
 
-## 9. Verification states
+## 11. Wallet Handoff
 
-### Awaiting signature
+- Wallet Provider branding appears only in handoff contexts.
+- Group Pay colors remain dominant.
+- Deep-link, QR, and recovery options are clearly separated.
+- Wallet opening does not imply submission.
+- Signed or submitted does not imply verification.
+- Future providers use the same content hierarchy and safety boundary.
 
-Copy: `Waiting for your approval in Xaman`
+## 12. Verification states
 
-### Submitted, not yet validated
+```text
+Waiting for wallet approval
+Payment submitted
+Verifying on the XRP Ledger
+Payment verified
+Payment requires review
+Request rejected
+Request expired
+```
 
-Copy: `Payment submitted` and `Verifying on the XRP Ledger`
+`Verified` is used only after the validated-ledger verification contract passes.
 
-### Verified
+Errors explain the expected and observed category when safe. Internal codes are not the only user-facing explanation.
 
-Copy: `Payment verified`
+## 13. Bill progress
 
-### Not found yet
+A progress page shows:
 
-Copy: `The transaction is not visible on the expected network yet.`
+- Bill total in Accounting Currency;
+- paid amount;
+- remaining amount;
+- participant counts and states;
+- Settlement Asset for Make Waves v1;
+- verified transaction references where permitted;
+- settled state.
 
-### Mismatch
+XRP and RLUSD volumes are never added together.
 
-Copy: `Payment requires review`
+## 14. Localization
 
-Do not present internal exception codes as the only user-facing explanation.
+The critical flow supports English, Japanese, and Korean.
 
-## 10. Xaman presentation
+Rules:
 
-- Xaman logo appears only in handoff-related contexts.
-- Group Pay primary colors remain dominant.
-- Main CTA can say `Pay 4 XRP`.
-- Supporting copy says `Opens securely in Xaman`.
-- Do not style the entire application in Xaman blue.
-- Do not imply Xaman is operated by Group Pay.
+- language selection is visible but not dominant;
+- switching language preserves the same Bill and capability;
+- user-entered titles and labels remain unchanged;
+- financial values are formatted by locale but stored identically;
+- no concatenated sentence fragments;
+- no text embedded in required images;
+- layouts tolerate longer translated strings;
+- the document `lang` value follows the selected locale.
 
-## 11. Network presentation
+## 15. Roadmap and Changelog pages
 
-Testnet:
+Public pages use the same visual system as the application.
 
-- Small persistent badge.
-- Calm explanatory copy.
-- No implication of real-value production usage.
+Roadmap:
 
-Mainnet:
+- displays Available, In Progress, Next, Later, and Research;
+- clearly separates current availability from direction;
+- does not promise dates.
 
-- Strong but non-alarming warning before creation and payment.
-- “Real XRP” language.
-- Network must remain visible on confirmation and verification screens.
+Changelog:
 
-## 12. Error design
+- groups meaningful completed changes by release;
+- distinguishes Added, Changed, Fixed, Security, Deprecated, and Removed;
+- never lists unimplemented roadmap items as completed.
 
-Errors are grouped:
+## 16. Network presentation
 
-### Recoverable interaction
+Testnet uses a persistent badge and calm explanation that it is not production-value settlement.
 
-- Xaman did not open.
-- Sign request expired.
-- User rejected.
-- Temporary network error.
+Mainnet uses a clear real-value warning before Bill freeze and payment approval. Network remains visible during confirmation and verification.
 
-Provide retry or return action.
+## 17. Error design
 
-### Verification exception
+Recoverable interaction errors provide retry or return actions without erasing entered data.
 
-- Wrong sender.
-- Wrong destination.
-- Wrong amount.
-- Wrong network.
-- Wrong InvoiceID.
-- Duplicate transaction.
+Verification exceptions include wrong sender, destination, network, asset, issuer, amount, tag, InvoiceID, duplicate transaction, and unsupported path behavior.
 
-Do not auto-retry by creating a modified transaction. Show the expected and observed difference only when safe.
+RLUSD readiness errors distinguish missing trust line, insufficient capacity, wrong issuer, and unavailable check.
 
-### Invalid capability
+## 18. Copy rules
 
-Use a neutral page that does not reveal whether a bill exists.
+- use `payment` or `settlement`, not `transfer execution`;
+- use `verified` only after ledger verification;
+- use `submitted` before validation;
+- use `recipient` for destination;
+- avoid `guaranteed`, `reversible`, and `protected funds`;
+- show asset units on every financial value;
+- use shortened addresses with copy and full-view controls;
+- distinguish Accounting Currency, Settlement Asset, and network fee when they differ;
+- do not imply Group Pay performs conversion.
 
-## 13. Empty and loading states
+## 19. Visual anti-patterns
 
-Every list and summary area has:
+Do not use neon crypto gradients, excessive wallet branding, decorative charts without decisions, low-readability glass effects, multiple primary actions, tiny gray text, color-only status, repeated confetti, delayed proof access, or asset-specific themes that fragment the product.
 
-- Skeleton state.
-- Empty state.
-- Partial data state.
-- Failure state.
+## 20. Approved visual baseline
 
-A spinner alone is insufficient for long ledger verification. Show the steps being performed.
-
-## 14. Copy rules
-
-- Use “payment” rather than “transfer execution”.
-- Use “verified” only after ledger verification.
-- Use “submitted” after Xaman submission but before validation.
-- Use “recipient” for the destination account.
-- Avoid “guaranteed”, “reversible”, and “protected funds”.
-- State limitations directly.
-- Display XRP with up to six decimal places without meaningless trailing zeros.
-- Display addresses shortened by default with copy/full-view actions.
-
-## 15. Language
-
-Initial public UI language: English.
-
-Architecture must support future Japanese localization:
-
-- No text embedded in images.
-- No concatenated sentence fragments.
-- Labels have flexible width.
-- Layout tolerates longer translated strings.
-
-## 16. Visual anti-patterns
-
-Do not use:
-
-- Neon crypto gradients.
-- Excessive blue wallet branding.
-- Decorative charts without a user decision.
-- Glassmorphism that reduces readability.
-- Heavy shadows around every section.
-- Multiple competing primary buttons.
-- Tiny gray text.
-- Status indicated by color alone.
-- Confetti on every payment.
-- Animation that delays access to proof.
-
-## 17. Mockup baseline
-
-The approved direction uses:
-
-- Warm off-white background.
-- White surfaces.
-- Deep Plum brand color.
-- Coral primary CTA.
-- Moderate rounding.
-- Minimal shadow.
-- Large financial amount.
-- Calm, restrained spacing.
-- Mobile-first payer flow.
-- Information-dense desktop creator workspace.
+- warm off-white background;
+- white surfaces;
+- Deep Plum brand color;
+- Coral primary action;
+- restrained rounding and shadow;
+- large settlement amount;
+- calm spacing;
+- mobile-first payer flow;
+- information-dense desktop creator workspace.

@@ -1,195 +1,176 @@
 # XRPL Group Pay — Accessibility Specification
 
-**Status:** Draft for PR 1  
+**Status:** Active  
+**Scope:** Make Waves v1 critical flows  
+**Last reviewed:** 2026-06-24  
 **Document class:** Public  
-**Target:** WCAG 2.2 AA for supported user flows
+**Target:** WCAG 2.2 AA
 
-## 1. General objective
+## 1. Objective
 
-A user must be able to create, review, sign, verify, and inspect a group payment without relying on precise pointer movement, color perception, animation, or visual layout alone.
+A user must be able to create, allocate, review, sign, verify, and inspect a group payment without relying on precise pointer movement, color perception, animation, English-only content, or visual layout alone.
 
 ## 2. Semantic structure
 
-- One clear `h1` per page.
-- Logical heading order.
-- Native buttons for actions.
-- Native links for navigation.
-- Form controls associated with labels.
-- Tables used only for actual tabular data.
-- Status lists use appropriate list or progress semantics.
-- Dialogs have accessible names and focus management.
+- one clear `h1` per page;
+- logical heading order;
+- native buttons and links;
+- labels associated with every control;
+- tables used for real tabular data;
+- status and progress use text and programmatic semantics;
+- dialogs and sheets have accessible names and focus management;
+- document `lang` matches English, Japanese, or Korean locale.
 
-## 3. Keyboard
+## 3. Keyboard and touch
 
-All creator desktop actions must support keyboard operation.
+All creator desktop actions support keyboard operation. There is a visible focus indicator, logical tab order, no keyboard trap, and no accidental incomplete financial submission.
 
-Requirements:
+Primary mobile actions are at least 48×48 CSS px. Other controls target at least 44×44 px where practical. Asset, allocation, participant, language, and wallet controls must remain distinguishable.
 
-- Visible focus ring.
-- Logical tab order.
-- No keyboard trap.
-- Escape closes non-destructive dialogs.
-- Enter does not accidentally submit an incomplete financial form.
-- Destructive actions require explicit focused confirmation.
-- Copy actions are keyboard accessible.
+## 4. Color and status
 
-## 4. Touch targets
+Text and interactive controls meet AA contrast. Status, network, asset readiness, and selected allocation are not represented by color alone.
 
-- Primary mobile actions: minimum 48×48 CSS px.
-- Other interactive controls: target at least 44×44 where practical.
-- Controls smaller than 44px require sufficient spacing and must still meet WCAG 2.2 minimum requirements.
-- Adjacent participant actions must not be easy to confuse.
+Testnet/Mainnet and official/wrong issuer distinctions include explicit text.
 
-## 5. Color and contrast
+## 5. Financial forms
 
-- Normal text meets AA contrast.
-- Large text meets AA contrast.
-- Focus indicators are visible against both background and surface.
-- Status is never represented by color alone.
-- Testnet/Mainnet distinction uses text, not color alone.
-- Disabled state remains readable.
+Every financial field has:
 
-Color contrast is validated against final rendered tokens before implementation approval.
+- persistent label;
+- visible unit;
+- help text where needed;
+- associated error;
+- required/optional status;
+- correct input mode;
+- no silent rounding.
 
-## 6. Forms
+Asset unit is dynamic:
 
-Every field includes:
+```text
+XRP
+RLUSD
+future Accounting Currency
+```
 
-- Persistent label.
-- Optional help text.
-- Programmatically associated error.
-- Required/optional indication.
-- Correct input mode.
-- Autocomplete only when appropriate.
+Percentage controls announce the current total. Shares controls explain relative weights. Custom Amount announces under-, exact-, or over-allocation. Remainder assignment is keyboard accessible and announced.
 
-Amount field:
+## 6. Asset and issuer accessibility
 
-- Decimal input mode.
-- Visible XRP unit.
-- Error for more than six decimals.
-- No silent rounding.
+RLUSD content announces:
 
-Address field:
+- official RLUSD;
+- selected XRPL network;
+- full issuer available on demand;
+- recipient readiness state;
+- RLUSD payment amount;
+- XRP network-fee distinction.
 
-- Monospace value.
-- Full value review.
-- Copy control.
-- Specific invalid-address error.
+Issuer verification cannot rely on an icon or color alone.
 
-Destination Tag:
-
-- Numeric input mode.
-- UInt32 validation.
-- Explanation that it may be required by the recipient.
-
-## 7. Error handling
+## 7. Errors
 
 On failed submit:
 
-- Focus moves to an error summary or first invalid field.
-- Error summary links to affected fields.
-- Existing values remain.
-- Error message explains correction.
-- No reliance on toast alone.
+- focus moves to an error summary or first invalid field;
+- summary links to affected fields;
+- entered values remain;
+- correction is explained;
+- a toast is not the only notification.
 
-Verification errors:
+Verification and readiness errors use live-region announcements and plain language, with technical detail separately available.
 
-- `aria-live` announcement.
-- Plain-language status.
-- Technical detail available separately.
-- Retry does not erase evidence of the previous attempt.
-
-## 8. Dynamic status announcements
+## 8. Dynamic announcements
 
 Use polite live regions for:
 
-- Xaman request created.
-- Signature rejected or expired.
-- Transaction submitted.
-- Waiting for validation.
-- Payment verified.
-- Participant progress update.
+- allocation total changes;
+- participant addition/removal;
+- RLUSD readiness result;
+- Wallet Handoff creation;
+- request rejection or expiry;
+- transaction submission;
+- waiting for validation;
+- payment verification;
+- Bill progress updates;
+- locale change completion.
 
-Use assertive announcements only for blocking safety issues.
+Use assertive announcements only for blocking safety conditions.
 
 ## 9. Progress
 
-Bill progress includes:
+Bill progress includes textual count, amount, Accounting Currency, programmatic progress value, and settled label. A visual ring or bar alone is insufficient.
 
-- Text count.
-- Amount count.
-- Programmatic progress value.
-- Clear settled label.
-
-A circular visual alone is insufficient.
+XRP and RLUSD are never combined into one unlabeled amount.
 
 ## 10. Motion
 
-- Respect reduced-motion preference.
-- No motion required to understand a state.
-- No flashing content.
-- Loading state includes text.
-- Timed payload expiry is communicated before expiration where possible.
+Respect `prefers-reduced-motion`. No motion is required to understand a state. No flashing content or success animation appears before ledger verification.
 
-## 11. Zoom and text resize
+Timed wallet requests communicate expiry before it occurs where possible.
 
-- Usable at 200% zoom.
-- No clipped main actions.
-- No horizontal scroll for ordinary text at supported reflow targets.
-- Addresses may wrap.
-- Fixed headers and footers do not cover focused content.
+## 11. Zoom and reflow
 
-## 12. Screen-reader payment review
+At 200% zoom, actions remain visible, panels do not overlap, addresses wrap, and translated safety text is not clipped.
 
-The final confirmation reading order must announce:
+At supported reflow targets, the critical flow remains usable without ordinary-text horizontal scrolling.
 
-1. Bill title.
-2. Amount and XRP unit.
-3. Mainnet or Testnet.
-4. Destination address.
-5. Destination Tag if present.
-6. Irreversibility notice.
-7. Continue-to-Xaman action.
+## 12. Screen-reader review order
+
+Final confirmation announces:
+
+1. Bill title;
+2. obligation and Settlement Asset;
+3. Mainnet or Testnet;
+4. destination;
+5. expected payer;
+6. Destination Tag when present;
+7. Source Tag and InvoiceID details;
+8. official RLUSD issuer and XRP fee notice when applicable;
+9. irreversibility notice;
+10. Wallet Provider action.
 
 ## 13. QR alternative
 
-A QR code is never the only path.
+QR is never the only Wallet Handoff path. Provide deep link, copyable instruction where safe, text guidance, accessible QR name, and a clear distinction between participant and creator links.
 
-Provide:
+## 14. Localization accessibility
 
-- Deep link.
-- Copyable link where safe.
-- Text instruction.
-- Accessible name for QR image.
-- Clear distinction between payment URL and creator-management URL.
+English, Japanese, and Korean include translated:
 
-## 14. Testing
+- labels;
+- help text;
+- error summaries;
+- warnings;
+- status announcements;
+- control names;
+- Roadmap and Changelog navigation.
+
+User-entered text and technical identifiers remain unchanged. Locale switching must not skip a review step or lose focus context without explanation.
+
+## 15. Testing
 
 Automated:
 
-- axe or equivalent.
-- Semantic linting.
-- Focus-visible checks.
-- Color-token contrast check where possible.
+- accessibility scanner;
+- semantic linting;
+- focus-visible checks;
+- catalog completeness;
+- document-language tests;
+- critical live-region tests;
+- color-token contrast checks where possible.
 
 Manual:
 
-- Keyboard-only desktop flow.
-- TalkBack on Android.
-- VoiceOver/Safari before broad iOS claims.
-- 200% browser zoom.
-- Reduced motion.
-- High-contrast or forced-colors review.
-- Long localized strings.
+- keyboard-only desktop flow;
+- TalkBack on Android in all three languages for the payer path;
+- VoiceOver/Safari before broad iOS claims;
+- 200% zoom;
+- reduced motion;
+- forced-colors review;
+- long Japanese and Korean strings;
+- XRP and RLUSD final confirmation.
 
-## 15. Accessibility acceptance gate
+## 16. Release gate
 
-A critical payment path cannot ship with:
-
-- Unlabeled financial input.
-- Unreachable primary action.
-- Missing focus state.
-- Color-only status.
-- Unannounced verification completion.
-- QR-only wallet handoff.
-- Error that cannot be corrected without re-entering the entire bill.
+A critical flow cannot ship with an unlabeled financial input, unreachable primary action, missing focus state, color-only status, untranslated blocking warning, unannounced verification completion, QR-only handoff, clipped issuer/amount information, or an error that forces complete re-entry.
