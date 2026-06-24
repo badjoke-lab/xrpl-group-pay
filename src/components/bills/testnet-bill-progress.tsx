@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CheckCircle2,
   CircleAlert,
@@ -14,14 +14,11 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import type { BillProgress } from "@/features/bills/progress";
 import {
-  requestBillProgress,
   BillProgressRequestError,
+  requestBillProgress,
 } from "@/features/bills/progress-client";
-import type {
-  BillProgress,
-  paymentSlotProgressStatusSchema,
-} from "@/features/bills/progress";
 import { useCapabilityToken } from "@/features/capabilities/use-capability-token";
 
 export type TestnetBillProgressProps = {
@@ -33,7 +30,7 @@ type ProgressViewState =
   | { kind: "loaded"; progress: BillProgress }
   | { kind: "error"; message: string };
 
-type SlotStatus = typeof paymentSlotProgressStatusSchema._type;
+type SlotStatus = BillProgress["slots"][number]["status"];
 
 function dropsToXrp(drops: string) {
   const padded = drops.padStart(7, "0");
@@ -48,6 +45,12 @@ function shortValue(value: string, start = 9, end = 7) {
     : value;
 }
 
+function progressErrorMessage(error: unknown) {
+  return error instanceof BillProgressRequestError
+    ? error.message
+    : "The bill progress could not be loaded.";
+}
+
 function statusPresentation(status: SlotStatus) {
   if (status === "paid") {
     return {
@@ -58,7 +61,8 @@ function statusPresentation(status: SlotStatus) {
   }
   if (status === "needs_review" || status === "verification_failed") {
     return {
-      label: status === "needs_review" ? "Needs review" : "Verification failed",
+      label:
+        status === "needs_review" ? "Needs review" : "Verification failed",
       icon: CircleAlert,
       className: "bg-danger/10 text-danger",
     };
@@ -103,9 +107,7 @@ export function TestnetBillProgress({
 }: TestnetBillProgressProps) {
   const { capability, resolved } = useCapabilityToken(capabilityToken);
 
-  if (!resolved) {
-    return <ProgressLoading />;
-  }
+  if (!resolved) return <ProgressLoading />;
   if (!capability) {
     return (
       <ProgressError
@@ -122,41 +124,49 @@ function BillProgressLoader({ capability }: { capability: string }) {
   const [state, setState] = useState<ProgressViewState>({ kind: "loading" });
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
+  useEffect(() => {
+    let active = true;
+
+    requestBillProgress(capability).then(
+      (progress) => {
+        if (active) setState({ kind: "loaded", progress });
+      },
+      (error: unknown) => {
+        if (active) {
+          setState({ kind: "error", message: progressErrorMessage(error) });
+        }
+      },
+    );
+
+    return () => {
+      active = false;
+    };
+  }, [capability]);
+
+  async function refresh() {
+    setRefreshing(true);
     try {
       const progress = await requestBillProgress(capability);
       setState({ kind: "loaded", progress });
     } catch (error) {
-      setState({
-        kind: "error",
-        message:
-          error instanceof BillProgressRequestError
-            ? error.message
-            : "The bill progress could not be loaded.",
-      });
+      setState({ kind: "error", message: progressErrorMessage(error) });
+    } finally {
+      setRefreshing(false);
     }
-  }, [capability]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function refresh() {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
   }
 
-  if (state.kind === "loading") {
-    return <ProgressLoading />;
-  }
+  if (state.kind === "loading") return <ProgressLoading />;
   if (state.kind === "error") {
     return (
       <ProgressError
         title="Bill progress unavailable"
         message={state.message}
         action={
-          <Button variant="secondary" onClick={() => void refresh()} disabled={refreshing}>
+          <Button
+            variant="secondary"
+            onClick={() => void refresh()}
+            disabled={refreshing}
+          >
             {refreshing ? (
               <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
             ) : (
@@ -191,7 +201,8 @@ function ProgressSnapshot({
     progress.summary.participantCount === 0
       ? 0
       : Math.round(
-          (progress.summary.paidCount / progress.summary.participantCount) * 100,
+          (progress.summary.paidCount / progress.summary.participantCount) *
+            100,
         );
   const isSettled = progress.bill.status === "settled";
   const isAdmin = progress.access === "admin";
@@ -224,7 +235,11 @@ function ProgressSnapshot({
                   : "Each slot updates independently only after its exact XRP Payment is verified."}
               </p>
             </div>
-            <Button variant="secondary" onClick={onRefresh} disabled={refreshing}>
+            <Button
+              variant="secondary"
+              onClick={onRefresh}
+              disabled={refreshing}
+            >
               {refreshing ? (
                 <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
               ) : (
@@ -238,7 +253,8 @@ function ProgressSnapshot({
             <div className="mb-2 flex items-center justify-between text-sm">
               <span className="font-semibold">Settlement progress</span>
               <span className="font-semibold text-brand">
-                {progress.summary.paidCount}/{progress.summary.participantCount} paid
+                {progress.summary.paidCount}/{progress.summary.participantCount}{" "}
+                paid
               </span>
             </div>
             <div
@@ -280,11 +296,17 @@ function ProgressSnapshot({
 
       {isSettled && (
         <section className="flex items-start gap-4 rounded-xl border border-success/25 bg-success/10 p-5 text-success sm:p-6">
-          <ShieldCheck aria-hidden="true" className="mt-0.5 size-7 shrink-0" />
+          <ShieldCheck
+            aria-hidden="true"
+            className="mt-0.5 size-7 shrink-0"
+          />
           <div>
-            <h3 className="font-heading text-xl font-semibold">Settlement complete</h3>
+            <h3 className="font-heading text-xl font-semibold">
+              Settlement complete
+            </h3>
             <p className="mt-1 leading-7">
-              The bill is settled because all externally payable slots have a durable verified receipt.
+              The bill is settled because all externally payable slots have a
+              durable verified receipt.
             </p>
           </div>
         </section>
@@ -294,7 +316,9 @@ function ProgressSnapshot({
         <div className="flex items-center gap-3">
           <WalletCards aria-hidden="true" className="size-6 text-brand" />
           <div>
-            <h3 className="font-heading text-2xl font-semibold">Participant slots</h3>
+            <h3 className="font-heading text-2xl font-semibold">
+              Participant slots
+            </h3>
             <p className="mt-1 text-sm text-muted">
               {isAdmin
                 ? "Creator details are visible because this is the management capability."
@@ -392,7 +416,7 @@ function SummaryCell({
   alert?: boolean;
 }) {
   return (
-    <div className="border-border p-5 not-last:border-b sm:odd:border-r sm:nth-[n+3]:border-b-0 lg:border-b-0 lg:not-last:border-r">
+    <div className="border-b border-border p-5 sm:border-r lg:border-b-0">
       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
         {label}
       </p>
@@ -430,7 +454,10 @@ function ProgressError({
 }) {
   return (
     <section className="mx-auto max-w-xl rounded-xl border border-danger/25 bg-surface p-7 text-center shadow-sm sm:p-9">
-      <CircleAlert aria-hidden="true" className="mx-auto size-11 text-danger" />
+      <CircleAlert
+        aria-hidden="true"
+        className="mx-auto size-11 text-danger"
+      />
       <h2 className="mt-4 font-heading text-2xl font-semibold">{title}</h2>
       <p className="mt-3 leading-7 text-muted">{message}</p>
       {action && <div className="mt-6">{action}</div>}
