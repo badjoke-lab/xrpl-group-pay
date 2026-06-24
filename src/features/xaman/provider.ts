@@ -1,3 +1,4 @@
+import type { XamanEnvironment } from "@/config/server-env";
 import type { PaymentIntent } from "@/features/payment-intents/types";
 import {
   WalletProviderError,
@@ -11,7 +12,7 @@ import {
   XrplPaymentBuildError,
 } from "@/features/xrpl/payment-builder";
 
-import { XamanApiError, type XamanClient } from "./client";
+import { XamanApiError, XamanClient } from "./client";
 import {
   TESTNET_FORCE_NETWORK,
   type XamanPaymentPayloadRequest,
@@ -73,9 +74,7 @@ function normalizeCreatedHandoff(
     statusChannel: response.refs.websocket_status,
     expiresAt: intent.expiresAt,
     transactionId: null,
-    providerMetadata: {
-      pushed: response.pushed ?? null,
-    },
+    providerMetadata: { pushed: response.pushed ?? null },
   });
 
   if (!parsed.success) {
@@ -95,16 +94,12 @@ export class XamanProvider implements WalletProvider {
 
   constructor(private readonly client: XamanPayloadClient) {}
 
-  async createHandoff(intent: PaymentIntent): Promise<WalletHandoff> {
-    const request = buildXamanRequest(intent);
-
+  async createPayloadRequest(
+    request: XamanPaymentPayloadRequest,
+  ): Promise<XamanCreatePayloadResponse> {
     try {
-      return normalizeCreatedHandoff(
-        intent,
-        await this.client.createPayload(request),
-      );
+      return await this.client.createPayload(request);
     } catch (error) {
-      if (error instanceof WalletProviderError) throw error;
       if (error instanceof XamanApiError) {
         throw new WalletProviderError(
           "xaman",
@@ -120,4 +115,16 @@ export class XamanProvider implements WalletProvider {
       );
     }
   }
+
+  async createHandoff(intent: PaymentIntent): Promise<WalletHandoff> {
+    const request = buildXamanRequest(intent);
+    return normalizeCreatedHandoff(
+      intent,
+      await this.createPayloadRequest(request),
+    );
+  }
+}
+
+export function createXamanProvider(environment: XamanEnvironment) {
+  return new XamanProvider(new XamanClient(environment));
 }
