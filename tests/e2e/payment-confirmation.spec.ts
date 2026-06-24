@@ -27,7 +27,7 @@ test("requires final confirmation before Xaman handoff", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "XRPL Meetup Dinner" }),
   ).toBeVisible();
-  await expect(page.getByText("4", { exact: true })).toBeVisible();
+  await expect(page.getByText(/4\s+XRP/)).toBeVisible();
   await expect(page.getByLabel("Recipient XRPL address")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Review final payment" }).click();
