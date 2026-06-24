@@ -1,0 +1,56 @@
+import type { BillReview, CreatedBill } from "@/features/bills/types";
+
+export const BILL_DESTINATION = "rPEPPER7kfTD9w2To4CQk6UCfuHM9c6GDY";
+export const PAYER_ONE = "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh";
+export const PAYER_TWO = "rN7n7otQDd6FczFgLdSqtcsAUxDkw6fzRH";
+
+export const BILL_REVIEW_FIXTURE: BillReview = {
+  network: "testnet",
+  title: "Dinner",
+  destinationAddress: BILL_DESTINATION,
+  destinationTag: null,
+  totalDrops: "10000000",
+  creatorShareDrops: "2000000",
+  allocatedDrops: "10000000",
+  participants: [
+    {
+      participantLabel: "Alex",
+      expectedPayerAddress: PAYER_ONE,
+      expectedAmountDrops: "3000000",
+    },
+    {
+      participantLabel: "Blair",
+      expectedPayerAddress: PAYER_TWO,
+      expectedAmountDrops: "5000000",
+    },
+  ],
+};
+
+export const CREATED_BILL_FIXTURE: CreatedBill = {
+  bill: {
+    publicId: "00000000-0000-4000-8000-000000000001",
+    title: "Dinner",
+    network: "testnet",
+    destinationAddress: BILL_DESTINATION,
+    destinationTag: null,
+    totalDrops: "10000000",
+    creatorShareDrops: "2000000",
+    status: "open",
+    revision: 1,
+    frozenAt: "2026-06-24T00:00:00.000Z",
+    createdAt: "2026-06-24T00:00:00.000Z",
+  },
+  capabilities: {
+    publicToken: "1".repeat(64),
+    adminToken: "2".repeat(64),
+  },
+  slots: BILL_REVIEW_FIXTURE.participants.map((participant, index) => ({
+    publicId: `00000000-0000-4000-8000-00000000000${index + 2}`,
+    participantLabel: participant.participantLabel,
+    expectedPayerAddress: participant.expectedPayerAddress,
+    expectedAmountDrops: participant.expectedAmountDrops,
+    invoiceId: String.fromCharCode(65 + index).repeat(64),
+    status: "unpaid" as const,
+    paymentToken: String(index + 3).repeat(64),
+  })),
+};
