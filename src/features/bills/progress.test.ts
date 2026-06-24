@@ -62,6 +62,7 @@ class ProgressDatabase implements D1DatabaseLike {
 
 const TOKEN = "a".repeat(64);
 const BILL_PUBLIC_ID = "00000000-0000-4000-8000-000000000001";
+const PROOF_TOKEN = "D".repeat(64);
 
 function bill(access: "public" | "admin") {
   return {
@@ -92,6 +93,7 @@ const slots = [
     paid_tx_hash: "C".repeat(64),
     paid_ledger_index: 12345,
     paid_at: "2026-06-24T00:05:00.000Z",
+    proof_digest: PROOF_TOKEN,
     updated_at: "2026-06-24T00:05:00.000Z",
   },
   {
@@ -104,12 +106,13 @@ const slots = [
     paid_tx_hash: null,
     paid_ledger_index: null,
     paid_at: null,
+    proof_digest: null,
     updated_at: "2026-06-24T00:04:00.000Z",
   },
 ];
 
 describe("loadBillProgressByToken", () => {
-  it("returns full participant details for the management capability", async () => {
+  it("returns full participant details and proof tokens for management", async () => {
     const database = new ProgressDatabase(bill("admin"), slots);
     const progress = await loadBillProgressByToken(database, TOKEN);
 
@@ -133,12 +136,14 @@ describe("loadBillProgressByToken", () => {
           expectedPayerAddress: "rAlex",
           invoiceId: "A".repeat(64),
           paidTransactionId: "C".repeat(64),
+          proofToken: PROOF_TOKEN,
         },
         {
           participantLabel: "Blair",
           expectedPayerAddress: "rBlair",
           invoiceId: "B".repeat(64),
           status: "needs_review",
+          proofToken: null,
         },
       ],
     });
@@ -148,9 +153,12 @@ describe("loadBillProgressByToken", () => {
     expect(database.statements[0].values).toEqual([expectedHash]);
     expect(database.statements[1].values).toEqual([expectedHash]);
     expect(database.statements[0].values).not.toContain(TOKEN);
+    expect(database.statements[1].query).toContain(
+      "LEFT JOIN verified_payment_receipts",
+    );
   });
 
-  it("redacts private participant details for the read-only capability", async () => {
+  it("redacts private participant details but retains public proof access", async () => {
     const progress = await loadBillProgressByToken(
       new ProgressDatabase(bill("public"), slots),
       TOKEN,
@@ -164,12 +172,14 @@ describe("loadBillProgressByToken", () => {
       expectedAmountDrops: "3000000",
       status: "paid",
       paidTransactionId: "C".repeat(64),
+      proofToken: PROOF_TOKEN,
     });
     expect(progress.slots[1]).toMatchObject({
       participantLabel: null,
       expectedPayerAddress: null,
       invoiceId: null,
       status: "needs_review",
+      proofToken: null,
     });
   });
 
@@ -193,6 +203,17 @@ describe("loadBillProgressByToken", () => {
       loadBillProgressByToken(
         new ProgressDatabase(bill("admin"), [
           { ...slots[0], expected_amount_drops: "invalid" },
+        ]),
+        TOKEN,
+      ),
+    ).rejects.toBeInstanceOf(BillProgressDatabaseError);
+  });
+
+  it("rejects a paid slot without its durable proof receipt", async () => {
+    await expect(
+      loadBillProgressByToken(
+        new ProgressDatabase(bill("admin"), [
+          { ...slots[0], proof_digest: null },
         ]),
         TOKEN,
       ),

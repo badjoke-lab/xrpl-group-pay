@@ -4,7 +4,7 @@ XRPL Group Pay is a non-custodial shared-expense settlement application built on
 
 A bill creator allocates an XRP amount to each participant. Participants open their own capability link, review and sign an exact XRP Payment in Xaman, and send funds directly to the creator. The application marks a participant slot paid only after the submitted transaction is verified on a validated XRP Ledger.
 
-> The current application is Testnet-only. It implements frozen bills, participant payment slots, capability-bound Xaman handoff, validated-ledger verification, durable receipts, atomic bill-state updates, and capability-protected bill progress.
+> The current application is Testnet-only. It implements frozen bills, participant payment slots, capability-bound Xaman handoff, validated-ledger verification, durable receipts, atomic bill-state updates, capability-protected bill progress, and public transaction proofs.
 
 ## Core principles
 
@@ -107,6 +107,22 @@ The `/testnet/bill/progress#token=...` flow loads the Bill and every PaymentSlot
 - Progress responses use `Cache-Control: no-store`.
 - The browser never sends a capability in the page path or query string.
 - A settled banner appears only when the durable Bill state is `settled`.
+- Every paid slot with a durable receipt links to its public proof.
+
+## Public transaction proofs
+
+The `/testnet/proof#token=...` flow publishes one durable verified receipt without exposing private bill context.
+
+- The proof identifier is the receipt's canonical SHA-256 proof digest.
+- D1 enforces a unique proof-digest lookup index.
+- The server recomputes the digest from the immutable receipt facts before returning the proof.
+- The page shows the validated status, `tesSUCCESS`, transaction ID, ledger index, sender, destination, requested and delivered XRP drops, tags, InvoiceID, and proof digest.
+- Bill titles, participant labels, payment and management capabilities, expected pre-payment data, operational timestamps, Xaman payload identifiers, and internal IDs are excluded.
+- Malformed and unknown proof identifiers use one not-found boundary.
+- Proof responses use `Cache-Control: no-store`.
+- Viewing a proof does not resubmit a transaction or mutate bill state.
+
+See [`docs/transaction-proof.md`](docs/transaction-proof.md) for the complete disclosure and integrity boundary.
 
 ## Local development
 
@@ -180,13 +196,13 @@ This guard does not replace the Mainnet release checklist defined in the product
 
 ## Product documentation
 
-The `docs/` directory defines the product specification, non-custodial boundary, threat model, privacy data map, UI/UX behavior, screen inventory, persistence scope, D1 provisioning, and open technical decisions.
+The `docs/` directory defines the product specification, non-custodial boundary, threat model, privacy data map, UI/UX behavior, screen inventory, persistence scope, transaction-proof boundary, D1 provisioning, and open technical decisions.
 
 ## Security
 
 Do not submit private keys or seeds to this application.
 
-A transaction hash is not accepted as payment proof by itself. A slot becomes paid only when the complete Xaman template and validated-ledger facts match its server-side frozen conditions and the atomic D1 settlement succeeds.
+A transaction hash is not accepted as payment proof by itself. A slot becomes paid only when the complete Xaman template and validated-ledger facts match its server-side frozen conditions and the atomic D1 settlement succeeds. The public proof page displays the resulting durable receipt and verifies its digest before publication.
 
 ## License
 

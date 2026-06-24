@@ -38,6 +38,7 @@ test("renders a capability-bound participant payment", async ({ page }) => {
 });
 
 test("renders capability-bound bill progress", async ({ page }) => {
+  const proofToken = "DE".repeat(32);
   await page.route("**/api/bills/progress", async (route) => {
     await route.fulfill({
       status: 200,
@@ -76,6 +77,7 @@ test("renders capability-bound bill progress", async ({ page }) => {
             paidTransactionId: "BC".repeat(32),
             paidLedgerIndex: 12345,
             paidAt: "2026-06-24T00:05:00.000Z",
+            proofToken,
             updatedAt: "2026-06-24T00:05:00.000Z",
           },
           {
@@ -88,6 +90,7 @@ test("renders capability-bound bill progress", async ({ page }) => {
             paidTransactionId: null,
             paidLedgerIndex: null,
             paidAt: null,
+            proofToken: null,
             updatedAt: "2026-06-24T00:00:00.000Z",
           },
         ],
@@ -106,6 +109,47 @@ test("renders capability-bound bill progress", async ({ page }) => {
   await expect(page.getByText("Creator view")).toBeVisible();
   await expect(page.getByText("1/2 paid")).toBeVisible();
   await expect(page.getByText("Alex", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "View public proof" }),
+  ).toHaveAttribute("href", `/testnet/proof#token=${proofToken}`);
+});
+
+test("renders a public verified transaction proof", async ({ page }) => {
+  const proofToken = "DE".repeat(32);
+  await page.route("**/api/proofs", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        network: "testnet",
+        validationStatus: "validated",
+        transactionResult: "tesSUCCESS",
+        transactionId: "BC".repeat(32),
+        ledgerIndex: 12345,
+        sender: "rPublicSender",
+        destination: "rPublicDestination",
+        amountDrops: "3000000",
+        deliveredAmountDrops: "3000000",
+        sourceTag: 777,
+        destinationTag: null,
+        invoiceId: "AB".repeat(32),
+        proofDigest: proofToken,
+      }),
+    });
+  });
+
+  await page.goto(`/testnet/proof#token=${proofToken}`);
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: /Inspect the immutable facts/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "3 XRP delivered" }),
+  ).toBeVisible();
+  await expect(page.getByText("tesSUCCESS", { exact: true })).toBeVisible();
+  await expect(page.getByText("Validated", { exact: true })).toBeVisible();
+  await expect(page.getByText("Bill titles", { exact: false })).toBeVisible();
+  await expect(page.getByText("XRPL Meetup Dinner")).toHaveCount(0);
 });
 
 test("exposes a no-store health endpoint", async ({ request }) => {

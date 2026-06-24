@@ -7,6 +7,21 @@ export class BillProgressRequestError extends Error {
   }
 }
 
+function normalizeProgressBody(body: unknown) {
+  if (!body || typeof body !== "object") return body;
+  const record = body as Record<string, unknown>;
+  if (!Array.isArray(record.slots)) return body;
+
+  return {
+    ...record,
+    slots: record.slots.map((slot) =>
+      slot && typeof slot === "object" && !("proofToken" in slot)
+        ? { ...(slot as Record<string, unknown>), proofToken: null }
+        : slot,
+    ),
+  };
+}
+
 export async function requestBillProgress(
   capabilityToken: string,
   fetcher: typeof fetch = fetch,
@@ -26,7 +41,7 @@ export async function requestBillProgress(
   }
 
   const body: unknown = await response.json().catch(() => null);
-  const parsed = billProgressSchema.safeParse(body);
+  const parsed = billProgressSchema.safeParse(normalizeProgressBody(body));
   if (response.status === 200 && parsed.success) {
     return parsed.data;
   }

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX verified_payment_receipts_proof_digest_idx ON verified_payment_receipts (proof_digest);
