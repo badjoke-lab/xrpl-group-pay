@@ -1,83 +1,84 @@
 # XRPL Group Pay — Participant Final Confirmation
 
 **Status:** Active  
-**Document class:** Public  
-**Initial network:** XRPL Testnet
+**Scope:** Current participant confirmation with approved wallet- and asset-aware amendments  
+**Last reviewed:** 2026-06-24  
+**Document class:** Public
 
 ## 1. Purpose
 
-A participant must see and explicitly confirm the complete frozen Payment conditions before XRPL Group Pay creates a short-lived Xaman Sign Request.
+A participant must see and explicitly confirm the complete frozen Payment Intent before the application creates a short-lived Wallet Handoff.
 
-Loading a participant link must not itself create a Xaman payload, change the PaymentSlot state, or move XRP.
+Loading a participant link does not create a provider request, mutate the PaymentSlot, or move funds.
 
 ## 2. Capability-bound details
 
-The browser sends the payment capability in the JSON body of:
+The details endpoint:
 
-```text
-POST /api/payments/details
-```
-
-The endpoint:
-
-- hashes the capability before database lookup;
-- performs a read-only PaymentSlot and Bill query;
-- requires the slot and Bill to remain eligible for a new Sign Request;
+- receives the participant capability through the protected request contract;
+- performs a read-only Bill and PaymentSlot lookup;
+- requires the Bill and slot to remain eligible;
 - returns `Cache-Control: no-store`;
-- does not place the capability in a URL query string;
-- does not create or update a Xaman payload;
-- does not change Bill or PaymentSlot state.
+- does not create a Wallet Handoff or change state.
 
-## 3. Frozen fields shown to the participant
-
-The participant details and final-confirmation screens show:
+## 3. Frozen fields shown
 
 - Bill title;
 - optional participant label;
-- XRP amount;
-- destination XRPL account;
-- expected payer XRPL account;
+- Accounting Currency obligation;
+- Settlement Asset and exact Settlement Amount;
+- network and Payment Rail;
+- destination account;
+- expected payer account;
 - optional Destination Tag, including explicit absence;
-- configured Source Tag;
-- PaymentSlot InvoiceID;
-- Testnet network.
+- Source Tag;
+- InvoiceID;
+- selected Wallet Provider;
+- Bill revision.
 
-These values come from the stored Bill and PaymentSlot plus the deployment Source Tag. They cannot be edited from the participant route.
+For RLUSD, the interface also shows official asset identity, issuer access, and that the network fee is paid in XRP.
 
 ## 4. Interaction boundary
 
-The participant flow is:
-
 ```text
-Open private payment capability
-  -> Load frozen details without writes
-  -> Review assigned share
-  -> Open final confirmation
-  -> Confirm exact Testnet fields
-  -> Create short-lived Xaman Sign Request
-  -> Inspect and approve in Xaman
-  -> Verify the submitted transaction on a validated ledger
+Open participant capability
+  -> load frozen details without writes
+  -> review assigned obligation and Settlement Asset
+  -> open final confirmation
+  -> confirm exact Payment Intent
+  -> create short-lived Wallet Handoff
+  -> inspect and approve in the wallet
+  -> verify the submitted transaction on a validated ledger
 ```
 
-The first action only moves from details to final confirmation. It does not contact Xaman.
+Only the explicit final action creates the provider request.
 
-Only **Create Xaman Sign Request** calls the payload-creation endpoint.
+## 5. Wallet Provider boundary
 
-## 5. Fund movement
+Xaman is the Make Waves v1 provider. The UI may use provider-specific wording when Xaman is selected, while the domain action remains `Create Wallet Handoff`.
 
-Creating or opening a Sign Request does not by itself transfer XRP. XRP moves directly from the payer account to the Bill destination only after the payer approves the exact transaction in Xaman and it is submitted.
+A future provider uses the same frozen Payment Intent and confirmation fields. Provider status is never presented as verified settlement.
 
-XRPL Group Pay never holds the XRP or signs for the payer.
+## 6. Fund movement
 
-## 6. State handling
+Creating or opening a Wallet Handoff does not move funds. XRP or RLUSD moves directly from payer to Bill destination only after wallet approval and transaction submission.
 
-- Invalid or unknown capabilities reveal no Payment details.
-- An already-paid slot returns a completed state without re-exposing its private expected conditions.
-- A Bill or slot that cannot accept a new payload fails closed.
-- Rejected and expired requests require another final review before replacement.
-- Submitted payments continue into validated-ledger verification.
-- A payload-creation failure leaves the frozen details available for review and retry.
+Group Pay does not hold the settlement asset and cannot sign for the payer.
 
-## 7. Configuration boundary
+## 7. State handling
 
-Reading frozen Payment details requires the configured XRPL Source Tag but does not require Xaman API credentials. Xaman credentials are required only when the confirmed Sign Request is created.
+- invalid or unknown capabilities reveal no payment details;
+- an already-paid slot returns a completed state without reopening payment;
+- an ineligible Bill or slot fails closed;
+- rejected and expired handoffs require another final review;
+- submitted payments continue into ledger verification;
+- provider failure leaves frozen details available for safe retry;
+- retry cannot change asset, amount, destination, tags, InvoiceID, network, or revision.
+
+## 8. Localization
+
+The same PaymentSlot may be reviewed in English, Japanese, or Korean. Locale changes labels and formatting only. Canonical amounts, addresses, asset identity, issuer, tags, InvoiceID, and serialized Payment Intent remain unchanged.
+
+## 9. Configuration boundary
+
+Reading frozen details does not require Wallet Provider credentials. Provider configuration is required only when the confirmed handoff is created. Asset Registry and Source Tag configuration are required for details and verification.

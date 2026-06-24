@@ -1,11 +1,13 @@
 # XRPL Group Pay — Make Waves Requirements Register
 
-**Status:** Draft for PR 1  
+**Status:** Active  
+**Scope:** External requirements register  
+**Last reviewed:** 2026-06-24  
 **Document class:** Public  
 **Primary source reviewed:** Make Waves Challenge Terms & Conditions, Version 1.0  
 **Source last updated:** June 11, 2026
 
-This document records confirmed Challenge requirements and unresolved interpretation questions. It does not replace the official Terms.
+This document records confirmed requirements and unresolved interpretation questions. It does not replace the official Terms.
 
 ## 1. Challenge period
 
@@ -21,189 +23,171 @@ This document records confirmed Challenge requirements and unresolved interpreta
 
 The project must be live on XRPL Mainnet within 30 days of registration.
 
-The Terms describe the metrics start as the date on which the participant has demonstrated to the XRPL team that the application is live on Mainnet and can onboard users.
+Unresolved:
 
-### Unresolved
+- exact event that starts the 30-day clock;
+- exact review and approval process;
+- whether the metric start is submission or approval;
+- how delayed review affects the deadline.
 
-- Exact event that starts the 30-day clock.
-- Exact Mainnet Gate review process.
-- Whether the metric start date is submission or approval.
-- Whether a failed or delayed review affects the 30-day requirement.
-
-These items require written organizer clarification.
+Written organizer clarification is required.
 
 ## 3. Source Tag
 
-Confirmed requirements:
+Confirmed:
 
-- A project-specific Source Tag is assigned during registration.
-- Every relevant on-chain transaction must carry the assigned Source Tag.
-- On-chain metrics are attributed using that Source Tag.
-- Activity before the Mainnet Gate does not count toward Challenge metrics.
+- a project-specific Source Tag is assigned during registration;
+- every relevant on-chain transaction carries that Source Tag;
+- metrics are attributed through the Source Tag;
+- activity before the Mainnet Gate does not count.
 
-Implementation consequence:
+Implementation:
 
-- Source Tag is deployment configuration.
-- Source Tag is verified on every accepted project transaction.
-- Source Tag is not used as the bill or participant identifier.
-- Payment-slot correlation uses a separate InvoiceID.
+- Source Tag is deployment configuration;
+- every accepted XRP and RLUSD Payment is checked for the configured Source Tag;
+- Source Tag is not the Bill or participant identifier;
+- PaymentSlot correlation uses InvoiceID.
 
 ## 4. Project requirements
 
 Confirmed:
 
-- The project must comply with applicable law.
-- The project must be substantial work developed during the Challenge period.
-- Open-source libraries, AI assistants, templates, and frameworks are allowed.
-- A participant may build on an existing project, but the substantial value submitted must be developed during the Challenge.
-- Projects intended to manipulate, defraud, or harm users are ineligible.
+- legal compliance is required;
+- substantial Challenge-period work is required;
+- open-source libraries, AI assistance, templates, and frameworks are allowed;
+- work may build on an existing project when substantial submitted value is Challenge-period work;
+- harmful or manipulative projects are ineligible.
 
-### Unresolved
+Whether work completed after June 21 but before registration is treated as Challenge-period work remains unresolved.
 
-Whether substantial work completed after June 21 but before project registration is treated as Challenge-period work requires clarification.
+## 5. Active-account threshold
 
-## 5. Prize thresholds
+All listed prize paths require at least 300 new and distinctive active XRPL accounts attributed to the Source Tag by the end of the Challenge.
 
-The Terms define prize categories totaling up to 50,000 XRP.
+The recorded definition of an Active User is an XRPL address that signs at least one transaction carrying the project Source Tag.
 
-All listed prize paths require at least 300 new and distinctive active XRPL accounts attributed to the project Source Tag by the end of the Challenge.
+Unresolved:
 
-The Terms define an Active User as an XRPL address that has signed at least one transaction carrying the project Source Tag.
-
-### Unresolved
-
-- Meaning of “new”.
-- Whether the transaction must be validated and successful.
-- Whether only transactions initiated through the application count.
-- Exact handling of failed transactions.
-- Exact deduplication methodology.
-- Whether an address already attributed to another project can be considered new to this project.
+- meaning of `new` and `distinctive`;
+- whether the transaction must be validated and successful;
+- handling of failed transactions;
+- exact deduplication method;
+- whether an address can be new to more than one project.
 
 ## 6. Metrics
 
 Confirmed:
 
-- Metrics are computed from public XRPL Mainnet data.
-- Counting begins at the Mainnet Gate.
-- Off-chain metrics do not count toward the on-chain prize metrics.
-- Source Tag is the attribution mechanism.
-- The organizers may use heuristics and manual review.
-- The organizers may discount activity reasonably believed to be inorganic.
+- metrics use public XRPL Mainnet data;
+- counting begins at the Mainnet Gate;
+- off-chain metrics do not count toward on-chain prize metrics;
+- Source Tag is the attribution mechanism;
+- organizers may use heuristics and manual review;
+- inorganic activity may be discounted.
 
-Prohibited:
+Prohibited activity includes wash trading, Sybil behavior, self-dealing, scripted metric generation, and interference with another project's Source Tag.
 
-- Wash trading.
-- Sybil attacks.
-- Self-dealing.
-- Scripted transactions.
-- Other metric manipulation.
-- Interfering with another participant's Source Tag.
+### Group Pay metric interpretation
 
-### Group Pay metric interpretation requiring confirmation
+Expected, pending confirmation:
 
-Expected interpretation:
+- each distinct successful payer signs one project Payment;
+- the recipient does not sign that Payment and is not counted for it;
+- only validated `tesSUCCESS` Payments accepted by Group Pay verification are counted;
+- XRP volume is the sum of verified XRP delivered amount;
+- RLUSD volume is the sum of verified official RLUSD delivered amount;
+- XRP and RLUSD quantities are reported separately and are never added together.
 
-- Each distinct payer signs one XRP Payment carrying the Source Tag.
-- Each distinct payer address can be an active account.
-- The receiving bill-creator address does not sign that Payment and therefore is not counted for that transaction.
-- Payment volume should reflect successfully delivered XRP.
+Organizer confirmation is required on:
 
-This remains an assumption until organizer confirmation.
+- whether an RLUSD Payment counts toward active-account and transaction metrics;
+- how RLUSD contributes to the official volume metric;
+- whether volume is asset-native, converted, or restricted to XRP;
+- whether a user-signed RLUSD TrustSet carrying the Source Tag is a relevant project transaction.
+
+Until confirmed, internal product metrics and official Challenge metrics remain separate.
 
 ## 7. Mainnet Gate deliverables
 
-The Terms require the following by the Mainnet Gate:
+Required:
 
-- Working live application integrated with XRPL Mainnet.
-- Short video pitch, maximum three minutes.
-- Pitch deck in Google Slides or PDF.
-- Public GitHub repository or equivalent.
-- Clear README.
-- License file.
-- Brief Source-Tag-attributable metrics summary:
-  - Unique users.
-  - Total on-chain volume.
-  - Number of transactions.
+- working live XRPL Mainnet application;
+- video pitch no longer than three minutes;
+- pitch deck in Google Slides or PDF;
+- public repository;
+- clear README;
+- license file;
+- Source-Tag-attributable metrics summary covering unique users, volume, and transaction count.
 
-Failure to meet a required deliverable by the deadline is described as disqualifying.
+Failure to meet required deliverables by the deadline is described as disqualifying.
 
-### Unresolved
+Whether the video, deck, and metrics summary may be updated after the Gate remains unresolved.
 
-Whether the video, deck, and metrics summary may be updated after the Mainnet Gate and before the Challenge closes.
+Project quality additions, not separately confirmed official requirements:
 
-## 8. Eligibility and KYC
+- public Roadmap;
+- public Changelog;
+- XRP proof example;
+- RLUSD proof example;
+- architecture and non-custodial documentation.
 
-Confirmed:
+## 8. Eligibility, ownership, and KYC
 
-- Participants must meet the age, capacity, sanctions, location, and local-law requirements in the Terms.
-- KYC is mandatory before prize disbursement.
-- Prize eligibility and payment may be affected by territorial restrictions.
-- Local tax responsibility remains with the recipient.
+- age, capacity, sanctions, location, and local-law requirements apply;
+- KYC is required before prize disbursement;
+- territorial restrictions may affect eligibility and payment;
+- local tax responsibility remains with the recipient;
+- the repository does not store Challenge KYC data;
+- the participant retains project ownership and selects the license;
+- third-party and AI-assisted material must respect third-party rights.
 
-Operational consequence:
-
-- The application repository does not store KYC data.
-- Challenge KYC is handled between the participant and the organizer or its provider.
-
-## 9. Intellectual property
-
-Confirmed:
-
-- The participant retains ownership of the project.
-- The participant selects the project license.
-- A public repository with a license file is required by the relevant deliverable deadline.
-- The participant grants XRPL Commons a limited license to display project identification and promotional material related to the Challenge.
-- Third-party and AI-generated material must not infringe third-party rights.
-
-## 10. Code of conduct and additional documents
-
-The Terms state that:
-
-- A separate Code of Conduct may be incorporated.
-- A metric methodology document may be part of the agreement.
-- Other referenced documents may also apply.
-
-Current status: organizer copy or official links requested.
-
-## 11. Requirement-to-implementation matrix
+## 9. Requirement-to-implementation matrix
 
 | Requirement | Implementation evidence |
 |---|---|
-| XRPL Mainnet application | Mainnet deployment and controlled transaction test |
-| Source Tag on relevant transactions | Transaction-builder test and verified transaction proof |
-| Live onboarding | Mobile and desktop production flow |
+| XRPL Mainnet application | Production deployment and controlled Mainnet tests |
+| Source Tag | XRP and RLUSD builder tests plus verified proofs |
+| Live onboarding | Mobile and desktop production flows |
 | Public code | Public repository |
-| README | Root README with setup, architecture, safety, and limitations |
-| License | Root license file |
-| Video | Maximum-three-minute submitted video |
+| README and license | Root project files |
+| Video | Submitted video of no more than three minutes |
 | Pitch deck | Submitted PDF or Slides deck |
-| Unique-user metrics | Distinct successful signer-address aggregation |
-| Volume | Successful delivered XRP aggregation, subject to methodology confirmation |
-| Transaction count | Validated successful project-transaction aggregation |
-| No metric manipulation | Test activity labeling, organic-use records, no artificial transaction generation |
+| Unique-user metrics | Distinct successful signer aggregation |
+| XRP volume | Verified XRP delivered amount |
+| RLUSD volume | Separate verified RLUSD delivered amount, pending official treatment |
+| Transaction count | Validated successful project transaction aggregation |
+| Organic activity | Test labeling and no artificial metric generation |
 
-## 12. Open organizer questions
+## 10. Mainnet evidence target
+
+The project aims to prepare:
+
+- controlled XRP Mainnet transaction and proof;
+- controlled official RLUSD Mainnet transaction and proof;
+- Source Tag evidence for both;
+- distinct signer, transaction, XRP volume, and RLUSD volume summaries;
+- explanation that unlike asset quantities are not combined.
+
+RLUSD remains a product target even if organizer metric treatment differs from XRP.
+
+## 11. Open organizer questions
 
 1. What starts the 30-day period?
-2. Does pre-registration work after June 21 count as Challenge-period work?
+2. Does pre-registration work after June 21 count?
 3. How is the Mainnet Gate demonstrated and approved?
 4. Are all deliverables due within the initial 30 days?
-5. What exactly does “new and distinctive active account” mean?
+5. What exactly is a new and distinctive active account?
 6. Must counted transactions be validated and successful?
 7. Does each distinct Group Pay payer count?
-8. What is the exact scope of “relevant on-chain transaction”?
-9. How is Payment volume calculated?
-10. Where are the current Code of Conduct and metric methodology documents?
+8. What is the exact scope of relevant on-chain transaction?
+9. How is XRP Payment volume calculated?
+10. Do RLUSD Payments count toward active accounts and transaction count?
+11. How is RLUSD volume reported or converted?
+12. Does a project TrustSet count as a relevant transaction?
+13. Where are the current Code of Conduct and metric methodology documents?
 
-## 13. Change control
+## 12. Change control
 
-This register must be updated when:
+Update this register when organizers respond, Terms change, a metric methodology or Code of Conduct is published, the Source Tag is assigned, or Mainnet Gate instructions are received.
 
-- Organizers respond in writing.
-- Terms are updated.
-- A metric methodology document is published.
-- A Code of Conduct is published.
-- The Source Tag is assigned.
-- Mainnet Gate instructions are received.
-
-Each update records the date, source, changed requirement, and implementation impact.
+Each update records date, source, changed requirement, and implementation impact.

@@ -1,94 +1,102 @@
 # XRPL Group Pay — Bill Review and Freeze Boundary
 
 **Status:** Active  
-**Document class:** Public  
-**Initial network:** XRPL Testnet
+**Scope:** Current creator review with approved asset and allocation amendments  
+**Last reviewed:** 2026-06-24  
+**Document class:** Public
 
 ## 1. Purpose
 
-A creator must review a shared bill before XRPL Group Pay freezes its payment conditions and issues participant capability links.
+A creator reviews a shared Bill before the application freezes settlement conditions and issues participant capabilities.
 
-The review step prevents an accidental destination, tag, payer, or amount from immediately becoming part of an immutable payment request.
+Review prevents an accidental destination, asset, issuer, allocation, payer, tag, or amount from immediately becoming a signable request.
 
 ## 2. Draft boundary
 
-Before final confirmation, the creator draft exists only in the browser. It is not a published Bill and cannot receive payments.
+Before final confirmation, the draft remains browser-local and cannot receive payments.
 
-The draft contains:
+The approved v1 draft contains:
 
-- bill title;
-- destination address;
-- optional Destination Tag;
-- bill total;
-- creator share;
+- Bill title;
+- network;
+- destination and optional Destination Tag;
+- Accounting Currency;
+- Settlement Asset;
+- total and creator share;
+- Allocation Strategy;
+- allocation metadata and remainder policy;
 - participant labels;
 - expected payer addresses;
-- participant amounts.
+- final participant obligations;
+- RLUSD recipient readiness where applicable;
+- default shared-link locale.
 
-The creator can return from review to editing without losing these values.
+## 3. Allocation states
 
-## 3. Live allocation states
+The editor performs fixed-precision calculations without floating-point authority and shows:
 
-The editing screen calculates the allocation from decimal XRP strings without floating-point arithmetic.
+```text
+incomplete
+under
+exact
+over
+```
 
-It displays one of four states:
-
-- incomplete — one or more amounts are missing or invalid;
-- under — the creator share and participant amounts are below the bill total;
-- exact — all allocations equal the total;
-- over — allocations exceed the total.
-
-The creator cannot request the server review until the local allocation is exact. This is a usability guard only; the server independently validates every value.
+Equal, Percentage, Shares, and Custom Amount strategies must all produce one exact normalized allocation result before server review.
 
 ## 4. Server review
 
-The browser sends the complete draft to:
-
-```text
-POST /api/bills/review
-```
+The browser sends the complete draft to the no-write review endpoint.
 
 The endpoint:
 
-- performs no database writes;
-- applies the same schema, classic-address, UInt32 tag, decimal precision, positive participant amount, and exact-allocation rules used by final creation;
-- converts XRP amounts to canonical drops;
+- validates schema, network, address, tags, asset identity, amount precision, strategy inputs, and exact allocation;
+- checks the official Asset Registry entry;
+- normalizes financial values to integer units;
+- verifies RLUSD recipient readiness when selected;
 - trims labels and addresses;
-- returns a normalized Testnet review snapshot;
-- uses `Cache-Control: no-store`.
-
-A successful review does not reserve identifiers, create capabilities, create Xaman payloads, or move XRP.
+- returns a normalized review snapshot;
+- uses `Cache-Control: no-store`;
+- does not create identifiers, capabilities, wallet handoffs, or receipts.
 
 ## 5. Final confirmation
 
 The review screen shows:
 
-- Testnet network;
-- bill title;
-- destination and optional Destination Tag;
+- network;
+- Bill title;
+- Accounting Currency and Settlement Asset;
+- full asset details for RLUSD, including verified official issuer access;
+- destination and optional tag;
 - total and creator share;
-- participant count;
-- every participant label, expected payer, and amount;
-- a warning that the next action freezes payment conditions.
+- Allocation Strategy and remainder handling;
+- every participant, expected payer, and final obligation;
+- recipient readiness result where applicable;
+- warning that the next action freezes payment conditions.
 
-Only the explicit **Freeze bill and create payment links** action calls the Bill creation endpoint.
-
-Final creation validates the original draft again. The review response is never trusted as authority for persistence.
+Only the explicit freeze-and-create action publishes the Bill.
 
 ## 6. Freeze result
 
-After successful final creation:
+After successful creation:
 
 - the Bill is stored as `open` revision 1;
-- destination, tag, total, creator share, payer addresses, and participant amounts are frozen;
-- each PaymentSlot receives a unique InvoiceID and capability;
-- the creator receives management, read-only progress, and participant payment links.
+- network, destination, tags, currency, asset, total, creator share, allocation output, payer addresses, and obligations are frozen;
+- every PaymentSlot receives a unique InvoiceID and capability;
+- creator, progress, and participant links are returned;
+- no asset moves during review or creation.
 
-No XRP moves during review or Bill creation.
+A published Bill cannot switch between XRP and RLUSD. A change of Settlement Asset requires a new Bill or a later defined revision flow that invalidates earlier handoffs.
 
-## 7. Failure behavior
+## 7. Make Waves v1 constraint
 
-- Invalid draft fields return a specific validation message.
-- An unavailable review request remains retryable and does not publish a Bill.
-- A failed final creation leaves the normalized review visible so the creator can retry or return to editing.
-- Repeating review requests has no persistence side effects.
+```text
+Accounting Currency = Settlement Asset
+One Bill = One Settlement Asset
+```
+
+Fiat-denominated and mixed-asset settlement remain later extensions.
+
+## 8. Failure behavior
+
+Invalid input returns a specific error. An unavailable review remains retryable and creates no durable Bill. A failed final creation leaves the normalized review available for retry or editing. Repeated review calls have no persistence side effects.

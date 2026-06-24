@@ -1,97 +1,122 @@
 # XRPL Group Pay — Public Transaction Proof
 
 **Status:** Active  
-**Document class:** Public  
-**Initial network:** XRPL Testnet
+**Scope:** Current XRP proof with approved issued-asset receipt extension  
+**Last reviewed:** 2026-06-24  
+**Document class:** Public
 
 ## 1. Purpose
 
-A public transaction proof is a read-only view of one XRP Payment that XRPL Group Pay previously verified against a validated ledger and recorded as a durable receipt.
+A public transaction proof is a read-only view of one payment that XRPL Group Pay verified against a validated ledger and recorded as a durable versioned receipt.
 
-The proof page exists so a payer, bill creator, or third-party viewer can inspect the immutable payment facts without receiving access to private bill or participant data.
+The proof lets a payer, creator, or third party inspect public settlement facts without receiving private Bill or participant data.
 
-## 2. Public identifier
+## 2. Receipt Contracts
 
-Each verified receipt already has a canonical SHA-256 `proof_digest`. The Testnet proof URL places that digest in the URL fragment:
+Make Waves v1 uses:
 
 ```text
-/testnet/proof#token=<PROOF_DIGEST>
+xrpl-xrp-payment-v1
+xrpl-issued-payment-v1
 ```
 
-The fragment is not included in the initial page request, server access logs, or referrer path. The browser sends the digest to the no-store proof API only after the page loads.
+The existing XRP contract and digest inputs remain unchanged. RLUSD and future approved XRPL issued assets use the issued-payment contract.
 
-The digest is a public proof identifier, not an authorization secret. It is derived from the normalized receipt facts:
+## 3. Public identifier
+
+A proof URL uses the canonical receipt digest as a URL-fragment identifier. The browser sends it to a no-store proof API after page load.
+
+The digest is a public proof identifier, not creator or participant authorization.
+
+## 4. XRP proof facts
+
+The current XRP digest continues to cover:
 
 - network;
-- transaction ID;
+- transaction identifier;
 - ledger index;
-- sender;
-- destination;
-- amount in drops;
-- delivered amount in drops;
-- Source Tag;
-- Destination Tag presence and value;
-- InvoiceID.
-
-Verification and recording timestamps are not part of the digest, so later re-verification remains idempotent.
-
-## 3. Published fields
-
-The proof API publishes only facts that are already public on the XRP Ledger or intentionally exposed as proof metadata:
-
-- Testnet network;
-- validated status;
-- `tesSUCCESS` result;
-- transaction ID;
-- ledger index;
-- sender address;
-- destination address;
-- requested and delivered XRP drops;
+- sender and destination;
+- requested and delivered drops;
 - Source Tag;
 - optional Destination Tag;
-- InvoiceID;
+- InvoiceID.
+
+Observation timestamps remain outside the digest.
+
+## 5. Issued-asset proof facts
+
+The issued-payment contract covers:
+
+- Receipt Contract identifier;
+- network;
+- transaction identifier;
+- ledger index;
+- sender and destination;
+- asset type;
+- exact currency;
+- exact issuer;
+- requested decimal value;
+- delivered decimal value;
+- Source Tag;
+- optional Destination Tag;
+- InvoiceID.
+
+The issuer is displayed in full because a ticker alone cannot identify RLUSD.
+
+## 6. Published fields
+
+A proof may publish only reviewed ledger facts and proof metadata:
+
+- network and validated status;
+- transaction result;
+- transaction identifier and ledger index;
+- sender and destination;
+- asset identity;
+- requested and delivered amount;
+- tags and InvoiceID;
+- Receipt Contract;
 - proof digest.
 
-## 4. Excluded fields
+## 7. Excluded fields
 
-The proof API and page do not publish:
+The proof does not publish:
 
-- bill title;
+- Bill title;
 - participant label;
-- creator or read-only bill capabilities;
-- participant payment capability;
-- expected payer data before the payment appeared on-ledger;
-- Xaman payload UUID;
-- internal Bill, PaymentSlot, or receipt IDs;
-- verification and receipt-recording timestamps;
-- operational diagnostics.
+- private shared links;
+- expected payer information that was not required to interpret public ledger facts;
+- Wallet Provider request ID;
+- internal entity IDs;
+- operational diagnostics;
+- future quote details unless a separate reviewed settlement-proof contract includes them.
 
-A proof viewer cannot edit the bill, alter a payment slot, or initiate a replacement payment.
+A proof viewer cannot modify a Bill or create another payment.
 
-## 5. Integrity checks
+## 8. Integrity checks
 
 Before returning a proof, the server:
 
-1. normalizes the supplied 256-bit identifier to uppercase;
-2. retrieves one verified receipt through the unique proof-digest index;
-3. validates every stored field against the public proof schema;
-4. recomputes the SHA-256 digest from the immutable receipt facts;
-5. rejects the proof if the stored digest and recomputed digest differ.
+1. normalizes the supplied identifier;
+2. loads one receipt through the unique proof-digest index;
+3. selects the stored Receipt Contract;
+4. validates all stored fields against that contract;
+5. recomputes the digest from immutable receipt facts;
+6. rejects a mismatch or unsupported contract.
 
-A malformed, missing, or unavailable proof uses a uniform response and reveals no private application data.
+Malformed, missing, and unavailable proofs use a uniform privacy-preserving response.
 
-## 6. Caching and logging
+## 9. Caching and logging
 
-Proof API responses use:
+Proof responses use `Cache-Control: no-store`. Proof pages do not use third-party analytics. Operational records do not include the full proof fragment.
 
-```text
-Cache-Control: no-store
-```
+## 10. Localization
 
-The application does not use third-party analytics on proof pages. Logs must not include the full proof URL or URL fragment.
+Proof labels may be shown in English, Japanese, or Korean. Addresses, transaction identifiers, currency codes, issuer values, tags, InvoiceID, ledger index, and digest remain unchanged.
 
-## 7. Relationship to ledger verification
+Changing locale does not change proof content or integrity.
 
-The public page reads the durable receipt created by the validated-ledger verification pipeline. Viewing a proof does not resubmit a transaction, move funds, or mutate bill state.
+## 11. Future accounting proof
 
-The proof records the exact public ledger facts accepted by the verification pipeline. The underlying XRP Ledger transaction remains independently public and immutable.
+A later fiat-denominated or mixed-asset flow may also show Accounting Currency, obligation amount, quote reference, suggested Settlement Amount, and final Settlement Amount.
+
+Those fields require a separate reviewed contract and do not change existing XRP or issued-payment receipt semantics.
