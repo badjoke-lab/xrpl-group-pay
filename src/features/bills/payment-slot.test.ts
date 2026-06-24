@@ -13,6 +13,7 @@ import {
   PaymentSlotNotFoundError,
   PaymentSlotStateError,
   requirePayableSlot,
+  type ResolvedPaymentSlot,
 } from "./payment-slot";
 
 class Statement implements D1PreparedStatementLike {
@@ -74,6 +75,24 @@ const row = {
   paid_tx_hash: null,
 };
 
+const payable: ResolvedPaymentSlot = {
+  slotId: "slot-1",
+  slotPublicId: row.slot_public_id,
+  billId: "bill-1",
+  billPublicId: row.bill_public_id,
+  billTitle: "Dinner",
+  network: "testnet",
+  destinationAddress: "rDestination",
+  destinationTag: null,
+  participantLabel: null,
+  expectedPayerAddress: "rPayer",
+  expectedAmountDrops: "1",
+  invoiceId: "B".repeat(64),
+  slotStatus: "unpaid",
+  billStatus: "open",
+  paidTransactionId: null,
+};
+
 describe("payment slot capabilities", () => {
   it("loads a slot with the token hash rather than the raw capability", async () => {
     const database = new Database(row);
@@ -100,26 +119,22 @@ describe("payment slot capabilities", () => {
     ).rejects.toBeInstanceOf(PaymentSlotNotFoundError);
   });
 
-  it("allows open unpaid slots and rejects paid or non-payable states", () => {
-    const payable = {
-      slotId: "slot-1",
-      slotPublicId: row.slot_public_id,
-      billId: "bill-1",
-      billPublicId: row.bill_public_id,
-      billTitle: "Dinner",
-      network: "testnet" as const,
-      destinationAddress: "rDestination",
-      destinationTag: null,
-      participantLabel: null,
-      expectedPayerAddress: "rPayer",
-      expectedAmountDrops: "1",
-      invoiceId: "B".repeat(64),
-      slotStatus: "unpaid" as const,
-      billStatus: "open" as const,
-      paidTransactionId: null,
-    };
-
+  it("allows retryable slot states while the bill remains payable", () => {
     expect(requirePayableSlot(payable)).toBe(payable);
+    for (const slotStatus of [
+      "payload_created",
+      "awaiting_signature",
+      "rejected",
+      "expired",
+      "verification_failed",
+    ] as const) {
+      expect(requirePayableSlot({ ...payable, slotStatus })).toMatchObject({
+        slotStatus,
+      });
+    }
+  });
+
+  it("rejects paid, in-flight, review, and non-payable bill states", () => {
     expect(() =>
       requirePayableSlot({
         ...payable,
@@ -127,8 +142,18 @@ describe("payment slot capabilities", () => {
         paidTransactionId: "A".repeat(64),
       }),
     ).toThrow(PaymentSlotStateError);
+
+    for (const slotStatus of ["submitted", "validating", "needs_review"] as const) {
+      expect(() => requirePayableSlot({ ...payable, slotStatus })).toThrow(
+        PaymentSlotStateError,
+      );
+    }
+
     expect(() =>
       requirePayableSlot({ ...payable, billStatus: "settled" }),
+    ).toThrow(PaymentSlotStateError);
+    expect(() =>
+      requirePayableSlot({ ...payable, billStatus: "needs_review" }),
     ).toThrow(PaymentSlotStateError);
   });
 });
