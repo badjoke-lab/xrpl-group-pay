@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   CircleAlert,
   Clock3,
+  ExternalLink,
   Eye,
   LoaderCircle,
   RefreshCw,
@@ -387,6 +388,16 @@ function ProgressSnapshot({
                       </dd>
                     </div>
                   </dl>
+                )}
+
+                {slot.proofToken && (
+                  <a
+                    href={`/testnet/proof#token=${slot.proofToken}`}
+                    className="mt-4 inline-flex items-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-brand transition hover:border-brand focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-focus/30"
+                  >
+                    View public proof
+                    <ExternalLink aria-hidden="true" className="size-4" />
+                  </a>
                 )}
 
                 {isAdmin && slot.invoiceId && (
