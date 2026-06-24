@@ -13,7 +13,8 @@ import {
   getPaymentsDatabase,
   PaymentsDatabaseUnavailableError,
 } from "@/features/persistence/cloudflare-d1";
-import { XamanApiError, XamanClient } from "@/features/xaman/client";
+import { WalletProviderError } from "@/features/wallet-providers/types";
+import { createXamanProvider } from "@/features/xaman/provider";
 
 export const dynamic = "force-dynamic";
 
@@ -31,10 +32,10 @@ const defaultDependencies: SlotPayloadRouteDependencies = {
   async createPayload(paymentToken) {
     const database = await getPaymentsDatabase();
     const environment = getXamanEnvironment();
-    const xaman = new XamanClient(environment);
+    const xaman = createXamanProvider(environment);
     return createStoredSlotPayload(database, paymentToken, {
       sourceTag: environment.XRPL_SOURCE_TAG,
-      createXamanPayload: (request) => xaman.createPayload(request),
+      createXamanPayload: (request) => xaman.createPayloadRequest(request),
     });
   },
 };
@@ -124,17 +125,24 @@ export async function handleCreateSlotPayloadRequest(
         503,
       );
     }
-    if (error instanceof XamanApiError) {
+    if (error instanceof WalletProviderError) {
       return json(
-        { error: { code: "XAMAN_API_ERROR", message: error.message } },
-        502,
+        {
+          error: {
+            code: "WALLET_PROVIDER_ERROR",
+            provider: error.providerId,
+            reason: error.code,
+            message: error.message,
+          },
+        },
+        error.code === "UNSUPPORTED_INTENT" ? 422 : 502,
       );
     }
     return json(
       {
         error: {
           code: "PAYLOAD_CREATION_FAILED",
-          message: "The Xaman Sign Request could not be created.",
+          message: "The Wallet Handoff could not be created.",
         },
       },
       500,
