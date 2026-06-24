@@ -15,7 +15,5 @@ export const PUBLIC_PROOF_FIXTURE: PublicTransactionProof = {
   sourceTag: 777,
   destinationTag: null,
   invoiceId: "AB".repeat(32),
-  verifiedAt: "2026-06-24T00:05:00.000Z",
-  recordedAt: "2026-06-24T00:05:01.000Z",
   proofDigest: PUBLIC_PROOF_TOKEN,
 };
