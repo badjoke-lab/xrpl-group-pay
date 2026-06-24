@@ -5,21 +5,20 @@ import {
   XamanConfigurationError,
 } from "@/config/server-env";
 import {
+  loadPaymentSlotByToken,
+  PaymentSlotNotFoundError,
+} from "@/features/bills/payment-slot";
+import {
+  PaymentSlotSettlementConflictError,
+  PaymentSlotSettlementDatabaseError,
+  settleVerifiedPaymentSlot,
+} from "@/features/bills/settle-slot";
+import { verifyStoredSlotPayment } from "@/features/bills/stored-slot-verification";
+import {
   getPaymentsDatabase,
   PaymentsDatabaseUnavailableError,
 } from "@/features/persistence/cloudflare-d1";
-import type { RecordedPaymentReceipt } from "@/features/persistence/types";
-import {
-  PaymentReceiptConflictError,
-  PaymentReceiptDatabaseError,
-  PaymentReceiptInputError,
-  recordVerifiedPayment,
-} from "@/features/persistence/verified-payment-receipts";
-import { verifyXamanPayment } from "@/features/payment-verification/service";
-import type {
-  LedgerVerificationProof,
-  PaymentVerificationOutcome,
-} from "@/features/payment-verification/types";
+import type { PaymentVerificationApiOutcome } from "@/features/payment-verification/types";
 import { XamanApiError, XamanClient } from "@/features/xaman/client";
 import {
   XrplNodeUnavailableError,
@@ -29,31 +28,43 @@ import {
 export const dynamic = "force-dynamic";
 
 const MAX_VERIFICATION_REQUEST_BYTES = 512;
-
-const verificationInputSchema = z
-  .object({ payloadId: z.string().uuid() })
+const capabilitySchema = z.string().regex(/^[a-f0-9]{64}$/i);
+const payloadIdSchema = z.string().uuid();
+const requestBodySchema = z
+  .object({ paymentToken: z.string(), payloadId: z.string() })
   .strict();
 
 export type VerificationRouteDependencies = {
-  verifyPayment(payloadId: string): Promise<PaymentVerificationOutcome>;
-  recordPayment(proof: LedgerVerificationProof): Promise<RecordedPaymentReceipt>;
+  verifyAndRecord(
+    paymentToken: string,
+    payloadId: string,
+  ): Promise<PaymentVerificationApiOutcome>;
 };
 
 const defaultDependencies: VerificationRouteDependencies = {
-  async verifyPayment(payloadId) {
+  async verifyAndRecord(paymentToken, payloadId) {
+    const database = await getPaymentsDatabase();
     const environment = getXamanEnvironment();
     const xaman = new XamanClient(environment);
     const xrpl = new XrplTestnetClient();
-    return verifyXamanPayment(payloadId, {
+    const slot = await loadPaymentSlotByToken(database, paymentToken);
+    const outcome = await verifyStoredSlotPayment(slot, payloadId, {
       getXamanPayload: (id) => xaman.getPayload(id),
       getXrplTransaction: (transactionId) =>
         xrpl.getTransaction(transactionId),
       sourceTag: environment.XRPL_SOURCE_TAG,
     });
-  },
-  async recordPayment(proof) {
-    const database = await getPaymentsDatabase();
-    return recordVerifiedPayment(database, proof);
+
+    if (outcome.status !== "verified") {
+      return outcome;
+    }
+
+    const settlement = await settleVerifiedPaymentSlot(
+      database,
+      slot,
+      outcome.proof,
+    );
+    return { ...outcome, receipt: settlement.receipt };
   },
 };
 
@@ -104,7 +115,7 @@ export async function handleVerificationRequest(
     }
   }
 
-  let input: z.infer<typeof verificationInputSchema>;
+  let rawInput: z.infer<typeof requestBodySchema>;
   try {
     const raw = await request.text();
     if (
@@ -112,8 +123,31 @@ export async function handleVerificationRequest(
     ) {
       return requestTooLarge();
     }
-    input = verificationInputSchema.parse(JSON.parse(raw) as unknown);
+    rawInput = requestBodySchema.parse(JSON.parse(raw) as unknown);
   } catch {
+    return json(
+      {
+        error: {
+          code: "INVALID_VERIFICATION_INPUT",
+          message: "Provide a valid payment capability and Xaman payload identifier.",
+        },
+      },
+      400,
+    );
+  }
+
+  if (!capabilitySchema.safeParse(rawInput.paymentToken).success) {
+    return json(
+      {
+        error: {
+          code: "PAYMENT_SLOT_NOT_FOUND",
+          message: "The payment link is invalid or unavailable.",
+        },
+      },
+      404,
+    );
+  }
+  if (!payloadIdSchema.safeParse(rawInput.payloadId).success) {
     return json(
       {
         error: {
@@ -126,18 +160,45 @@ export async function handleVerificationRequest(
   }
 
   try {
-    const outcome = await dependencies.verifyPayment(input.payloadId);
-
-    if (outcome.status === "pending") {
-      return json(outcome, 202);
-    }
-    if (outcome.status === "failed") {
-      return json(outcome, 422);
-    }
-
-    const receipt = await dependencies.recordPayment(outcome.proof);
-    return json({ ...outcome, receipt }, 200);
+    const outcome = await dependencies.verifyAndRecord(
+      rawInput.paymentToken,
+      rawInput.payloadId,
+    );
+    if (outcome.status === "pending") return json(outcome, 202);
+    if (outcome.status === "failed") return json(outcome, 422);
+    return json(outcome, 200);
   } catch (error) {
+    if (error instanceof PaymentSlotNotFoundError) {
+      return json(
+        {
+          error: {
+            code: "PAYMENT_SLOT_NOT_FOUND",
+            message: "The payment link is invalid or unavailable.",
+          },
+        },
+        404,
+      );
+    }
+    if (error instanceof PaymentSlotSettlementConflictError) {
+      return json(
+        { error: { code: error.code, message: error.message } },
+        409,
+      );
+    }
+    if (
+      error instanceof PaymentsDatabaseUnavailableError ||
+      error instanceof PaymentSlotSettlementDatabaseError
+    ) {
+      return json(
+        {
+          error: {
+            code: "SLOT_SETTLEMENT_UNAVAILABLE",
+            message: error.message,
+          },
+        },
+        503,
+      );
+    }
     if (error instanceof XamanConfigurationError) {
       return json(
         { error: { code: "XAMAN_NOT_CONFIGURED", message: error.message } },
@@ -154,37 +215,6 @@ export async function handleVerificationRequest(
       return json(
         { error: { code: "XRPL_UNAVAILABLE", message: error.message } },
         502,
-      );
-    }
-    if (
-      error instanceof PaymentsDatabaseUnavailableError ||
-      error instanceof PaymentReceiptDatabaseError
-    ) {
-      return json(
-        {
-          error: {
-            code: "RECEIPT_STORAGE_UNAVAILABLE",
-            message: error.message,
-          },
-        },
-        503,
-      );
-    }
-    if (error instanceof PaymentReceiptConflictError) {
-      return json(
-        { error: { code: error.code, message: error.message } },
-        409,
-      );
-    }
-    if (error instanceof PaymentReceiptInputError) {
-      return json(
-        {
-          error: {
-            code: "INVALID_VERIFIED_RECEIPT",
-            message: "The verified Payment proof could not be normalized.",
-          },
-        },
-        500,
       );
     }
     return json(
