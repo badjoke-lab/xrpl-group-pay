@@ -1,15 +1,15 @@
 import { z } from "zod";
 
 import type { D1DatabaseLike } from "@/features/persistence/d1-types";
-import {
-  recordedPaymentReceiptSchema,
-  type RecordedPaymentReceipt,
-} from "@/features/persistence/types";
 import { digestVerifiedProof } from "@/features/persistence/digest-verified-proof";
 import {
   normalizeVerifiedProof,
   VerifiedProofInputError,
 } from "@/features/persistence/normalize-verified-proof";
+import {
+  recordedPaymentReceiptSchema,
+  type RecordedPaymentReceipt,
+} from "@/features/persistence/types";
 import type { LedgerVerificationProof } from "@/features/payment-verification/types";
 
 import type { ResolvedPaymentSlot } from "./payment-slot";
@@ -131,6 +131,7 @@ export async function settleVerifiedPaymentSlot(
       proof.verifiedAt,
       recordedAt,
       proofDigest,
+      slot.slotId,
     ),
     database.prepare(MARK_SLOT_PAID).bind(
       receiptId,
@@ -151,6 +152,16 @@ export async function settleVerifiedPaymentSlot(
     const [receiptWrite, slotWrite, billWrite, read] =
       await database.batch(statements);
     const parsed = rowSchema.safeParse(read?.results?.[0]);
+
+    if (
+      parsed.success &&
+      parsed.data.paid_tx_hash !== proof.transactionId
+    ) {
+      throw new PaymentSlotSettlementConflictError(
+        "SLOT_ALREADY_PAID",
+        "This payment slot already accepted another transaction.",
+      );
+    }
 
     if (
       !receiptWrite?.success ||
