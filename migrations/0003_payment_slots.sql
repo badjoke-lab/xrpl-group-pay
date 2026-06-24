@@ -31,7 +31,11 @@ CREATE TABLE payment_slots (
   CHECK (expected_amount_drops NOT GLOB '*[^0-9]*'),
   CHECK (expected_amount_drops <> '0'),
   CHECK (length(invoice_id) = 64),
-  CHECK (invoice_id = upper(invoice_id)),
+  CHECK (invoice_id COLLATE BINARY = upper(invoice_id)),
+  CHECK (
+    paid_tx_hash IS NULL
+    OR paid_tx_hash COLLATE BINARY = upper(paid_tx_hash)
+  ),
   CHECK (paid_ledger_index IS NULL OR paid_ledger_index >= 0),
   CHECK (
     (status = 'paid' AND paid_receipt_id IS NOT NULL AND paid_tx_hash IS NOT NULL AND paid_ledger_index IS NOT NULL AND paid_at IS NOT NULL)
