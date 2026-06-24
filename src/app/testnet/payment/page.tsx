@@ -5,7 +5,7 @@ import { TestnetPaymentForm } from "@/components/payment/testnet-payment-form";
 import { NetworkBadge } from "@/components/ui/network-badge";
 
 export const metadata = {
-  title: "Testnet Payment",
+  title: "Participant Payment",
 };
 
 export default function TestnetPaymentPage() {
@@ -21,12 +21,16 @@ export default function TestnetPaymentPage() {
 
       <div className="mx-auto w-full max-w-6xl px-5 pb-20 pt-8 sm:px-8 sm:pt-14">
         <div className="mb-9 max-w-3xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-action">Payment vertical slice</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-action">
+            Participant flow
+          </p>
           <h1 className="mt-3 font-heading text-4xl font-bold tracking-tight sm:text-5xl">
-            Send one XRP Payment through Xaman
+            Review your share. Approve the exact payment in Xaman.
           </h1>
           <p className="mt-5 text-lg leading-8 text-muted">
-            The application prepares a Testnet-only transaction. You remain in control and approve it inside Xaman.
+            This page reads the private capability from the shared link, loads the
+            frozen Testnet payment slot, and verifies the submitted transaction on a
+            validated XRP Ledger before marking it paid.
           </p>
         </div>
 
