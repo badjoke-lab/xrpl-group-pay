@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   CheckCircle2,
   Clock3,
@@ -22,6 +28,7 @@ import type {
 import { shouldRefreshFromXamanWebsocket } from "@/features/xaman/status";
 
 const CAPABILITY_PATTERN = /^[a-f0-9]{64}$/i;
+const HASH_CAPABILITY_PENDING = "__pending__";
 
 type CreatedPayload = {
   payloadId: string;
@@ -90,6 +97,19 @@ function parseCapabilityFromHash() {
     : null;
 }
 
+function subscribeToHash(onStoreChange: () => void) {
+  window.addEventListener("hashchange", onStoreChange);
+  return () => window.removeEventListener("hashchange", onStoreChange);
+}
+
+function getHashCapabilitySnapshot() {
+  return parseCapabilityFromHash() ?? "";
+}
+
+function getServerHashCapabilitySnapshot() {
+  return HASH_CAPABILITY_PENDING;
+}
+
 async function readJson(response: Response) {
   const body = await response.json().catch(() => null);
   if (!response.ok) {
@@ -118,22 +138,23 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
     paymentToken && CAPABILITY_PATTERN.test(paymentToken)
       ? paymentToken.toLowerCase()
       : null;
-  const [capability, setCapability] = useState<string | null>(normalizedProp);
-  const [capabilityResolved, setCapabilityResolved] = useState(Boolean(paymentToken));
+  const hashCapability = useSyncExternalStore(
+    subscribeToHash,
+    getHashCapabilitySnapshot,
+    getServerHashCapabilitySnapshot,
+  );
+  const capability =
+    paymentToken !== undefined
+      ? normalizedProp
+      : CAPABILITY_PATTERN.test(hashCapability)
+        ? hashCapability.toLowerCase()
+        : null;
+  const capabilityResolved =
+    paymentToken !== undefined || hashCapability !== HASH_CAPABILITY_PENDING;
   const [state, setState] = useState<ViewState>({ kind: "ready" });
   const [isChecking, setIsChecking] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
   const verificationInFlight = useRef(new Set<string>());
-
-  useEffect(() => {
-    if (paymentToken !== undefined) {
-      setCapability(normalizedProp);
-      setCapabilityResolved(true);
-      return;
-    }
-    setCapability(parseCapabilityFromHash());
-    setCapabilityResolved(true);
-  }, [normalizedProp, paymentToken]);
 
   const applyVerificationOutcome = useCallback(
     (
@@ -301,7 +322,10 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
   if (!capabilityResolved) {
     return (
       <div className="flex min-h-72 items-center justify-center rounded-xl border border-border bg-surface">
-        <LoaderCircle aria-label="Loading payment link" className="size-8 animate-spin text-brand" />
+        <LoaderCircle
+          aria-label="Loading payment link"
+          className="size-8 animate-spin text-brand"
+        />
       </div>
     );
   }
@@ -309,7 +333,10 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
   if (!capability) {
     return (
       <section className="mx-auto max-w-xl rounded-xl border border-danger/25 bg-surface p-7 text-center shadow-sm sm:p-9">
-        <TriangleAlert aria-hidden="true" className="mx-auto size-11 text-danger" />
+        <TriangleAlert
+          aria-hidden="true"
+          className="mx-auto size-11 text-danger"
+        />
         <h2 className="mt-4 font-heading text-2xl font-semibold">
           Payment link unavailable
         </h2>
@@ -353,18 +380,26 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
               {payload.slot.participantLabel && (
                 <div className="flex justify-between gap-4 border-b border-border pb-3">
                   <dt className="text-muted">Participant</dt>
-                  <dd className="font-semibold">{payload.slot.participantLabel}</dd>
+                  <dd className="font-semibold">
+                    {payload.slot.participantLabel}
+                  </dd>
                 </div>
               )}
               <div className="flex justify-between gap-4 border-b border-border pb-3">
                 <dt className="text-muted">Recipient</dt>
-                <dd className="font-mono font-semibold" title={payload.slot.destinationAddress}>
+                <dd
+                  className="font-mono font-semibold"
+                  title={payload.slot.destinationAddress}
+                >
                   {shortAddress(payload.slot.destinationAddress)}
                 </dd>
               </div>
               <div className="flex justify-between gap-4">
                 <dt className="text-muted">Expected wallet</dt>
-                <dd className="font-mono font-semibold" title={payload.slot.expectedPayerAddress}>
+                <dd
+                  className="font-mono font-semibold"
+                  title={payload.slot.expectedPayerAddress}
+                >
                   {shortAddress(payload.slot.expectedPayerAddress)}
                 </dd>
               </div>
@@ -391,13 +426,19 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
           </Button>
         )}
         {state.kind === "error" && (
-          <p role="alert" className="mt-4 rounded-md bg-danger/10 px-4 py-3 text-sm text-danger">
+          <p
+            role="alert"
+            className="mt-4 rounded-md bg-danger/10 px-4 py-3 text-sm text-danger"
+          >
             {state.message}
           </p>
         )}
 
         <div className="mt-6 flex items-start gap-3 rounded-lg bg-brand-subtle p-4 text-sm leading-6 text-brand">
-          <ShieldCheck aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+          <ShieldCheck
+            aria-hidden="true"
+            className="mt-0.5 size-5 shrink-0"
+          />
           <p>
             Group Pay never receives the XRP. Your wallet sends it directly to
             the bill creator after you approve the exact transaction in Xaman.
@@ -405,21 +446,29 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
         </div>
       </section>
 
-      <section aria-live="polite" className="rounded-xl border border-border bg-surface p-6 sm:p-8">
-        {state.kind === "ready" || state.kind === "creating" || state.kind === "error" ? (
+      <section
+        aria-live="polite"
+        className="rounded-xl border border-border bg-surface p-6 sm:p-8"
+      >
+        {state.kind === "ready" ||
+        state.kind === "creating" ||
+        state.kind === "error" ? (
           <div className="flex min-h-80 flex-col items-center justify-center text-center">
             <Smartphone aria-hidden="true" className="size-12 text-brand" />
             <h2 className="mt-5 font-heading text-xl font-semibold">
               Secure Xaman handoff
             </h2>
             <p className="mt-2 max-w-sm leading-7 text-muted">
-              Continue to load the frozen payment details and create a short-lived
-              Testnet Sign Request.
+              Continue to load the frozen payment details and create a
+              short-lived Testnet Sign Request.
             </p>
           </div>
         ) : state.kind === "waiting" ? (
           <div className="text-center">
-            <LoaderCircle aria-hidden="true" className="mx-auto size-10 animate-spin text-brand" />
+            <LoaderCircle
+              aria-hidden="true"
+              className="mx-auto size-10 animate-spin text-brand"
+            />
             <h2 className="mt-4 font-heading text-xl font-semibold">
               Waiting for approval in Xaman
             </h2>
@@ -446,28 +495,47 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
                 disabled={isChecking}
               >
                 {isChecking ? (
-                  <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="size-4 animate-spin"
+                  />
                 ) : (
                   <RefreshCw aria-hidden="true" className="size-4" />
                 )}
                 Check status
               </Button>
             </div>
-            {statusError && <p role="alert" className="mt-4 text-sm text-danger">{statusError}</p>}
+            {statusError && (
+              <p role="alert" className="mt-4 text-sm text-danger">
+                {statusError}
+              </p>
+            )}
           </div>
         ) : state.kind === "verifying" ? (
           <StatusPanel
-            icon={<LoaderCircle aria-hidden="true" className="size-11 animate-spin text-brand" />}
+            icon={
+              <LoaderCircle
+                aria-hidden="true"
+                className="size-11 animate-spin text-brand"
+              />
+            }
             title="Verifying on the XRP Ledger"
             body="The submitted transaction must appear in a validated Testnet ledger and match every frozen slot condition."
           />
         ) : state.kind === "verificationPending" ? (
           <StatusPanel
-            icon={<Clock3 aria-hidden="true" className="size-11 text-action" />}
+            icon={
+              <Clock3 aria-hidden="true" className="size-11 text-action" />
+            }
             title="Ledger confirmation pending"
             body={state.message}
             action={
-              <Button variant="secondary" onClick={() => void verifySubmittedPayment(state.payload, state.txid)}>
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  void verifySubmittedPayment(state.payload, state.txid)
+                }
+              >
                 <RefreshCw aria-hidden="true" className="size-4" />
                 Check again
               </Button>
@@ -475,30 +543,54 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
           />
         ) : state.kind === "verified" ? (
           <StatusPanel
-            icon={<CheckCircle2 aria-hidden="true" className="size-12 text-success" />}
+            icon={
+              <CheckCircle2
+                aria-hidden="true"
+                className="size-12 text-success"
+              />
+            }
             title="Ledger verified"
             body={`${state.proof.amountDrops} drops were delivered directly and the payment slot is now marked paid.`}
-            detail={state.receiptStatus === "existing" ? "This exact transaction was already recorded safely." : "A durable verification receipt was recorded."}
+            detail={
+              state.receiptStatus === "existing"
+                ? "This exact transaction was already recorded safely."
+                : "A durable verification receipt was recorded."
+            }
           />
         ) : state.kind === "verificationFailed" ? (
           <StatusPanel
-            icon={<TriangleAlert aria-hidden="true" className="size-11 text-danger" />}
+            icon={
+              <TriangleAlert
+                aria-hidden="true"
+                className="size-11 text-danger"
+              />
+            }
             title="Payment could not be verified"
             body={state.message}
           />
         ) : state.kind === "rejected" ? (
           <StatusPanel
-            icon={<XCircle aria-hidden="true" className="size-11 text-danger" />}
+            icon={
+              <XCircle aria-hidden="true" className="size-11 text-danger" />
+            }
             title="Request rejected"
             body="No XRP was sent. You can create another short-lived request from the same payment link."
-            action={<Button onClick={() => void createPayload()}>Try again</Button>}
+            action={
+              <Button onClick={() => void createPayload()}>Try again</Button>
+            }
           />
         ) : (
           <StatusPanel
-            icon={<Clock3 aria-hidden="true" className="size-11 text-action" />}
+            icon={
+              <Clock3 aria-hidden="true" className="size-11 text-action" />
+            }
             title="Request expired"
             body="No XRP was sent. Create a fresh Xaman request from the same payment link."
-            action={<Button onClick={() => void createPayload()}>Create new request</Button>}
+            action={
+              <Button onClick={() => void createPayload()}>
+                Create new request
+              </Button>
+            }
           />
         )}
       </section>
@@ -524,7 +616,9 @@ function StatusPanel({
       {icon}
       <h2 className="mt-5 font-heading text-xl font-semibold">{title}</h2>
       <p className="mt-3 max-w-md leading-7 text-muted">{body}</p>
-      {detail && <p className="mt-3 text-sm font-medium text-foreground">{detail}</p>}
+      {detail && (
+        <p className="mt-3 text-sm font-medium text-foreground">{detail}</p>
+      )}
       {action && <div className="mt-6">{action}</div>}
     </div>
   );
