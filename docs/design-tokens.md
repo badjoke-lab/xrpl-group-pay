@@ -1,6 +1,8 @@
 # XRPL Group Pay — Design Tokens
 
-**Status:** Draft for PR 1  
+**Status:** Active  
+**Scope:** Make Waves v1 visual system  
+**Last reviewed:** 2026-06-24  
 **Document class:** Public
 
 ## 1. Color tokens
@@ -28,21 +30,20 @@
   --color-warning-subtle: #FFF2DD;
   --color-danger: #C84545;
   --color-danger-subtle: #FBE8E8;
-
   --color-focus: #7A3D8C;
 }
 ```
 
 ## 2. Semantic usage
 
-- `brand`: identity, headings, selected navigation, key amounts.
+- `brand`: product identity, headings, selected navigation, key settlement values.
 - `action`: one primary action per view.
 - `success`: validated and completed only.
-- `warning`: pending attention, expiry, Mainnet caution.
-- `danger`: blocking errors and mismatches.
-- `muted`: descriptive and secondary text.
+- `warning`: readiness, pending attention, expiry, or Mainnet caution.
+- `danger`: blocking mismatch or unsafe configuration.
+- `muted`: descriptive and secondary content.
 
-Do not use success green for “submitted” or “signed”. Those states are not yet verified.
+XRP, RLUSD, wallets, and future rails do not receive separate application themes. Asset identity is communicated by text, badges, and details, not a wholesale color change.
 
 ## 3. Typography
 
@@ -54,43 +55,26 @@ Body: Inter or Geist Sans
 Monospace: Geist Mono
 ```
 
-Fallback:
-
-```css
---font-heading: "Manrope", "Inter", system-ui, sans-serif;
---font-body: "Inter", "Geist", system-ui, sans-serif;
---font-mono: "Geist Mono", ui-monospace, monospace;
-```
+Fallbacks use system fonts with Japanese and Korean glyph coverage.
 
 ## 4. Type scale
 
 | Token | Size / line height | Use |
 |---|---|---|
-| display-amount | 48/52 mobile, 56/60 desktop | Primary XRP amount |
+| display-amount | 48/52 mobile, 56/60 desktop | Primary Settlement Amount |
 | display | 40/44 | Hero |
 | h1 | 32/38 | Page title |
 | h2 | 24/30 | Section title |
-| h3 | 20/26 | Card/panel heading |
+| h3 | 20/26 | Card or panel heading |
 | body-lg | 18/28 | Important explanation |
 | body | 16/24 | Default |
 | body-sm | 14/20 | Secondary |
-| label | 13/18, medium weight | Field/status label |
-| caption | 12/17 | Technical support |
+| label | 13/18, medium | Field or status label |
+| caption | 12/17 | Technical support only |
 
-Minimum ordinary body text is 14px. Primary financial and safety information must not use caption size.
+Financial, asset, issuer, network, and safety information never uses caption size as its only presentation.
 
-## 5. Font weights
-
-```text
-Regular 400
-Medium 500
-Semibold 600
-Bold 700
-```
-
-Avoid ultra-light weights.
-
-## 6. Spacing scale
+## 5. Spacing and radius
 
 ```css
 --space-1: 4px;
@@ -103,15 +87,7 @@ Avoid ultra-light weights.
 --space-10: 40px;
 --space-12: 48px;
 --space-16: 64px;
-```
 
-Mobile page padding: 20px.  
-Desktop main content padding: 32px.  
-Wide desktop maximum content width: 1440px where appropriate.
-
-## 7. Radius
-
-```css
 --radius-sm: 8px;
 --radius-md: 12px;
 --radius-lg: 16px;
@@ -119,106 +95,77 @@ Wide desktop maximum content width: 1440px where appropriate.
 --radius-pill: 999px;
 ```
 
-- Input and button: 12px.
-- Major panel: 16–20px.
-- Badge: pill.
-- Do not apply a large radius to every textual section.
+Mobile page padding is normally 20px. Inputs and buttons use 12px radius. Major panels use 16–20px. Avoid applying large rounding to every text section.
 
-## 8. Borders
+## 6. Borders and shadows
 
 ```css
 --border-default: 1px solid var(--color-border);
 --border-strong: 1px solid #D6CDD0;
-```
-
-Use borders and spacing before adding shadows.
-
-## 9. Shadows
-
-```css
 --shadow-sm: 0 1px 2px rgb(23 24 33 / 0.05);
 --shadow-md: 0 8px 24px rgb(75 29 90 / 0.08);
 ```
 
-`shadow-md` is reserved for floating dialogs, sheets, and important raised surfaces.
+Prefer borders and spacing. Medium shadow is reserved for sheets, dialogs, and important raised surfaces.
 
-## 10. Buttons
+## 7. Buttons
 
-### Primary
+Primary actions use Coral, white text, visible focus, and at least 52px mobile height. Secondary actions use white or subtle brand surfaces. Destructive actions use explicit danger text and cannot be confused with payment confirmation.
 
-- Coral background.
-- White text.
-- Minimum height 52px mobile.
-- Full width on focused payer screens.
-- Clear pressed, focus, loading, and disabled states.
+A Wallet Provider action may include the provider name without adopting its full brand color system.
 
-### Secondary
+## 8. Inputs
 
-- White or subtle brand surface.
-- Deep Plum text.
-- Border.
+- minimum height 48px;
+- visible label above the field;
+- help and error below;
+- focus ring retained;
+- amount field shows a separate dynamic unit suffix;
+- address and issuer fields use monospace values;
+- percentage and share controls expose their units;
+- no silent rounding;
+- Destination Tag validates UInt32.
 
-### Destructive
+## 9. Asset and provider badges
 
-- Danger color.
-- Requires explicit label.
-- Never placed where it can be mistaken for payment confirmation.
+Badges may identify:
 
-### Text action
+- XRP;
+- official RLUSD;
+- Testnet or Mainnet;
+- Xaman or another provider;
+- official issuer verified;
+- readiness blocked.
 
-- Deep Plum.
-- Underline on hover where appropriate.
-- Not used for primary payment.
+Badges include text. Verification and blocking states never rely on color or icon alone.
 
-## 11. Inputs
+## 10. Status components
 
-- Minimum height 48px.
-- Visible label above field.
-- Help and error text below.
-- Focus ring not removed.
-- Amount field shows XRP suffix separately from editable text.
-- Address field uses monospace for the address value.
-- Destination Tag accepts digits only and validates UInt32 range.
-
-## 12. Status components
-
-| State | Token | Icon |
+| State | Token | Suggested icon |
 |---|---|---|
-| Unpaid | neutral | minus or empty circle |
-| Awaiting signature | brand | wallet/clock |
-| Validating | brand | progress/spinner |
+| Unpaid | neutral | empty circle |
+| Awaiting wallet | brand | wallet or clock |
+| Validating | brand | progress |
 | Paid | success | check |
 | Needs review | warning | alert |
-| Failed | danger | x/alert |
+| Failed | danger | x or alert |
 | Expired | neutral/warning | clock |
 | Cancelled | neutral | slash |
+| Readiness ready | success | check |
+| Readiness blocked | danger/warning | alert |
 
-All statuses include text, not color alone.
+## 11. Progress
 
-## 13. Progress
+Progress uses a subtle track, Deep Plum fill, and success only when settled. It includes numeric amount, currency or asset, participant count, and text status.
 
-- Track: warm border/subtle surface.
-- Fill: Deep Plum.
-- Settled: success.
-- Animated width only when motion is allowed.
-- Include numeric value and textual count.
+## 12. Identifiers
 
-## 14. Address and transaction identifiers
+Addresses, issuers, transaction identifiers, and proof digests use monospace and wrap anywhere. Short forms are summaries only; full values remain available by copy or expansion.
 
-- Default shortened form: `rABC…9XYZ`.
-- Full value available by copy and expansion.
-- Monospace.
-- Avoid line overflow.
-- Use `overflow-wrap: anywhere` for full display.
-- Copy confirmation is announced accessibly.
+## 13. Localization
 
-## 15. Iconography
+Tokens must support Latin, Japanese, and Korean text without changing semantic size hierarchy. Controls may grow vertically for translated labels. Fixed line heights do not clip glyphs.
 
-Preferred style:
+## 14. Iconography
 
-- Simple line icons.
-- Consistent stroke width.
-- Lucide-compatible visual language.
-- Custom Group Pay mark for brand identity.
-
-Avoid repeated XRP or Xaman logos as decoration.
+Use a consistent simple line-icon language. A custom Group Pay mark represents product identity. Avoid repeating XRP, RLUSD, or wallet logos as decoration.

@@ -1,219 +1,166 @@
 # XRPL Group Pay — Responsive Behavior
 
-**Status:** Draft for PR 1  
+**Status:** Active  
+**Scope:** Make Waves v1 responsive behavior for XRP, RLUSD, allocation, and localization  
+**Last reviewed:** 2026-06-24  
 **Document class:** Public
 
 ## 1. Supported viewport targets
 
 ```text
 Minimum: 320px
-Mobile default test: 390 × 844
+Mobile default: 390 × 844
 Large mobile: 430 × 932
 Tablet: 768 × 1024
 Desktop: 1440 × 900
-Wide desktop: 1600px and above
+Wide desktop: 1600px+
 ```
 
-## 2. Breakpoint policy
+The application is mobile-first. Breakpoints reflect information-structure changes, not device labels.
+
+## 2. Payer pages
+
+### Mobile
+
+- single column;
+- 20px page padding where space allows;
+- amount and Settlement Asset are visually strongest;
+- network remains visible;
+- technical details are collapsible;
+- Wallet Handoff action may be sticky when it does not cover content;
+- issuer and fee details wrap safely;
+- no creator navigation.
+
+### Tablet and desktop
+
+- payment card centered around 520–600px;
+- security and asset explanation may sit beside the card;
+- deep-link and QR options may appear together;
+- technical fields may remain expanded;
+- no creator sidebar on participant capability routes.
+
+## 3. Creator Bill flow
+
+### Mobile
+
+Use a step flow:
 
 ```text
-base: 0–639px
-sm: 640px+
-md: 768px+
-lg: 1024px+
-xl: 1280px+
-2xl: 1536px+
+Bill basics and asset
+-> Split method
+-> Participants
+-> RLUSD readiness when needed
+-> Review and freeze
+-> Share
 ```
 
-The application is implemented mobile-first. A breakpoint is added because the information structure changes, not to force a device category.
-
-## 3. Payer pages
-
-### Mobile
-
-- Single column.
-- Maximum readable width with 20px page padding.
-- Primary action near the bottom and optionally sticky when it does not obscure content.
-- Amount centered or strongly emphasized.
-- Technical details collapsed.
-- Xaman fallback QR shown in a sheet or dedicated view.
-
-### Tablet/Desktop
-
-- Payment card centered with a maximum width around 520–600px.
-- Supporting security explanation may appear beside the payment card.
-- QR and deep-link options can be visible together.
-- No creator dashboard navigation on participant capability routes.
-
-## 4. Creator creation flow
-
-### Mobile
-
-- Step-based flow.
-- One participant editor at a time or stacked participant rows.
-- Sticky total and next action.
-- Advanced recipient details collapsed when not required.
+The current total, allocation state, and next action remain visible without covering the active input.
 
 ### Tablet
 
-- Form and live summary can appear as two columns.
-- Participant list uses denser rows.
+Form and live summary may use two columns. Participant rows become denser, but every unit and allocation input remains labeled.
 
 ### Desktop
 
-- Left/main area for bill and participant editing.
-- Right sticky summary.
-- Inline validation and total reconciliation.
-- Keyboard-efficient participant entry.
+Use a main editing area and sticky summary. Asset, allocation, participant, and remainder controls support keyboard-efficient editing.
 
-## 5. Creator management
+## 4. Asset selection
+
+XRP and RLUSD controls must fit at 320px without abbreviation that removes meaning.
+
+RLUSD issuer detail may open in a dedicated disclosure panel or sheet. The full issuer wraps rather than truncating irreversibly.
+
+Network fee and Settlement Asset remain distinct at every width.
+
+## 5. Allocation controls
+
+Equal, Percentage, Shares, and Custom controls may use segmented controls on wide views and stacked selectable cards on narrow views.
+
+Percentage and Shares rows become labeled blocks on mobile. No horizontal scrolling is required for primary allocation editing.
+
+Remainder assignment remains visible before review.
+
+## 6. Creator management
 
 ### Mobile
 
-- Top app bar.
-- Bottom navigation only for creator workspace.
-- Summary cards followed by participant list.
-- Participant detail opens as a sheet or full-screen view.
-- Table columns become labeled rows.
+- top app bar;
+- summary cards followed by participant list;
+- participant detail opens in sheet or page;
+- desktop table columns become labeled rows;
+- proof and export actions remain separate from payment state.
 
 ### Desktop
 
 ```text
-Sidebar | Main participant/activity workspace | Summary/actions
+Sidebar | Main Bill workspace | Summary and actions
 ```
 
-- Sidebar remains visible.
-- Participant list uses a table or structured list.
-- Summary panel can remain sticky.
-- Export, QR, and bill actions are grouped separately from payment state.
-
-## 6. Table transformation
-
-Desktop columns:
+The participant list may use a table with:
 
 ```text
-Participant | Expected | Status | Sender | Transaction | Updated
+Participant | Obligation | Asset | Status | Sender | Transaction | Updated
 ```
 
-Mobile row:
+## 7. Public Roadmap and Changelog
 
-```text
-Participant label      Status
-Expected amount
-Sender
-Transaction
-Updated
-```
+Roadmap status columns become stacked sections on mobile. Changelog release navigation remains keyboard accessible and does not require a wide table.
 
-No horizontal scrolling for the primary participant list at 320px.
+Current availability and future direction remain distinguishable without relying on color.
 
-Technical proof tables may allow controlled horizontal scroll with a visible affordance.
-
-## 7. Sticky behavior
+## 8. Sticky behavior
 
 Allowed:
 
-- Mobile payer CTA.
-- Mobile creation total/next action.
-- Desktop bill summary.
-- Desktop table header for long lists.
+- mobile payer action;
+- mobile creation total and next action;
+- desktop Bill summary;
+- desktop table header.
 
-Requirements:
+Sticky regions must respect safe areas, never cover errors or focused controls, and collapse when an on-screen keyboard would obscure input.
 
-- Must not cover validation errors.
-- Must respect safe-area insets.
-- Must not trap keyboard focus.
-- Must collapse when on-screen keyboard would obscure an input.
+## 9. Navigation
 
-## 8. Navigation
+Participant routes contain product identity, network, locale selector, and only actions required for payment.
 
-Participant routes:
-
-- Product mark.
-- Network badge.
-- No global creator navigation.
-
-Creator mobile:
-
-- Home.
-- Bills.
-- Future Groups.
-- Settings.
-
-Future items not available in the initial release must not appear as enabled controls.
-
-Creator desktop:
-
-- Sidebar navigation.
-- Create bill CTA.
-- Network and account/capability context.
-
-## 9. Dialogs and sheets
-
-Mobile:
-
-- Prefer bottom sheet for QR, participant actions, and short confirmation.
-- Use full page for payment confirmation and safety-critical actions.
-
-Desktop:
-
-- Dialog for compact actions.
-- Side panel for participant or transaction detail.
-- Full page for proof and complex creation.
-
-Destructive or Mainnet payment confirmation must not be hidden inside a casual swipe-dismiss sheet.
+Creator navigation may include Home, Bills, future Groups, Settings, Roadmap, and Changelog. Future product features are not shown as enabled actions before release.
 
 ## 10. Long content
 
-Bill title:
+- Bill titles wrap in summaries and remain fully available on detail pages.
+- Participant labels may ellipsize in dense tables but remain available in detail.
+- addresses, issuers, hashes, and proof digests use `overflow-wrap: anywhere`.
+- large amounts scale down before wrapping and never lose the unit.
+- translated warnings may wrap to multiple lines without moving the action out of reach.
 
-- Maximum input length.
-- Wrap to two lines in summaries.
-- Full title available on detail page.
+## 11. Localization
 
-Participant label:
+Every critical view is tested in English, Japanese, and Korean.
 
-- Ellipsis in dense table.
-- Full label in detail.
+Layouts account for:
 
-Addresses and hashes:
+- long Japanese and Korean text;
+- mixed scripts and identifiers;
+- currency placement changes;
+- percentage and decimal formatting;
+- labels that are longer than English;
+- locale selector at narrow widths.
 
-- Short form in summaries.
-- Full form wraps anywhere.
-- Copy button remains visible.
+## 12. Zoom and reflow
 
-Large amounts:
+At 200% zoom, there is no lost action, overlapping panel, clipped issuer, or hidden warning. Multi-column layouts may collapse.
 
-- Scale down one step before wrapping.
-- Never clip decimals or XRP unit.
-- Use tabular numerals where supported.
+At the supported high-reflow target, the critical payment flow remains usable as one column.
 
-## 11. Zoom and reflow
+## 13. Dialogs and sheets
 
-At 200% zoom:
+Mobile sheets are appropriate for QR, issuer detail, language selection, and short supporting actions. Financial confirmation and Mainnet approval use a full page or non-casual explicit dialog.
 
-- No loss of action.
-- No overlapping panels.
-- Desktop multi-column layouts may collapse.
-- Proof data remains readable.
-- Sticky regions do not consume most of the viewport.
+Desktop dialogs handle compact actions; side panels handle participant or transaction detail; proof and complex Bill creation use full pages.
 
-At 400% zoom around 1280px:
+## 14. Visual regression matrix
 
-- Core flow remains usable as a single-column layout where required by accessibility targets.
-
-## 12. Orientation
-
-Landscape mobile:
-
-- Payment action remains visible.
-- Avoid full-height decorative sections.
-- Sheets allow internal scrolling.
-- Safe-area handling supports notches.
-
-## 13. Screenshot and visual regression matrix
-
-Every UI PR tests:
+Every UI PR checks:
 
 ```text
 320 × 568
@@ -224,12 +171,4 @@ Every UI PR tests:
 1440 × 900
 ```
 
-Critical pages also test:
-
-- Long English copy.
-- Future Japanese localization fixture.
-- Large amount.
-- Maximum participant label.
-- Error state.
-- Loading state.
-- Empty state.
+Critical pages also check XRP, RLUSD, wrong/missing readiness, large values, long identifiers, English, Japanese, Korean, loading, empty, and error states.
