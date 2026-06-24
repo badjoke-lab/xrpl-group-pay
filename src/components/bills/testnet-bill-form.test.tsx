@@ -83,16 +83,16 @@ describe("TestnetBillForm", () => {
     fireEvent.change(screen.getByLabelText("Creator destination address"), {
       target: { value: createdBill.bill.destinationAddress },
     });
-    fireEvent.change(screen.getByLabelText("Total XRP"), {
+    fireEvent.change(screen.getByPlaceholderText("10"), {
       target: { value: "10" },
     });
-    fireEvent.change(screen.getByLabelText("Creator share XRP"), {
+    fireEvent.change(screen.getByPlaceholderText("2"), {
       target: { value: "2" },
     });
 
     const labels = screen.getAllByLabelText("Label");
     const payers = screen.getAllByLabelText("Expected payer address");
-    const amounts = screen.getAllByLabelText("Assigned amount XRP");
+    const amounts = screen.getAllByPlaceholderText("4");
     fireEvent.change(labels[0], { target: { value: "Alex" } });
     fireEvent.change(payers[0], {
       target: { value: createdBill.slots[0].expectedPayerAddress },
