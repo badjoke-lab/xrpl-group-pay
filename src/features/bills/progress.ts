@@ -24,6 +24,8 @@ export const paymentSlotProgressStatusSchema = z.enum([
   "needs_review",
 ]);
 
+const upperHex256Schema = z.string().regex(/^[A-F0-9]{64}$/);
+
 const billRowSchema = z.object({
   id: z.string().min(1),
   public_id: z.string().uuid(),
@@ -45,11 +47,12 @@ const slotRowSchema = z.object({
   participant_label: z.string().max(60).nullable(),
   expected_payer_address: z.string().min(1),
   expected_amount_drops: z.string().regex(/^[1-9]\d*$/),
-  invoice_id: z.string().regex(/^[A-F0-9]{64}$/),
+  invoice_id: upperHex256Schema,
   status: paymentSlotProgressStatusSchema,
-  paid_tx_hash: z.string().regex(/^[A-F0-9]{64}$/).nullable(),
+  paid_tx_hash: upperHex256Schema.nullable(),
   paid_ledger_index: z.number().int().min(0).nullable(),
   paid_at: z.string().datetime().nullable(),
+  proof_digest: upperHex256Schema.nullable(),
   updated_at: z.string().datetime(),
 });
 
@@ -88,11 +91,12 @@ export const billProgressSchema = z
           participantLabel: z.string().max(60).nullable(),
           expectedPayerAddress: z.string().min(1).nullable(),
           expectedAmountDrops: z.string().regex(/^[1-9]\d*$/),
-          invoiceId: z.string().regex(/^[A-F0-9]{64}$/).nullable(),
+          invoiceId: upperHex256Schema.nullable(),
           status: paymentSlotProgressStatusSchema,
-          paidTransactionId: z.string().regex(/^[A-F0-9]{64}$/).nullable(),
+          paidTransactionId: upperHex256Schema.nullable(),
           paidLedgerIndex: z.number().int().min(0).nullable(),
           paidAt: z.string().datetime().nullable(),
+          proofToken: upperHex256Schema.nullable(),
           updatedAt: z.string().datetime(),
         })
         .strict(),
@@ -138,24 +142,28 @@ const SELECT_BILL = `
 
 const SELECT_SLOTS = `
   SELECT
-    public_id,
-    participant_label,
-    expected_payer_address,
-    expected_amount_drops,
-    invoice_id,
-    status,
-    paid_tx_hash,
-    paid_ledger_index,
-    paid_at,
-    updated_at
-  FROM payment_slots
-  WHERE bill_id = (
+    slots.public_id,
+    slots.participant_label,
+    slots.expected_payer_address,
+    slots.expected_amount_drops,
+    slots.invoice_id,
+    slots.status,
+    slots.paid_tx_hash,
+    slots.paid_ledger_index,
+    slots.paid_at,
+    receipts.proof_digest,
+    slots.updated_at
+  FROM payment_slots AS slots
+  LEFT JOIN verified_payment_receipts AS receipts
+    ON receipts.network = 'testnet'
+    AND receipts.transaction_id = slots.paid_tx_hash
+  WHERE slots.bill_id = (
     SELECT id
     FROM bills
     WHERE admin_token_hash = ?1 OR public_token_hash = ?1
     LIMIT 1
   )
-  ORDER BY created_at ASC, public_id ASC
+  ORDER BY slots.created_at ASC, slots.public_id ASC
 `;
 
 function isReviewStatus(status: z.infer<typeof paymentSlotProgressStatusSchema>) {
@@ -191,6 +199,13 @@ export async function loadBillProgressByToken(
 
     const slots = z.array(slotRowSchema).safeParse(slotsResult.results ?? []);
     if (!slots.success) throw new BillProgressDatabaseError();
+    if (
+      slots.data.some(
+        (slot) => slot.status === "paid" && slot.proof_digest === null,
+      )
+    ) {
+      throw new BillProgressDatabaseError();
+    }
 
     const expectedExternalDrops = slots.data.reduce(
       (sum, slot) => sum + BigInt(slot.expected_amount_drops),
@@ -242,6 +257,7 @@ export async function loadBillProgressByToken(
         paidTransactionId: slot.paid_tx_hash,
         paidLedgerIndex: slot.paid_ledger_index,
         paidAt: slot.paid_at,
+        proofToken: slot.proof_digest,
         updatedAt: slot.updated_at,
       })),
     });
