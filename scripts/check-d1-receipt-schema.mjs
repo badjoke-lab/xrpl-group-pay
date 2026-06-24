@@ -161,6 +161,17 @@ execute(
   "failure",
 );
 
+const proofCollisionTransaction = "9".repeat(64);
+execute(
+  insertReceipt({
+    receiptId: `testnet:${proofCollisionTransaction}`,
+    txid: proofCollisionTransaction,
+    invoice: "4".repeat(64),
+    digest: proofDigest,
+  }),
+  "failure",
+);
+
 const mismatchTransaction = "F".repeat(64);
 execute(
   insertReceipt({
@@ -242,7 +253,7 @@ execute(
 
 execute("SELECT id, status FROM bills;");
 execute("SELECT id, status FROM payment_slots;");
-execute("SELECT receipt_id FROM verified_payment_receipts;");
+execute("SELECT receipt_id, proof_digest FROM verified_payment_receipts;");
 
 execute("DELETE FROM payment_slots;");
 execute("DELETE FROM bills;");
