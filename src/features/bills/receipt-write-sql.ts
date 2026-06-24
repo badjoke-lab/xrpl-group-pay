@@ -3,7 +3,20 @@ export const INSERT_SLOT_RECEIPT = `
     receipt_id, network, transaction_id, invoice_id, ledger_index,
     sender, destination, amount_drops, delivered_amount_drops,
     source_tag, destination_tag, verified_at, recorded_at, proof_digest
-  ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+  )
+  SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14
+  WHERE EXISTS (
+    SELECT 1
+    FROM payment_slots s
+    JOIN bills b ON b.id = s.bill_id
+    WHERE s.id = ?15
+      AND s.invoice_id = ?4
+      AND s.expected_payer_address = ?6
+      AND s.expected_amount_drops = ?8
+      AND s.status <> 'needs_review'
+      AND (s.paid_tx_hash IS NULL OR s.paid_tx_hash = ?3)
+      AND b.status IN ('open', 'partially_paid', 'settled')
+  )
   ON CONFLICT(network, transaction_id) DO NOTHING
 `;
 
