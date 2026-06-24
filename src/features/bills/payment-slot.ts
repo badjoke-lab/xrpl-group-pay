@@ -91,6 +91,15 @@ const SELECT_SLOT = `
   LIMIT 1
 `;
 
+const payloadEligibleStatuses = new Set<ResolvedPaymentSlot["slotStatus"]>([
+  "unpaid",
+  "payload_created",
+  "awaiting_signature",
+  "rejected",
+  "expired",
+  "verification_failed",
+]);
+
 export async function loadPaymentSlotByToken(
   database: D1DatabaseLike,
   paymentToken: string,
@@ -134,10 +143,13 @@ export function requirePayableSlot(slot: ResolvedPaymentSlot) {
       "This payment slot is already paid.",
     );
   }
-  if (!['open', 'partially_paid'].includes(slot.billStatus)) {
+  if (
+    !["open", "partially_paid"].includes(slot.billStatus) ||
+    !payloadEligibleStatuses.has(slot.slotStatus)
+  ) {
     throw new PaymentSlotStateError(
       "BILL_NOT_PAYABLE",
-      "This bill is not accepting payments.",
+      "This payment slot is not accepting a new sign request.",
     );
   }
   return slot;
