@@ -1,7 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import {
+  CheckCircle2,
   Clock3,
   ExternalLink,
   LoaderCircle,
@@ -16,9 +23,12 @@ import { Button } from "@/components/ui/button";
 import { requestPaymentVerification } from "@/features/payment-verification/browser-client";
 import type {
   LedgerVerificationProof,
-  PaymentVerificationOutcome,
+  PaymentVerificationApiOutcome,
 } from "@/features/payment-verification/types";
 import { shouldRefreshFromXamanWebsocket } from "@/features/xaman/status";
+
+const CAPABILITY_PATTERN = /^[a-f0-9]{64}$/i;
+const HASH_CAPABILITY_PENDING = "__pending__";
 
 type CreatedPayload = {
   payloadId: string;
@@ -26,12 +36,16 @@ type CreatedPayload = {
   deepLink: string;
   qrPng: string;
   websocketUrl: string;
-  invoiceId: string;
-  transaction: {
-    destination: string;
+  slot: {
+    publicId: string;
+    billPublicId: string;
+    billTitle: string;
+    participantLabel: string | null;
+    expectedPayerAddress: string;
+    destinationAddress: string;
     destinationTag: number | null;
     amountDrops: string;
-    sourceTag: number;
+    invoiceId: string;
     network: "testnet";
   };
 };
@@ -43,7 +57,7 @@ type PayloadStatus = {
 };
 
 type ViewState =
-  | { kind: "idle" }
+  | { kind: "ready" }
   | { kind: "creating" }
   | { kind: "waiting"; payload: CreatedPayload }
   | { kind: "verifying"; payload: CreatedPayload; txid: string }
@@ -53,7 +67,12 @@ type ViewState =
       txid: string;
       message: string;
     }
-  | { kind: "verified"; payload: CreatedPayload; proof: LedgerVerificationProof }
+  | {
+      kind: "verified";
+      payload: CreatedPayload;
+      proof: LedgerVerificationProof;
+      receiptStatus: "created" | "existing";
+    }
   | {
       kind: "verificationFailed";
       payload: CreatedPayload;
@@ -64,16 +83,75 @@ type ViewState =
   | { kind: "expired"; payload: CreatedPayload }
   | { kind: "error"; message: string };
 
+export type TestnetPaymentFormProps = {
+  paymentToken?: string;
+};
+
+function parseCapabilityFromHash() {
+  const raw = window.location.hash.slice(1);
+  const candidate = raw.startsWith("token=")
+    ? new URLSearchParams(raw).get("token")
+    : raw;
+  return candidate && CAPABILITY_PATTERN.test(candidate)
+    ? candidate.toLowerCase()
+    : null;
+}
+
+function subscribeToHash(onStoreChange: () => void) {
+  window.addEventListener("hashchange", onStoreChange);
+  return () => window.removeEventListener("hashchange", onStoreChange);
+}
+
+function getHashCapabilitySnapshot() {
+  return parseCapabilityFromHash() ?? "";
+}
+
+function getServerHashCapabilitySnapshot() {
+  return HASH_CAPABILITY_PENDING;
+}
+
 async function readJson(response: Response) {
-  const body = await response.json();
+  const body = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(body?.error?.message ?? "The request failed.");
+    throw new Error(
+      body?.error?.message ?? "The payment request could not be completed.",
+    );
   }
   return body;
 }
 
-export function TestnetPaymentForm() {
-  const [state, setState] = useState<ViewState>({ kind: "idle" });
+function dropsToXrp(drops: string) {
+  const padded = drops.padStart(7, "0");
+  const whole = padded.slice(0, -6);
+  const fraction = padded.slice(-6).replace(/0+$/, "");
+  return fraction ? `${whole}.${fraction}` : whole;
+}
+
+function shortAddress(address: string) {
+  return address.length > 18
+    ? `${address.slice(0, 9)}…${address.slice(-7)}`
+    : address;
+}
+
+export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
+  const normalizedProp =
+    paymentToken && CAPABILITY_PATTERN.test(paymentToken)
+      ? paymentToken.toLowerCase()
+      : null;
+  const hashCapability = useSyncExternalStore(
+    subscribeToHash,
+    getHashCapabilitySnapshot,
+    getServerHashCapabilitySnapshot,
+  );
+  const capability =
+    paymentToken !== undefined
+      ? normalizedProp
+      : CAPABILITY_PATTERN.test(hashCapability)
+        ? hashCapability.toLowerCase()
+        : null;
+  const capabilityResolved =
+    paymentToken !== undefined || hashCapability !== HASH_CAPABILITY_PENDING;
+  const [state, setState] = useState<ViewState>({ kind: "ready" });
   const [isChecking, setIsChecking] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
   const verificationInFlight = useRef(new Set<string>());
@@ -82,10 +160,15 @@ export function TestnetPaymentForm() {
     (
       payload: CreatedPayload,
       transactionId: string,
-      outcome: PaymentVerificationOutcome,
+      outcome: PaymentVerificationApiOutcome,
     ) => {
       if (outcome.status === "verified") {
-        setState({ kind: "verified", payload, proof: outcome.proof });
+        setState({
+          kind: "verified",
+          payload,
+          proof: outcome.proof,
+          receiptStatus: outcome.receipt.status,
+        });
         return;
       }
 
@@ -111,7 +194,7 @@ export function TestnetPaymentForm() {
 
   const verifySubmittedPayment = useCallback(
     async (payload: CreatedPayload, transactionId: string) => {
-      if (verificationInFlight.current.has(payload.payloadId)) {
+      if (!capability || verificationInFlight.current.has(payload.payloadId)) {
         return;
       }
 
@@ -119,7 +202,10 @@ export function TestnetPaymentForm() {
       setState({ kind: "verifying", payload, txid: transactionId });
 
       try {
-        const outcome = await requestPaymentVerification(payload.payloadId);
+        const outcome = await requestPaymentVerification(
+          capability,
+          payload.payloadId,
+        );
         applyVerificationOutcome(payload, transactionId, outcome);
       } catch (error) {
         setState({
@@ -135,7 +221,7 @@ export function TestnetPaymentForm() {
         verificationInFlight.current.delete(payload.payloadId);
       }
     },
-    [applyVerificationOutcome],
+    [applyVerificationOutcome, capability],
   );
 
   const refreshStatus = useCallback(
@@ -167,14 +253,10 @@ export function TestnetPaymentForm() {
     };
     const handleFocus = () => refreshSilently();
     const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        refreshSilently();
-      }
+      if (document.visibilityState === "visible") refreshSilently();
     };
     const handleSocketMessage = (event: MessageEvent) => {
-      if (shouldRefreshFromXamanWebsocket(event.data)) {
-        refreshSilently();
-      }
+      if (shouldRefreshFromXamanWebsocket(event.data)) refreshSilently();
     };
 
     let socket: WebSocket | undefined;
@@ -196,28 +278,27 @@ export function TestnetPaymentForm() {
     };
   }, [refreshStatus, state]);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function createPayload() {
+    if (!capability) return;
     setStatusError(null);
     setState({ kind: "creating" });
 
-    const formData = new FormData(event.currentTarget);
     try {
-      const response = await fetch("/api/xaman/payloads", {
+      const response = await fetch("/api/payments/payload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          destination: formData.get("destination"),
-          amountXrp: formData.get("amountXrp"),
-          destinationTag: formData.get("destinationTag"),
-        }),
+        body: JSON.stringify({ paymentToken: capability }),
+        cache: "no-store",
       });
       const payload = (await readJson(response)) as CreatedPayload;
       setState({ kind: "waiting", payload });
     } catch (error) {
       setState({
         kind: "error",
-        message: error instanceof Error ? error.message : "The request failed.",
+        message:
+          error instanceof Error
+            ? error.message
+            : "The payment request could not be created.",
       });
     }
   }
@@ -225,7 +306,6 @@ export function TestnetPaymentForm() {
   async function handleStatusCheck(payload: CreatedPayload) {
     setIsChecking(true);
     setStatusError(null);
-
     try {
       await refreshStatus(payload);
     } catch (error) {
@@ -239,80 +319,112 @@ export function TestnetPaymentForm() {
     }
   }
 
-  const terminalPayload =
-    "payload" in state ? state.payload : null;
+  if (!capabilityResolved) {
+    return (
+      <div className="flex min-h-72 items-center justify-center rounded-xl border border-border bg-surface">
+        <LoaderCircle
+          aria-label="Loading payment link"
+          className="size-8 animate-spin text-brand"
+        />
+      </div>
+    );
+  }
+
+  if (!capability) {
+    return (
+      <section className="mx-auto max-w-xl rounded-xl border border-danger/25 bg-surface p-7 text-center shadow-sm sm:p-9">
+        <TriangleAlert
+          aria-hidden="true"
+          className="mx-auto size-11 text-danger"
+        />
+        <h2 className="mt-4 font-heading text-2xl font-semibold">
+          Payment link unavailable
+        </h2>
+        <p className="mt-3 leading-7 text-muted">
+          This link is incomplete or invalid. Ask the bill creator for a new
+          participant payment link.
+        </p>
+      </section>
+    );
+  }
+
+  const payload = "payload" in state ? state.payload : null;
+  const amountXrp = payload ? dropsToXrp(payload.slot.amountDrops) : null;
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_0.9fr]">
-      <form
-        onSubmit={handleSubmit}
-        className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8"
-      >
-        <h2 className="font-heading text-2xl font-semibold">
-          Create a Testnet Payment
-        </h2>
-        <p className="mt-2 leading-7 text-muted">
-          This flow creates an XRP Payment Sign Request and forces Xaman to use
-          XRPL Testnet.
-        </p>
-
-        <div className="mt-7 space-y-5">
-          <label className="block">
-            <span className="text-sm font-semibold">Recipient XRPL address</span>
-            <input
-              name="destination"
-              required
-              autoComplete="off"
-              placeholder="r..."
-              className="mt-2 min-h-12 w-full rounded-md border border-border bg-background px-4 font-mono text-sm outline-none focus:border-brand focus:ring-3 focus:ring-focus/20"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-semibold">Amount</span>
-            <div className="mt-2 flex rounded-md border border-border bg-background focus-within:border-brand focus-within:ring-3 focus-within:ring-focus/20">
-              <input
-                name="amountXrp"
-                aria-label="Amount"
-                required
-                inputMode="decimal"
-                placeholder="4"
-                className="min-h-12 min-w-0 flex-1 bg-transparent px-4 outline-none"
-              />
-              <span className="flex items-center border-l border-border px-4 text-sm font-semibold text-brand">
-                XRP
-              </span>
-            </div>
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-semibold">Destination Tag</span>
-            <span className="ml-2 text-sm text-muted">Optional</span>
-            <input
-              name="destinationTag"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              placeholder="12345"
-              className="mt-2 min-h-12 w-full rounded-md border border-border bg-background px-4 outline-none focus:border-brand focus:ring-3 focus:ring-focus/20"
-            />
-          </label>
+    <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+      <section className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-action">
+              Participant payment
+            </p>
+            <h2 className="mt-3 font-heading text-2xl font-semibold">
+              {payload?.slot.billTitle ?? "Review your assigned XRP share"}
+            </h2>
+          </div>
+          <span className="rounded-pill bg-brand-subtle px-3 py-1 text-xs font-bold text-brand">
+            TESTNET
+          </span>
         </div>
 
-        <Button
-          className="mt-7 w-full"
-          type="submit"
-          disabled={state.kind === "creating" || state.kind === "waiting"}
-        >
-          {state.kind === "creating" ? (
-            <>
-              <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-              Preparing Xaman request
-            </>
-          ) : (
-            "Continue to Xaman"
-          )}
-        </Button>
+        {payload ? (
+          <div className="mt-7 space-y-4">
+            <div className="rounded-lg border border-border bg-background p-5 text-center">
+              <p className="text-sm font-medium text-muted">Your share</p>
+              <p className="mt-2 font-heading text-4xl font-bold text-brand">
+                {amountXrp} <span className="text-xl">XRP</span>
+              </p>
+            </div>
+            <dl className="space-y-3 text-sm">
+              {payload.slot.participantLabel && (
+                <div className="flex justify-between gap-4 border-b border-border pb-3">
+                  <dt className="text-muted">Participant</dt>
+                  <dd className="font-semibold">
+                    {payload.slot.participantLabel}
+                  </dd>
+                </div>
+              )}
+              <div className="flex justify-between gap-4 border-b border-border pb-3">
+                <dt className="text-muted">Recipient</dt>
+                <dd
+                  className="font-mono font-semibold"
+                  title={payload.slot.destinationAddress}
+                >
+                  {shortAddress(payload.slot.destinationAddress)}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted">Expected wallet</dt>
+                <dd
+                  className="font-mono font-semibold"
+                  title={payload.slot.expectedPayerAddress}
+                >
+                  {shortAddress(payload.slot.expectedPayerAddress)}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        ) : (
+          <div className="mt-7 rounded-lg border border-border bg-background p-5">
+            <p className="leading-7 text-muted">
+              The bill, recipient, amount, expected payer, and InvoiceID are
+              loaded from this private payment link. They cannot be edited here.
+            </p>
+          </div>
+        )}
 
+        {(state.kind === "ready" || state.kind === "error") && (
+          <Button className="mt-7 w-full" onClick={() => void createPayload()}>
+            Continue to Xaman
+          </Button>
+        )}
+        {state.kind === "creating" && (
+          <Button className="mt-7 w-full" disabled>
+            <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+            Preparing secure request
+          </Button>
+        )}
         {state.kind === "error" && (
           <p
             role="alert"
@@ -321,23 +433,34 @@ export function TestnetPaymentForm() {
             {state.message}
           </p>
         )}
-      </form>
+
+        <div className="mt-6 flex items-start gap-3 rounded-lg bg-brand-subtle p-4 text-sm leading-6 text-brand">
+          <ShieldCheck
+            aria-hidden="true"
+            className="mt-0.5 size-5 shrink-0"
+          />
+          <p>
+            Group Pay never receives the XRP. Your wallet sends it directly to
+            the bill creator after you approve the exact transaction in Xaman.
+          </p>
+        </div>
+      </section>
 
       <section
         aria-live="polite"
         className="rounded-xl border border-border bg-surface p-6 sm:p-8"
       >
-        {state.kind === "idle" ||
+        {state.kind === "ready" ||
         state.kind === "creating" ||
         state.kind === "error" ? (
           <div className="flex min-h-80 flex-col items-center justify-center text-center">
             <Smartphone aria-hidden="true" className="size-12 text-brand" />
             <h2 className="mt-5 font-heading text-xl font-semibold">
-              Xaman handoff preview
+              Secure Xaman handoff
             </h2>
             <p className="mt-2 max-w-sm leading-7 text-muted">
-              The recipient, amount, Source Tag, and opaque InvoiceID are fixed
-              before Xaman opens.
+              Continue to load the frozen payment details and create a
+              short-lived Testnet Sign Request.
             </p>
           </div>
         ) : state.kind === "waiting" ? (
@@ -352,7 +475,6 @@ export function TestnetPaymentForm() {
             <p className="mt-2 text-muted">
               Review the Testnet transaction in your wallet before signing.
             </p>
-            {/* The QR URL is produced by Xaman for this short-lived payload. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={state.payload.qrPng}
@@ -390,89 +512,24 @@ export function TestnetPaymentForm() {
             )}
           </div>
         ) : state.kind === "verifying" ? (
-          <div className="flex min-h-80 flex-col items-center justify-center text-center">
-            <LoaderCircle
-              aria-hidden="true"
-              className="size-11 animate-spin text-brand"
-            />
-            <h2 className="mt-5 font-heading text-2xl font-semibold">
-              Verifying on XRPL
-            </h2>
-            <p className="mt-2 max-w-sm leading-7 text-muted">
-              The signed transaction is being compared with a validated Testnet
-              ledger. A transaction ID alone is not enough.
-            </p>
-            <p className="mt-5 break-all rounded-lg bg-background p-4 font-mono text-xs">
-              {state.txid}
-            </p>
-          </div>
+          <StatusPanel
+            icon={
+              <LoaderCircle
+                aria-hidden="true"
+                className="size-11 animate-spin text-brand"
+              />
+            }
+            title="Verifying on the XRP Ledger"
+            body="The submitted transaction must appear in a validated Testnet ledger and match every frozen slot condition."
+          />
         ) : state.kind === "verificationPending" ? (
-          <div>
-            <Clock3 aria-hidden="true" className="size-11 text-warning" />
-            <h2 className="mt-4 font-heading text-2xl font-semibold">
-              Waiting for validated ledger
-            </h2>
-            <p className="mt-2 leading-7 text-muted">{state.message}</p>
-            <p className="mt-5 break-all rounded-lg bg-background p-4 font-mono text-xs">
-              {state.txid}
-            </p>
-            <Button
-              className="mt-6"
-              variant="secondary"
-              onClick={() =>
-                void verifySubmittedPayment(state.payload, state.txid)
-              }
-            >
-              <RefreshCw aria-hidden="true" className="size-4" />
-              Check validated ledger
-            </Button>
-          </div>
-        ) : state.kind === "verified" ? (
-          <div>
-            <ShieldCheck aria-hidden="true" className="size-11 text-success" />
-            <h2 className="mt-4 font-heading text-2xl font-semibold">
-              Ledger verified
-            </h2>
-            <p className="mt-2 leading-7 text-muted">
-              The Payment matches the Xaman Sign Request and a validated XRPL
-              Testnet ledger.
-            </p>
-            <dl className="mt-6 grid gap-4 rounded-lg bg-success-subtle p-5 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-muted">Delivered</dt>
-                <dd className="mt-1 font-mono font-semibold">
-                  {state.proof.deliveredAmountDrops} drops
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted">Ledger index</dt>
-                <dd className="mt-1 font-mono font-semibold">
-                  {state.proof.ledgerIndex}
-                </dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="text-muted">Transaction ID</dt>
-                <dd className="mt-1 break-all font-mono text-xs font-semibold">
-                  {state.proof.transactionId}
-                </dd>
-              </div>
-            </dl>
-            <p className="mt-4 text-sm text-muted">
-              Durable bill status and duplicate enforcement are added with
-              persistence; this screen proves the current transaction only.
-            </p>
-          </div>
-        ) : state.kind === "verificationFailed" ? (
-          <div>
-            <TriangleAlert aria-hidden="true" className="size-11 text-danger" />
-            <h2 className="mt-4 font-heading text-2xl font-semibold">
-              Ledger verification failed
-            </h2>
-            <p className="mt-2 leading-7 text-muted">{state.message}</p>
-            <p className="mt-5 break-all rounded-lg bg-background p-4 font-mono text-xs">
-              {state.txid}
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
+          <StatusPanel
+            icon={
+              <Clock3 aria-hidden="true" className="size-11 text-action" />
+            }
+            title="Ledger confirmation pending"
+            body={state.message}
+            action={
               <Button
                 variant="secondary"
                 onClick={() =>
@@ -482,39 +539,87 @@ export function TestnetPaymentForm() {
                 <RefreshCw aria-hidden="true" className="size-4" />
                 Check again
               </Button>
-              <Button variant="ghost" onClick={() => setState({ kind: "idle" })}>
-                Start again
-              </Button>
-            </div>
-          </div>
+            }
+          />
+        ) : state.kind === "verified" ? (
+          <StatusPanel
+            icon={
+              <CheckCircle2
+                aria-hidden="true"
+                className="size-12 text-success"
+              />
+            }
+            title="Ledger verified"
+            body={`${state.proof.amountDrops} drops were delivered directly and the payment slot is now marked paid.`}
+            detail={
+              state.receiptStatus === "existing"
+                ? "This exact transaction was already recorded safely."
+                : "A durable verification receipt was recorded."
+            }
+          />
+        ) : state.kind === "verificationFailed" ? (
+          <StatusPanel
+            icon={
+              <TriangleAlert
+                aria-hidden="true"
+                className="size-11 text-danger"
+              />
+            }
+            title="Payment could not be verified"
+            body={state.message}
+          />
+        ) : state.kind === "rejected" ? (
+          <StatusPanel
+            icon={
+              <XCircle aria-hidden="true" className="size-11 text-danger" />
+            }
+            title="Request rejected"
+            body="No XRP was sent. You can create another short-lived request from the same payment link."
+            action={
+              <Button onClick={() => void createPayload()}>Try again</Button>
+            }
+          />
         ) : (
-          <div>
-            <XCircle aria-hidden="true" className="size-11 text-warning" />
-            <h2 className="mt-4 font-heading text-2xl font-semibold">
-              {state.kind === "expired"
-                ? "Sign request expired"
-                : "Payment not signed"}
-            </h2>
-            <p className="mt-2 leading-7 text-muted">
-              No payment is recorded. Create a new request only after checking
-              the recipient and amount again.
-            </p>
-            <Button
-              className="mt-6"
-              variant="secondary"
-              onClick={() => setState({ kind: "idle" })}
-            >
-              Start again
-            </Button>
-          </div>
-        )}
-
-        {terminalPayload && (
-          <p className="mt-6 text-xs text-muted">
-            Payload: {terminalPayload.payloadId}
-          </p>
+          <StatusPanel
+            icon={
+              <Clock3 aria-hidden="true" className="size-11 text-action" />
+            }
+            title="Request expired"
+            body="No XRP was sent. Create a fresh Xaman request from the same payment link."
+            action={
+              <Button onClick={() => void createPayload()}>
+                Create new request
+              </Button>
+            }
+          />
         )}
       </section>
+    </div>
+  );
+}
+
+function StatusPanel({
+  icon,
+  title,
+  body,
+  detail,
+  action,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+  detail?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-80 flex-col items-center justify-center text-center">
+      {icon}
+      <h2 className="mt-5 font-heading text-xl font-semibold">{title}</h2>
+      <p className="mt-3 max-w-md leading-7 text-muted">{body}</p>
+      {detail && (
+        <p className="mt-3 text-sm font-medium text-foreground">{detail}</p>
+      )}
+      {action && <div className="mt-6">{action}</div>}
     </div>
   );
 }

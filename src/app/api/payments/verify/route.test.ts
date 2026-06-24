@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { PaymentSlotNotFoundError } from "@/features/bills/payment-slot";
 import {
-  PaymentReceiptConflictError,
-  PaymentReceiptDatabaseError,
-} from "@/features/persistence/verified-payment-receipts";
-import type { PaymentVerificationOutcome } from "@/features/payment-verification/types";
+  PaymentSlotSettlementConflictError,
+  PaymentSlotSettlementDatabaseError,
+} from "@/features/bills/settle-slot";
+import type { PaymentVerificationApiOutcome } from "@/features/payment-verification/types";
 
 import {
   handleVerificationRequest,
@@ -12,11 +13,12 @@ import {
   type VerificationRouteDependencies,
 } from "./route";
 
+const PAYMENT_TOKEN = "a".repeat(64);
 const PAYLOAD_ID = "123e4567-e89b-12d3-a456-426614174000";
 const TXID = "A".repeat(64);
 const INVOICE_ID = "B".repeat(64);
 
-const verifiedOutcome: PaymentVerificationOutcome = {
+const verifiedOutcome: PaymentVerificationApiOutcome = {
   status: "verified",
   proof: {
     network: "testnet",
@@ -32,35 +34,34 @@ const verifiedOutcome: PaymentVerificationOutcome = {
     idempotencyKey: `testnet:${TXID}`,
     verifiedAt: "2026-06-23T01:02:03.000Z",
   },
+  receipt: {
+    receiptId: `testnet:${TXID}`,
+    status: "created",
+    network: "testnet",
+    transactionId: TXID,
+    invoiceId: INVOICE_ID,
+    recordedAt: "2026-06-23T01:02:04.000Z",
+    proofDigest: "C".repeat(64),
+  },
 };
 
-const receipt = {
-  receiptId: `testnet:${TXID}`,
-  status: "created" as const,
-  network: "testnet" as const,
-  transactionId: TXID,
-  invoiceId: INVOICE_ID,
-  recordedAt: "2026-06-23T01:02:04.000Z",
-  proofDigest: "C".repeat(64),
-};
-
-function validRequest() {
+function request(
+  body: unknown = { paymentToken: PAYMENT_TOKEN, payloadId: PAYLOAD_ID },
+) {
   return new Request("http://localhost/api/payments/verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ payloadId: PAYLOAD_ID }),
+    body: JSON.stringify(body),
   });
 }
 
 function dependencies(
-  outcome: PaymentVerificationOutcome,
+  outcome: PaymentVerificationApiOutcome,
 ): VerificationRouteDependencies & {
-  verifyPayment: ReturnType<typeof vi.fn>;
-  recordPayment: ReturnType<typeof vi.fn>;
+  verifyAndRecord: ReturnType<typeof vi.fn>;
 } {
   return {
-    verifyPayment: vi.fn().mockResolvedValue(outcome),
-    recordPayment: vi.fn().mockResolvedValue(receipt),
+    verifyAndRecord: vi.fn().mockResolvedValue(outcome),
   };
 }
 
@@ -78,7 +79,18 @@ describe("POST /api/payments/verify", () => {
     expect(response.headers.get("cache-control")).toContain("no-store");
   });
 
-  it("rejects malformed and invalid payload identifiers", async () => {
+  it("uses a uniform not-found response for malformed capabilities", async () => {
+    const deps = dependencies(verifiedOutcome);
+    const response = await handleVerificationRequest(
+      request({ paymentToken: "invalid", payloadId: PAYLOAD_ID }),
+      deps,
+    );
+
+    expect(response.status).toBe(404);
+    expect(deps.verifyAndRecord).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed JSON and invalid payload identifiers", async () => {
     const malformed = await POST(
       new Request("http://localhost/api/payments/verify", {
         method: "POST",
@@ -89,22 +101,14 @@ describe("POST /api/payments/verify", () => {
     expect(malformed.status).toBe(400);
 
     const invalidId = await POST(
-      new Request("http://localhost/api/payments/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payloadId: "not-a-uuid" }),
-      }),
+      request({ paymentToken: PAYMENT_TOKEN, payloadId: "not-a-uuid" }),
     );
     expect(invalidId.status).toBe(400);
   });
 
   it("rejects oversized verification bodies and declared lengths", async () => {
     const oversizedBody = await POST(
-      new Request("http://localhost/api/payments/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payloadId: "x".repeat(600) }),
-      }),
+      request({ paymentToken: PAYMENT_TOKEN, payloadId: "x".repeat(600) }),
     );
     expect(oversizedBody.status).toBe(413);
 
@@ -121,17 +125,16 @@ describe("POST /api/payments/verify", () => {
     expect(oversizedDeclaredLength.status).toBe(413);
   });
 
-  it("returns verified only after the durable receipt is stored", async () => {
+  it("returns verified only after slot settlement is durable", async () => {
     const deps = dependencies(verifiedOutcome);
-    const response = await handleVerificationRequest(validRequest(), deps);
+    const response = await handleVerificationRequest(request(), deps);
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      ...verifiedOutcome,
-      receipt,
-    });
-    expect(deps.verifyPayment).toHaveBeenCalledWith(PAYLOAD_ID);
-    expect(deps.recordPayment).toHaveBeenCalledWith(verifiedOutcome.proof);
+    await expect(response.json()).resolves.toEqual(verifiedOutcome);
+    expect(deps.verifyAndRecord).toHaveBeenCalledWith(
+      PAYMENT_TOKEN,
+      PAYLOAD_ID,
+    );
   });
 
   it.each([
@@ -141,7 +144,7 @@ describe("POST /api/payments/verify", () => {
         reason: "TRANSACTION_NOT_VALIDATED",
         transactionId: TXID,
         message: "Pending",
-      } satisfies PaymentVerificationOutcome,
+      } satisfies PaymentVerificationApiOutcome,
       status: 202,
     },
     {
@@ -150,44 +153,57 @@ describe("POST /api/payments/verify", () => {
         reason: "AMOUNT_MISMATCH",
         transactionId: TXID,
         message: "Mismatch",
-      } satisfies PaymentVerificationOutcome,
+      } satisfies PaymentVerificationApiOutcome,
       status: 422,
     },
-  ])("does not store a $outcome.status outcome", async ({ outcome, status }) => {
+  ])("returns a $outcome.status outcome without settlement", async ({ outcome, status }) => {
     const deps = dependencies(outcome);
-    const response = await handleVerificationRequest(validRequest(), deps);
+    const response = await handleVerificationRequest(request(), deps);
 
     expect(response.status).toBe(status);
-    expect(deps.recordPayment).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual(outcome);
   });
 
-  it("keeps receipt storage failures retryable", async () => {
+  it("keeps settlement storage failures retryable", async () => {
     const deps = dependencies(verifiedOutcome);
-    deps.recordPayment.mockRejectedValue(new PaymentReceiptDatabaseError());
+    deps.verifyAndRecord.mockRejectedValue(
+      new PaymentSlotSettlementDatabaseError(),
+    );
 
-    const response = await handleVerificationRequest(validRequest(), deps);
+    const response = await handleVerificationRequest(request(), deps);
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toMatchObject({
-      error: { code: "RECEIPT_STORAGE_UNAVAILABLE" },
+      error: { code: "SLOT_SETTLEMENT_UNAVAILABLE" },
     });
   });
 
-  it("reports durable transaction or InvoiceID conflicts", async () => {
+  it("reports a conflicting second transaction", async () => {
     const deps = dependencies(verifiedOutcome);
-    deps.recordPayment.mockRejectedValue(
-      new PaymentReceiptConflictError(
-        "INVOICE_ALREADY_RECORDED",
-        "Invoice already recorded.",
+    deps.verifyAndRecord.mockRejectedValue(
+      new PaymentSlotSettlementConflictError(
+        "SLOT_ALREADY_PAID",
+        "This slot already accepted another transaction.",
       ),
     );
 
-    const response = await handleVerificationRequest(validRequest(), deps);
+    const response = await handleVerificationRequest(request(), deps);
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toEqual({
       error: {
-        code: "INVOICE_ALREADY_RECORDED",
-        message: "Invoice already recorded.",
+        code: "SLOT_ALREADY_PAID",
+        message: "This slot already accepted another transaction.",
       },
+    });
+  });
+
+  it("does not reveal whether an unknown capability was well formed", async () => {
+    const deps = dependencies(verifiedOutcome);
+    deps.verifyAndRecord.mockRejectedValue(new PaymentSlotNotFoundError());
+
+    const response = await handleVerificationRequest(request(), deps);
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "PAYMENT_SLOT_NOT_FOUND" },
     });
   });
 });

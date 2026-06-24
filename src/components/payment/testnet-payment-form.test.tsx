@@ -1,14 +1,9 @@
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TestnetPaymentForm } from "./testnet-payment-form";
 
+const PAYMENT_TOKEN = "a".repeat(64);
 const PAYLOAD_ID = "123e4567-e89b-12d3-a456-426614174000";
 const TXID = "A".repeat(64);
 
@@ -25,6 +20,26 @@ class MockWebSocket {
   close() {}
 }
 
+const createdPayload = {
+  payloadId: PAYLOAD_ID,
+  status: "waiting",
+  deepLink: `https://xumm.app/sign/${PAYLOAD_ID}`,
+  qrPng: `https://xumm.app/sign/${PAYLOAD_ID}_q.png`,
+  websocketUrl: `wss://xumm.app/sign/${PAYLOAD_ID}`,
+  slot: {
+    publicId: "00000000-0000-4000-8000-000000000001",
+    billPublicId: "00000000-0000-4000-8000-000000000002",
+    billTitle: "XRPL Meetup Dinner",
+    participantLabel: "Alex",
+    expectedPayerAddress: "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    destinationAddress: "rPEPPER7kfTD9w2To4CQk6UCfuHM9c6GDY",
+    destinationTag: null,
+    amountDrops: "4000000",
+    invoiceId: "B".repeat(64),
+    network: "testnet",
+  },
+};
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -32,102 +47,72 @@ afterEach(() => {
 });
 
 describe("TestnetPaymentForm", () => {
-  it("renders a Testnet-only, user-approved payment form", () => {
-    render(<TestnetPaymentForm />);
-
-    expect(
-      screen.getByRole("heading", { name: "Create a Testnet Payment" }),
-    ).toBeVisible();
-    expect(screen.getByLabelText("Recipient XRPL address")).toBeRequired();
-    expect(screen.getByRole("textbox", { name: "Amount" })).toBeRequired();
-    expect(
-      screen.getByRole("button", { name: "Continue to Xaman" }),
-    ).toBeEnabled();
-    expect(screen.getByText(/forces Xaman to use XRPL Testnet/i)).toBeVisible();
+  it("rejects an invalid participant link", () => {
+    render(<TestnetPaymentForm paymentToken="invalid" />);
+    expect(screen.getByRole("heading", { name: "Payment link unavailable" })).toBeVisible();
   });
 
-  it("moves from Xaman submission to a stored validated-ledger proof", async () => {
+  it("keeps stored recipient and amount read-only", () => {
+    render(<TestnetPaymentForm paymentToken={PAYMENT_TOKEN} />);
+    expect(screen.getByRole("heading", { name: "Review your assigned XRP share" })).toBeVisible();
+    expect(screen.queryByLabelText("Recipient XRPL address")).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Amount" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Continue to Xaman" })).toBeEnabled();
+  });
+
+  it("loads, signs, verifies, and settles the stored slot", async () => {
     const fetcher = vi
       .fn()
-      .mockResolvedValueOnce(
-        jsonResponse(
-          {
-            payloadId: PAYLOAD_ID,
-            status: "waiting",
-            deepLink: `https://xumm.app/sign/${PAYLOAD_ID}`,
-            qrPng: `https://xumm.app/sign/${PAYLOAD_ID}_q.png`,
-            websocketUrl: `wss://xumm.app/sign/${PAYLOAD_ID}`,
-            invoiceId: "B".repeat(64),
-            transaction: {
-              destination: "rPEPPER7kfTD9w2To4CQk6UCfuHM9c6GDY",
-              destinationTag: null,
-              amountDrops: "4000000",
-              sourceTag: 123456,
-              network: "testnet",
-            },
-          },
-          201,
-        ),
-      )
-      .mockResolvedValueOnce(
-        jsonResponse({
-          payloadId: PAYLOAD_ID,
-          status: "submitted",
-          txid: TXID,
-        }),
-      )
-      .mockResolvedValueOnce(
-        jsonResponse({
-          status: "verified",
-          proof: {
-            network: "testnet",
-            transactionId: TXID,
-            ledgerIndex: 12345,
-            sender: "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-            destination: "rPEPPER7kfTD9w2To4CQk6UCfuHM9c6GDY",
-            amountDrops: "4000000",
-            deliveredAmountDrops: "4000000",
-            sourceTag: 123456,
-            destinationTag: null,
-            invoiceId: "B".repeat(64),
-            idempotencyKey: `testnet:${TXID}`,
-            verifiedAt: "2026-06-23T01:02:03.000Z",
-          },
-          receipt: {
-            receiptId: `testnet:${TXID}`,
-            status: "created",
-            network: "testnet",
-            transactionId: TXID,
-            invoiceId: "B".repeat(64),
-            recordedAt: "2026-06-23T01:02:04.000Z",
-            proofDigest: "C".repeat(64),
-          },
-        }),
-      );
+      .mockResolvedValueOnce(jsonResponse(createdPayload, 201))
+      .mockResolvedValueOnce(jsonResponse({ payloadId: PAYLOAD_ID, status: "submitted", txid: TXID }))
+      .mockResolvedValueOnce(jsonResponse({
+        status: "verified",
+        proof: {
+          network: "testnet",
+          transactionId: TXID,
+          ledgerIndex: 12345,
+          sender: createdPayload.slot.expectedPayerAddress,
+          destination: createdPayload.slot.destinationAddress,
+          amountDrops: "4000000",
+          deliveredAmountDrops: "4000000",
+          sourceTag: 123456,
+          destinationTag: null,
+          invoiceId: createdPayload.slot.invoiceId,
+          idempotencyKey: `testnet:${TXID}`,
+          verifiedAt: "2026-06-23T01:02:03.000Z",
+        },
+        receipt: {
+          receiptId: `testnet:${TXID}`,
+          status: "created",
+          network: "testnet",
+          transactionId: TXID,
+          invoiceId: createdPayload.slot.invoiceId,
+          recordedAt: "2026-06-23T01:02:04.000Z",
+          proofDigest: "C".repeat(64),
+        },
+      }));
 
     vi.stubGlobal("fetch", fetcher);
     vi.stubGlobal("WebSocket", MockWebSocket);
 
-    render(<TestnetPaymentForm />);
-    fireEvent.change(screen.getByLabelText("Recipient XRPL address"), {
-      target: { value: "rPEPPER7kfTD9w2To4CQk6UCfuHM9c6GDY" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: "Amount" }), {
-      target: { value: "4" },
-    });
+    render(<TestnetPaymentForm paymentToken={PAYMENT_TOKEN} />);
     fireEvent.click(screen.getByRole("button", { name: "Continue to Xaman" }));
 
-    await screen.findByRole("heading", {
-      name: "Waiting for approval in Xaman",
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Check status" }));
+    await screen.findByRole("heading", { name: "Waiting for approval in Xaman" });
+    expect(screen.getByText("4", { exact: true })).toBeVisible();
+    expect(screen.getByText("Alex")).toBeVisible();
+    expect(fetcher).toHaveBeenNthCalledWith(1, "/api/payments/payload", expect.objectContaining({
+      body: JSON.stringify({ paymentToken: PAYMENT_TOKEN }),
+    }));
 
+    fireEvent.click(screen.getByRole("button", { name: "Check status" }));
     await waitFor(() => {
-      expect(
-        screen.getByRole("heading", { name: "Ledger verified" }),
-      ).toBeVisible();
+      expect(screen.getByRole("heading", { name: "Ledger verified" })).toBeVisible();
     });
-    expect(screen.getByText("4000000 drops")).toBeVisible();
+
+    expect(fetcher).toHaveBeenNthCalledWith(3, "/api/payments/verify", expect.objectContaining({
+      body: JSON.stringify({ paymentToken: PAYMENT_TOKEN, payloadId: PAYLOAD_ID }),
+    }));
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
 });

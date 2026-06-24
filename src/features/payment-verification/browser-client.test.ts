@@ -5,6 +5,9 @@ import {
   requestPaymentVerification,
 } from "./browser-client";
 
+const PAYMENT_TOKEN = "a".repeat(64);
+const PAYLOAD_ID = "123e4567-e89b-12d3-a456-426614174000";
+
 function response(body: unknown, status: number) {
   return new Response(JSON.stringify(body), {
     status,
@@ -61,10 +64,20 @@ describe("requestPaymentVerification", () => {
 
       await expect(
         requestPaymentVerification(
-          "123e4567-e89b-12d3-a456-426614174000",
+          PAYMENT_TOKEN,
+          PAYLOAD_ID,
           fetcher as unknown as typeof fetch,
         ),
       ).resolves.toEqual(outcome);
+      expect(fetcher).toHaveBeenCalledWith(
+        "/api/payments/verify",
+        expect.objectContaining({
+          body: JSON.stringify({
+            paymentToken: PAYMENT_TOKEN,
+            payloadId: PAYLOAD_ID,
+          }),
+        }),
+      );
     },
   );
 
@@ -78,7 +91,8 @@ describe("requestPaymentVerification", () => {
 
     await expect(
       requestPaymentVerification(
-        "123e4567-e89b-12d3-a456-426614174000",
+        PAYMENT_TOKEN,
+        PAYLOAD_ID,
         fetcher as unknown as typeof fetch,
       ),
     ).resolves.toEqual({
@@ -91,7 +105,8 @@ describe("requestPaymentVerification", () => {
     const unreachable = vi.fn().mockRejectedValue(new Error("offline"));
     await expect(
       requestPaymentVerification(
-        "123e4567-e89b-12d3-a456-426614174000",
+        PAYMENT_TOKEN,
+        PAYLOAD_ID,
         unreachable as unknown as typeof fetch,
       ),
     ).resolves.toMatchObject({
@@ -137,7 +152,8 @@ describe("requestPaymentVerification", () => {
 
     await expect(
       requestPaymentVerification(
-        "123e4567-e89b-12d3-a456-426614174000",
+        PAYMENT_TOKEN,
+        PAYLOAD_ID,
         fetcher as unknown as typeof fetch,
       ),
     ).rejects.toBeInstanceOf(PaymentVerificationRequestError);

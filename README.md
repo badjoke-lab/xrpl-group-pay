@@ -2,9 +2,9 @@
 
 XRPL Group Pay is a non-custodial shared-expense settlement application built on the XRP Ledger.
 
-A bill creator allocates an XRP amount to each participant. Participants review and sign their own XRP Payments in Xaman, funds move directly to the recipient, and the application verifies each result on the XRP Ledger before marking it paid.
+A bill creator allocates an XRP amount to each participant. Participants open their own capability link, review and sign an exact XRP Payment in Xaman, and send funds directly to the creator. The application marks a participant slot paid only after the submitted transaction is verified on a validated XRP Ledger.
 
-> The application foundation, Xaman Testnet payment handoff, strict validated-ledger verification, and durable verified-Payment receipts are implemented. Bill and participant-slot persistence are the next product-state gates before a bill-level payment can be marked paid.
+> The current application is Testnet-only. It implements frozen bills, participant payment slots, capability-bound Xaman handoff, validated-ledger verification, durable receipts, and atomic bill-state updates.
 
 ## Core principles
 
@@ -26,18 +26,33 @@ A bill creator allocates an XRP amount to each participant. Participants review 
 - Vitest and Testing Library.
 - Playwright desktop and mobile smoke tests.
 - Cloudflare Workers through the OpenNext adapter.
-- Cloudflare D1 migrations for durable payment receipts.
+- Cloudflare D1 migrations for bills, payment slots, and verified receipts.
 - Environment validation with an explicit Mainnet build gate.
-- GitHub Actions checks for migrations, lint, types, tests, Storybook, Next.js, Worker output, and browser smoke tests.
+- GitHub Actions checks for migrations, D1 constraints, lint, types, tests, Storybook, Next.js, Worker output, and browser smoke tests.
 
-## Testnet payment handoff
+## Shared bill flow
 
-The `/testnet/payment` vertical slice currently:
+The `/testnet/bill` creator flow:
 
-- validates a classic XRPL destination and XRP amount;
-- converts XRP to drops with the official `xrpl` library;
-- adds the configured UInt32 `SourceTag` and a random 256-bit `InvoiceID`;
-- creates a Xaman Payment Sign Request from the server only;
+- validates a classic XRPL destination and optional UInt32 Destination Tag;
+- converts XRP values to drops with the official `xrpl` library;
+- requires the creator share and all participant allocations to equal the total;
+- creates one frozen Bill and all PaymentSlots in a single D1 batch;
+- creates independent 256-bit capability tokens and stores only their SHA-256 hashes;
+- assigns a unique opaque InvoiceID to every participant slot;
+- returns each raw capability once so the creator can share a separate participant link.
+
+Participant links place the capability in the URL fragment. The page request therefore does not include the capability in its path or query string. Each link must still be treated as a private invitation.
+
+## Participant payment handoff
+
+The `/testnet/payment#token=...` participant flow:
+
+- resolves only the PaymentSlot matching the capability hash;
+- loads the frozen bill title, destination, expected payer, amount, Destination Tag, and InvoiceID from D1;
+- does not allow those transaction conditions to be edited in the browser;
+- creates the Xaman Payment Sign Request on the server;
+- adds the configured UInt32 Source Tag;
 - forces the request to XRPL Testnet;
 - provides Xaman deep-link and QR handoff;
 - uses Xaman WebSocket resolution events, browser focus, and a manual status check instead of API polling;
@@ -45,37 +60,41 @@ The `/testnet/payment` vertical slice currently:
 
 ## Validated-ledger verification
 
-The browser sends only the Xaman payload UUID to the verification endpoint. The server re-fetches the Xaman payload and uses its original transaction template, signer account, and transaction ID as the expected values.
+The browser sends the payment capability and Xaman payload UUID to the verification endpoint. The server re-resolves the stored PaymentSlot, re-fetches the Xaman payload, and rejects a template that differs from the frozen slot before querying the ledger.
 
-The verifier then queries two XRPL Testnet JSON-RPC endpoints and requires:
+The verifier then queries XRPL Testnet JSON-RPC endpoints and requires:
 
 - a validated transaction;
 - `tesSUCCESS`;
 - `TransactionType = Payment`;
 - the expected signer and destination;
 - native XRP only;
-- the expected transaction amount and actual `delivered_amount`;
+- the exact stored amount and actual `delivered_amount`;
 - the configured Source Tag;
 - exact Destination Tag presence and value;
-- the expected InvoiceID;
+- the stored InvoiceID;
 - no Partial Payment flag;
 - no cross-currency fields;
 - a transaction hash matching Xaman's result.
 
-## Durable payment receipts
+## Atomic settlement and durable receipts
 
-A successful verification response is returned only after the normalized proof is stored in D1.
+A successful verification response is returned only after D1 atomically:
 
-The receipt layer:
+1. inserts or reuses the verified Payment receipt;
+2. marks the matching PaymentSlot paid;
+3. recomputes the Bill as `open`, `partially_paid`, or `settled`;
+4. reads the durable result back and confirms its transaction, InvoiceID, and proof digest.
+
+The settlement boundary:
 
 - uses `network + transaction_id` as the durable transaction uniqueness boundary;
-- uses `network + invoice_id` to prevent a payment slot identifier from being reused by another transaction;
-- treats repeated observations of the same immutable ledger facts as idempotent success;
-- rejects different verified facts for an already-recorded transaction;
-- preserves the first receipt timestamp;
-- returns a retryable error when storage is unavailable.
-
-A stored receipt proves that the current transaction was verified and durably deduplicated. It does not yet atomically mark a bill or participant slot as paid.
+- uses `network + invoice_id` to prevent a slot identifier from being reused by another transaction;
+- treats an exact retry as idempotent success;
+- rejects a different transaction after a slot has been paid;
+- prevents a receipt from being inserted when the slot is no longer eligible;
+- does not overwrite a slot placed in `needs_review`;
+- returns retryable errors when storage is unavailable.
 
 ## Local development
 
@@ -92,7 +111,7 @@ pnpm db:migrate:local
 pnpm dev
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000` and start at `/testnet/bill`.
 
 The application builds without Xaman credentials. Creating or verifying a Testnet Sign Request fails closed until these server-side values are configured:
 
@@ -109,6 +128,7 @@ Never expose `XAMAN_API_SECRET` through a `NEXT_PUBLIC_` variable or client-side
 ```bash
 pnpm check:env
 pnpm db:migrate:local
+pnpm db:check:local
 pnpm lint
 pnpm typecheck
 pnpm test
@@ -148,34 +168,13 @@ This guard does not replace the Mainnet release checklist defined in the product
 
 ## Product documentation
 
-The `docs/` directory defines:
-
-- Product specification.
-- Non-custodial boundary.
-- Threat model.
-- Make Waves requirements.
-- Privacy data map.
-- UI/UX and design tokens.
-- Responsive, motion, and accessibility behavior.
-- Screen inventory and state machines.
-- Persistence scope and D1 provisioning.
-- Open technical decisions.
-
-## Planned product phases
-
-1. Group Pay Core.
-2. Reliable Group Payments.
-3. Persistent Groups.
-4. Settlement Circles.
-5. Event Collection.
-
-Later phases are product directions and are not included in the initial release.
+The `docs/` directory defines the product specification, non-custodial boundary, threat model, privacy data map, UI/UX behavior, screen inventory, persistence scope, D1 provisioning, and open technical decisions.
 
 ## Security
 
 Do not submit private keys or seeds to this application.
 
-A transaction hash is not accepted as payment proof by itself. Receipt-level duplicate prevention is enforced in D1, while bill-level atomic payment state remains a later persistence boundary.
+A transaction hash is not accepted as payment proof by itself. A slot becomes paid only when the complete Xaman template and validated-ledger facts match its server-side frozen conditions and the atomic D1 settlement succeeds.
 
 ## License
 

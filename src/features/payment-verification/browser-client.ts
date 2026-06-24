@@ -29,6 +29,7 @@ function expectedHttpStatus(outcome: PaymentVerificationApiOutcome) {
 }
 
 export async function requestPaymentVerification(
+  paymentToken: string,
   payloadId: string,
   fetcher: typeof fetch = fetch,
 ): Promise<PaymentVerificationApiOutcome> {
@@ -37,7 +38,7 @@ export async function requestPaymentVerification(
     response = await fetcher("/api/payments/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ payloadId }),
+      body: JSON.stringify({ paymentToken, payloadId }),
       cache: "no-store",
     });
   } catch {

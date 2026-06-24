@@ -1,4 +1,5 @@
-import { ArrowDown, Check, ShieldCheck, Users, WalletCards } from "lucide-react";
+import { ArrowRight, Check, ShieldCheck, Users, WalletCards } from "lucide-react";
+import Link from "next/link";
 
 import { BrandMark } from "@/components/brand/brand-mark";
 import { PaymentPreview } from "@/components/payment/payment-preview";
@@ -53,10 +54,10 @@ export default function Home() {
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <a href="#foundation" className={buttonStyles({ className: "min-h-13" })}>
-              Explore the payment flow
-              <ArrowDown aria-hidden="true" className="size-4" />
-            </a>
+            <Link href="/testnet/bill" className={buttonStyles({ className: "min-h-13" })}>
+              Create a Testnet bill
+              <ArrowRight aria-hidden="true" className="size-4" />
+            </Link>
             <a
               href="https://github.com/badjoke-lab/xrpl-group-pay/tree/main/docs"
               className={buttonStyles({ variant: "secondary", className: "min-h-13" })}
@@ -76,7 +77,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div id="foundation" className="relative flex justify-center lg:justify-end">
+        <div className="relative flex justify-center lg:justify-end">
           <div
             aria-hidden="true"
             className="absolute -right-24 -top-20 size-80 rounded-full bg-action/10 blur-3xl"
