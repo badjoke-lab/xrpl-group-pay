@@ -6,18 +6,30 @@ test("renders the product foundation", async ({ page }) => {
   await expect(page.getByRole("heading", { name: /Split the cost/i })).toBeVisible();
   await expect(page.getByText("Testnet", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Group Pay never holds your funds")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Create a Testnet bill" })).toBeVisible();
 });
 
-test("renders the Xaman Testnet payment vertical slice", async ({ page }) => {
-  await page.goto("/testnet/payment");
+test("renders the shared bill creator", async ({ page }) => {
+  await page.goto("/testnet/bill");
 
   await expect(
-    page.getByRole("heading", { name: /Send one XRP Payment through Xaman/i }),
+    page.getByRole("heading", { name: /Create one bill/i }),
   ).toBeVisible();
-  await expect(page.getByLabel("Recipient XRPL address")).toBeVisible();
+  await expect(page.getByLabel("Bill title")).toBeVisible();
+  await expect(page.getByText("Participant 1")).toBeVisible();
+  await expect(page.getByText("Participant 2")).toBeVisible();
+});
+
+test("renders a capability-bound participant payment", async ({ page }) => {
+  await page.goto(`/testnet/payment#token=${"a".repeat(64)}`);
+
+  await expect(
+    page.getByRole("heading", { name: /Review your share/i }),
+  ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Continue to Xaman" }),
   ).toBeVisible();
+  await expect(page.getByLabel("Recipient XRPL address")).toHaveCount(0);
   await expect(page.getByText("Testnet", { exact: true }).first()).toBeVisible();
 });
 
