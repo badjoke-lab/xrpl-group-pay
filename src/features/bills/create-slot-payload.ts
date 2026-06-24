@@ -24,6 +24,7 @@ export type StoredSlotPayload = {
     destinationAddress: string;
     destinationTag: number | null;
     amountDrops: string;
+    sourceTag: number;
     invoiceId: string;
     network: "testnet";
   };
@@ -105,6 +106,7 @@ export async function createStoredSlotPayload(
       destinationAddress: slot.destinationAddress,
       destinationTag: slot.destinationTag,
       amountDrops: slot.expectedAmountDrops,
+      sourceTag: dependencies.sourceTag,
       invoiceId: slot.invoiceId,
       network: slot.network,
     },
