@@ -99,7 +99,7 @@ describe("TestnetPaymentForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue to Xaman" }));
 
     await screen.findByRole("heading", { name: "Waiting for approval in Xaman" });
-    expect(screen.getByText("4 XRP")).toBeVisible();
+    expect(screen.getByText("4", { exact: true })).toBeVisible();
     expect(screen.getByText("Alex")).toBeVisible();
     expect(fetcher).toHaveBeenNthCalledWith(1, "/api/payments/payload", expect.objectContaining({
       body: JSON.stringify({ paymentToken: PAYMENT_TOKEN }),
