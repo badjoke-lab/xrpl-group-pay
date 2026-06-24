@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { D1DatabaseLike } from "@/features/persistence/d1-types";
+import { digestVerifiedProof } from "@/features/persistence/digest-verified-proof";
 
 import {
   publicTransactionProofSchema,
@@ -76,10 +77,8 @@ export async function loadPublicProofByToken(
     const parsedRow = receiptRowSchema.safeParse(row);
     if (!parsedRow.success) throw new PublicProofDatabaseError();
 
-    return publicTransactionProofSchema.parse({
+    const verifiedProof = {
       network: parsedRow.data.network,
-      validationStatus: "validated",
-      transactionResult: "tesSUCCESS",
       transactionId: parsedRow.data.transaction_id,
       ledgerIndex: parsedRow.data.ledger_index,
       sender: parsedRow.data.sender,
@@ -89,7 +88,28 @@ export async function loadPublicProofByToken(
       sourceTag: parsedRow.data.source_tag,
       destinationTag: parsedRow.data.destination_tag,
       invoiceId: parsedRow.data.invoice_id,
+      idempotencyKey: `testnet:${parsedRow.data.transaction_id}` as const,
       verifiedAt: parsedRow.data.verified_at,
+    };
+    const calculatedDigest = await digestVerifiedProof(verifiedProof);
+    if (calculatedDigest !== parsedRow.data.proof_digest) {
+      throw new PublicProofDatabaseError();
+    }
+
+    return publicTransactionProofSchema.parse({
+      network: verifiedProof.network,
+      validationStatus: "validated",
+      transactionResult: "tesSUCCESS",
+      transactionId: verifiedProof.transactionId,
+      ledgerIndex: verifiedProof.ledgerIndex,
+      sender: verifiedProof.sender,
+      destination: verifiedProof.destination,
+      amountDrops: verifiedProof.amountDrops,
+      deliveredAmountDrops: verifiedProof.deliveredAmountDrops,
+      sourceTag: verifiedProof.sourceTag,
+      destinationTag: verifiedProof.destinationTag,
+      invoiceId: verifiedProof.invoiceId,
+      verifiedAt: verifiedProof.verifiedAt,
       recordedAt: parsedRow.data.recorded_at,
       proofDigest: parsedRow.data.proof_digest,
     });
