@@ -47,6 +47,7 @@ const progress: BillProgress = {
       paidTransactionId: "B".repeat(64),
       paidLedgerIndex: 12345,
       paidAt: "2026-06-24T00:05:00.000Z",
+      proofToken: "C".repeat(64),
       updatedAt: "2026-06-24T00:05:00.000Z",
     },
   ],
