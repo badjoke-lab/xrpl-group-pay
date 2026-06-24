@@ -37,7 +37,7 @@ SUPERSEDED
 | OD-016 | Bill expiry behavior? | No deadline in first vertical slice; explicit deadline in completed v1 | Product test | Completed v1 flow | DECIDED |
 | OD-017 | Mainnet per-payment upper limit? | Configurable conservative limit | Risk review and controlled test plan | Before Mainnet | OPEN |
 | OD-018 | Retention schedule? | Use privacy-data-map initial schedule | Privacy and operations review | Before Mainnet | ASSUMPTION |
-| OD-019 | Public proof default fields? | Publish only verified public XRPL facts and proof timestamps; hide bill titles, participant labels, capability values, expected pre-payment data, Xaman payload identifiers, and internal IDs | Privacy-redaction, schema, API, and UI tests | Public proof PR | DECIDED |
+| OD-019 | Public proof default fields? | Publish only verified public XRPL facts and the proof digest; hide bill titles, participant labels, capability values, expected pre-payment data, operational timestamps, Xaman payload identifiers, and internal IDs | Privacy-redaction, schema, API, and UI tests | Public proof PR | DECIDED |
 | OD-020 | Initial UI languages? | English first, localization-ready architecture | Submission and user needs | Application foundation | DECIDED |
 | OD-021 | Public license? | Apache License 2.0 | Root `LICENSE` and dependency compatibility review | Repository creation | DECIDED |
 | OD-022 | Production domain? | Dedicated badjoke-lab subdomain or standalone domain | Deployment and naming review | Before public preview | OPEN |
