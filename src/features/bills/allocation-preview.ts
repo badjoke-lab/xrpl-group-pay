@@ -41,8 +41,9 @@ export function calculateAllocationPreview(input: {
     };
   }
 
-  const allocatedDrops = participantDrops.reduce(
-    (sum, value) => sum + (value ?? 0n),
+  const completeParticipantDrops = participantDrops as bigint[];
+  const allocatedDrops = completeParticipantDrops.reduce(
+    (sum, value) => sum + value,
     creatorShareDrops,
   );
   const differenceDrops = totalDrops - allocatedDrops;
