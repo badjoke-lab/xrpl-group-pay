@@ -133,8 +133,6 @@ test("renders a public verified transaction proof", async ({ page }) => {
         sourceTag: 777,
         destinationTag: null,
         invoiceId: "AB".repeat(32),
-        verifiedAt: "2026-06-24T00:05:00.000Z",
-        recordedAt: "2026-06-24T00:05:01.000Z",
         proofDigest: proofToken,
       }),
     });
