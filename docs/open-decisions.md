@@ -37,7 +37,7 @@ SUPERSEDED
 | OD-016 | Bill expiry behavior? | No deadline in first vertical slice; explicit deadline in completed v1 | Product test | Completed v1 flow | DECIDED |
 | OD-017 | Mainnet per-payment upper limit? | Configurable conservative limit | Risk review and controlled test plan | Before Mainnet | OPEN |
 | OD-018 | Retention schedule? | Use privacy-data-map initial schedule | Privacy and operations review | Before Mainnet | ASSUMPTION |
-| OD-019 | Public proof default fields? | On-chain facts; participant label hidden by default | Privacy review | Public proof PR | ASSUMPTION |
+| OD-019 | Public proof default fields? | Publish only verified public XRPL facts and proof timestamps; hide bill titles, participant labels, capability values, expected pre-payment data, Xaman payload identifiers, and internal IDs | Privacy-redaction, schema, API, and UI tests | Public proof PR | DECIDED |
 | OD-020 | Initial UI languages? | English first, localization-ready architecture | Submission and user needs | Application foundation | DECIDED |
 | OD-021 | Public license? | Apache License 2.0 | Root `LICENSE` and dependency compatibility review | Repository creation | DECIDED |
 | OD-022 | Production domain? | Dedicated badjoke-lab subdomain or standalone domain | Deployment and naming review | Before public preview | OPEN |
@@ -49,6 +49,7 @@ SUPERSEDED
 | OD-028 | When is duplicate processing durably prevented? | Enforce unique `network + transaction_id` and `network + invoice_id`, then atomically insert or reuse the receipt, mark the slot paid, and recompute the bill; exact retries are idempotent and a competing transaction is rejected | D1 migration, readback, conflict, and concurrent-winner tests | Bill and slot persistence | DECIDED |
 | OD-029 | Which fields define an identical verified Payment proof? | Hash immutable ledger and expected-Payment facts; exclude verification and receipt observation timestamps so later re-verification remains idempotent | Re-verification test with different observation timestamps | Verified receipt persistence | DECIDED |
 | OD-030 | What does a read-only bill-progress capability reveal? | Show amounts, slot states, and verified public transaction references; hide participant labels, expected payer addresses, and InvoiceIDs. The creator capability may show the full management view | Capability-role, redaction, API, and UI tests | Bill progress view | DECIDED |
+| OD-031 | How is a public proof addressed and checked? | Use the receipt proof digest as a public URL-fragment identifier, retrieve it through a unique D1 index, and recompute the digest before publication. Viewing reads the durable receipt and does not mutate or resubmit the transaction | Migration uniqueness check, digest-mismatch test, API test, and browser smoke test | Public proof PR | DECIDED |
 
 ## Decision record template
 
