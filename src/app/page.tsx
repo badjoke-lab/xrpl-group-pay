@@ -1,4 +1,5 @@
 import { ArrowRight, Check, ShieldCheck, Users, WalletCards } from "lucide-react";
+import Link from "next/link";
 
 import { BrandMark } from "@/components/brand/brand-mark";
 import { PaymentPreview } from "@/components/payment/payment-preview";
@@ -53,10 +54,10 @@ export default function Home() {
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <a href="/testnet/bill" className={buttonStyles({ className: "min-h-13" })}>
+            <Link href="/testnet/bill" className={buttonStyles({ className: "min-h-13" })}>
               Create a Testnet bill
               <ArrowRight aria-hidden="true" className="size-4" />
-            </a>
+            </Link>
             <a
               href="https://github.com/badjoke-lab/xrpl-group-pay/tree/main/docs"
               className={buttonStyles({ variant: "secondary", className: "min-h-13" })}
