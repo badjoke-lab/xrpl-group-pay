@@ -22,7 +22,6 @@ const receiptRowSchema = z.object({
   destination_tag: z.number().int().min(0).max(4_294_967_295).nullable(),
   invoice_id: z.string().regex(/^[A-F0-9]{64}$/),
   verified_at: z.string().datetime(),
-  recorded_at: z.string().datetime(),
   proof_digest: z.string().regex(/^[A-F0-9]{64}$/),
 });
 
@@ -39,7 +38,6 @@ const SELECT_PUBLIC_PROOF = `
     destination_tag,
     invoice_id,
     verified_at,
-    recorded_at,
     proof_digest
   FROM verified_payment_receipts
   WHERE proof_digest = ?1
@@ -109,8 +107,6 @@ export async function loadPublicProofByToken(
       sourceTag: verifiedProof.sourceTag,
       destinationTag: verifiedProof.destinationTag,
       invoiceId: verifiedProof.invoiceId,
-      verifiedAt: verifiedProof.verifiedAt,
-      recordedAt: parsedRow.data.recorded_at,
       proofDigest: parsedRow.data.proof_digest,
     });
   } catch (error) {
