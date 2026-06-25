@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { BillInputError } from "@/features/bills/create-bill";
-import type { BillReview } from "@/features/bills/types";
+import { BILL_REVIEW_FIXTURE } from "@/test/fixtures/bill-review";
 
 import {
   handleReviewBillRequest,
@@ -25,26 +25,16 @@ const input = {
   ],
 };
 
-const review: BillReview = {
-  network: "testnet",
-  title: "Dinner",
+const normalizedInput = {
+  title: input.title,
   destinationAddress: input.destinationAddress,
-  destinationTag: null,
-  totalDrops: "3000000",
-  creatorShareDrops: "1000000",
-  allocatedDrops: "3000000",
-  participants: [
-    {
-      participantLabel: null,
-      expectedPayerAddress: input.participants[0].expectedPayerAddress,
-      expectedAmountDrops: "1000000",
-    },
-    {
-      participantLabel: null,
-      expectedPayerAddress: input.participants[1].expectedPayerAddress,
-      expectedAmountDrops: "1000000",
-    },
-  ],
+  settlementAssetId: "xrpl:testnet:xrp",
+  totalAmount: "3",
+  creatorShareAmount: "1",
+  participants: input.participants.map((participant) => ({
+    expectedPayerAddress: participant.expectedPayerAddress,
+    amount: "1",
+  })),
 };
 
 function request(body: unknown = input) {
@@ -58,18 +48,30 @@ function request(body: unknown = input) {
 function dependencies(): BillReviewRouteDependencies & {
   reviewBill: ReturnType<typeof vi.fn>;
 } {
-  return { reviewBill: vi.fn().mockReturnValue(review) };
+  return { reviewBill: vi.fn().mockReturnValue(BILL_REVIEW_FIXTURE) };
 }
 
 describe("POST /api/bills/review", () => {
-  it("returns a no-store normalized review without persistence", async () => {
+  it("returns a no-store normalized Asset review without persistence", async () => {
     const deps = dependencies();
     const response = await handleReviewBillRequest(request(), deps);
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toContain("no-store");
-    await expect(response.json()).resolves.toEqual(review);
-    expect(deps.reviewBill).toHaveBeenCalledWith(input);
+    await expect(response.json()).resolves.toEqual(BILL_REVIEW_FIXTURE);
+    expect(deps.reviewBill).toHaveBeenCalledWith(normalizedInput);
+  });
+
+  it("accepts a canonical RLUSD review request", async () => {
+    const deps = dependencies();
+    const rlusd = {
+      ...normalizedInput,
+      settlementAssetId: "xrpl:testnet:rlusd",
+    };
+    const response = await handleReviewBillRequest(request(rlusd), deps);
+
+    expect(response.status).toBe(200);
+    expect(deps.reviewBill).toHaveBeenCalledWith(rlusd);
   });
 
   it("rejects malformed and oversized input before review", async () => {
@@ -102,7 +104,9 @@ describe("POST /api/bills/review", () => {
   it("returns the exact domain validation message", async () => {
     const deps = dependencies();
     deps.reviewBill.mockImplementation(() => {
-      throw new BillInputError("Creator share and participant amounts must equal the bill total.");
+      throw new BillInputError(
+        "Creator share and participant amounts must equal the bill total.",
+      );
     });
 
     const response = await handleReviewBillRequest(request(), deps);
@@ -110,7 +114,8 @@ describe("POST /api/bills/review", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: {
         code: "INVALID_BILL_INPUT",
-        message: "Creator share and participant amounts must equal the bill total.",
+        message:
+          "Creator share and participant amounts must equal the bill total.",
       },
     });
   });
