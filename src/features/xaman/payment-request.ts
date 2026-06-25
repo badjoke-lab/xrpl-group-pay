@@ -4,7 +4,16 @@ import type { XrplPaymentTransaction } from "@/features/xrpl/transaction-builder
 
 import type { CreatePaymentInput } from "./schemas";
 
-export const TESTNET_FORCE_NETWORK = "TESTNET" as const;
+export const XAMAN_FORCE_NETWORKS = {
+  testnet: "TESTNET",
+  mainnet: "MAINNET",
+} as const;
+
+export const TESTNET_FORCE_NETWORK = XAMAN_FORCE_NETWORKS.testnet;
+export const MAINNET_FORCE_NETWORK = XAMAN_FORCE_NETWORKS.mainnet;
+
+export type XamanForceNetwork =
+  (typeof XAMAN_FORCE_NETWORKS)[keyof typeof XAMAN_FORCE_NETWORKS];
 
 export class PaymentInputError extends Error {
   constructor(message: string) {
@@ -73,7 +82,7 @@ export type XamanPaymentPayloadRequest = {
   options: {
     submit: true;
     expire: number;
-    force_network: typeof TESTNET_FORCE_NETWORK;
+    force_network: XamanForceNetwork;
   };
 };
 

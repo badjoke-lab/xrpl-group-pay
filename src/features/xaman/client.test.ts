@@ -12,6 +12,7 @@ const environment: XamanEnvironment = {
   XRPL_SOURCE_TAG: 7,
   NEXT_PUBLIC_APP_URL: "http://localhost:3000",
   APP_NETWORK: "testnet",
+  MAINNET_GATE_APPROVED: false,
 };
 
 const request: XamanPaymentPayloadRequest = {

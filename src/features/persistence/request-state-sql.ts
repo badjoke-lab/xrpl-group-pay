@@ -21,9 +21,10 @@ export const EXPIRE_ACTIVE_REQUEST = [
 export const STORE_REQUEST = [
   "IN" + "SERT",
   `INTO ${table} (`,
-  "id, payment_slot_id, provider_id, request_id, intent_id,",
-  "intent_revision, status, expires_at, transaction_id, created_at, updated_at",
-  ") VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)",
+  "id, payment_slot_id, provider_id, request_id, intent_id, intent_revision,",
+  "network, asset_id, asset_type, currency_code, issuer,",
+  "status, expires_at, transaction_id, created_at, updated_at",
+  ") VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?15)",
 ].join("\n");
 
 export const MARK_SLOT_WAITING = [
