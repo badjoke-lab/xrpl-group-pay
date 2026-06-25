@@ -10,7 +10,9 @@ describe("parseBuildEnv", () => {
       paymentsDatabaseBinding: "PAYMENTS_DB",
       allowMainnetBuild: false,
       mainnetGateApproved: false,
+      mainnetSourceTagApproved: false,
       mainnetReleaseMode: "disabled",
+      xrplSourceTag: null,
     });
   });
 
@@ -53,6 +55,27 @@ describe("parseBuildEnv", () => {
         MAINNET_RELEASE_MODE: "internal",
         PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
       }),
+    ).toThrow("MAINNET_SOURCE_TAG_APPROVED=true");
+    expect(() =>
+      parseBuildEnv({
+        ...base,
+        ALLOW_MAINNET_BUILD: "true",
+        MAINNET_GATE_APPROVED: "true",
+        MAINNET_RELEASE_MODE: "internal",
+        PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
+        MAINNET_SOURCE_TAG_APPROVED: "true",
+      }),
+    ).toThrow("XRPL_MAINNET_SOURCE_TAG");
+    expect(() =>
+      parseBuildEnv({
+        ...base,
+        ALLOW_MAINNET_BUILD: "true",
+        MAINNET_GATE_APPROVED: "true",
+        MAINNET_RELEASE_MODE: "internal",
+        PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
+        MAINNET_SOURCE_TAG_APPROVED: "true",
+        XRPL_MAINNET_SOURCE_TAG: "123",
+      }),
     ).toThrow("non-local HTTPS");
   });
 
@@ -66,11 +89,33 @@ describe("parseBuildEnv", () => {
         MAINNET_GATE_APPROVED: "true",
         MAINNET_RELEASE_MODE: "internal",
         PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
+        MAINNET_SOURCE_TAG_APPROVED: "true",
+        XRPL_MAINNET_SOURCE_TAG: "123",
       }),
     ).toMatchObject({
       appNetwork: "mainnet",
       paymentsDatabaseBinding: "PAYMENTS_DB_MAINNET",
       mainnetReleaseMode: "internal",
+      mainnetSourceTagApproved: true,
+      xrplSourceTag: 123,
     });
+  });
+
+  it("rejects invalid Mainnet Source Tag values", () => {
+    for (const value of ["-1", "1.5", "4294967296", "tag"]) {
+      expect(() =>
+        parseBuildEnv({
+          APP_NETWORK: "mainnet",
+          NEXT_PUBLIC_APP_NETWORK: "mainnet",
+          NEXT_PUBLIC_APP_URL: "https://group-pay.example",
+          ALLOW_MAINNET_BUILD: "true",
+          MAINNET_GATE_APPROVED: "true",
+          MAINNET_RELEASE_MODE: "internal",
+          PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
+          MAINNET_SOURCE_TAG_APPROVED: "true",
+          XRPL_MAINNET_SOURCE_TAG: value,
+        }),
+      ).toThrow();
+    }
   });
 });
