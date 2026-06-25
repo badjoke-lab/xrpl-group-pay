@@ -40,6 +40,26 @@ describe("verifyXrpPayment", () => {
     });
   });
 
+  it("emits a network-scoped Mainnet proof", () => {
+    const expected = makeExpectedPayment();
+    expected.network = "mainnet";
+
+    expect(
+      verifyXrpPayment(
+        expected,
+        makeXrplTransaction(),
+        new Date("2026-06-26T01:02:03.000Z"),
+      ),
+    ).toMatchObject({
+      status: "verified",
+      proof: {
+        network: "mainnet",
+        transactionId: TEST_TXID,
+        idempotencyKey: `mainnet:${TEST_TXID}`,
+      },
+    });
+  });
+
   it("keeps an unvalidated transaction pending", () => {
     const transaction = makeXrplTransaction();
     transaction.validated = false;
