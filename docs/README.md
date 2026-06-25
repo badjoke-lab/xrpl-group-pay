@@ -50,8 +50,9 @@ These documents define approved behavior. They may describe target behavior that
 - `transaction-proof.md` — public proof fields, digest contracts, privacy boundary, and integrity checks.
 - `mainnet-operational-controls.md` — Mainnet enabled, verify-only, and halted runtime behavior.
 - `mainnet-acceptance-audit.md` — final cross-control audit, current release decision, unresolved findings, and approval procedure.
+- `mainnet-release-evidence.md` — non-secret production evidence contracts, acceptance fields, and update discipline.
 
-Any change to custody, asset identity, wallet authority, expected payment facts, ledger verification, receipt compatibility, public proof, Mainnet operations, or release acceptance requires all affected documents in this section to be updated before implementation.
+Any change to custody, asset identity, wallet authority, expected payment facts, ledger verification, receipt compatibility, public proof, Mainnet operations, release evidence, or release acceptance requires all affected documents in this section to be updated before implementation.
 
 ## 6. Feature contracts
 
@@ -99,7 +100,7 @@ A major PR must state whether it affects:
 - verification or Receipt Contracts;
 - privacy or persistence;
 - localization;
-- Mainnet operations or acceptance;
+- Mainnet operations, evidence, or acceptance;
 - Roadmap;
 - Changelog.
 
