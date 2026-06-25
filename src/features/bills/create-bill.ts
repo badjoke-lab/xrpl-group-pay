@@ -11,6 +11,11 @@ import { createInvoiceId } from "@/features/xaman/payment-request";
 
 import type { D1DatabaseLike } from "../persistence/d1-types";
 import {
+  allocateBill,
+  AllocationError,
+  type AllocationInput,
+} from "./allocation-engine";
+import {
   billAssetWriteValues,
   INSERT_ASSET_AWARE_BILL,
   INSERT_ASSET_AWARE_SLOT,
@@ -25,6 +30,7 @@ import {
   type BillReview,
   type CreateBillInput,
   type CreatedBill,
+  type NormalizedCreateBillInput,
 } from "./types";
 
 export class BillInputError extends Error {
@@ -127,6 +133,85 @@ function parseDestinationTag(value: string | number | undefined) {
   return parsed;
 }
 
+function participantId(
+  participant: NormalizedCreateBillInput["participants"][number],
+  index: number,
+) {
+  return participant.participantId ?? `participant-${index + 1}`;
+}
+
+function buildAllocationInput(
+  input: NormalizedCreateBillInput,
+  asset: AssetDescriptor,
+  totalAmount: MoneyAmount,
+  creatorShareAmount: MoneyAmount,
+  participantIds: string[],
+): AllocationInput {
+  const allocation = input.allocation ?? { strategy: "custom" as const };
+  const base = {
+    totalUnits: totalAmount.units,
+    creatorShareUnits: creatorShareAmount.units,
+    participantIds,
+  };
+
+  if (allocation.strategy === "custom") {
+    const participantUnits = input.participants.map((participant, index) => {
+      if (participant.amount === undefined) {
+        throw new BillInputError(
+          "Every participant requires an amount for Custom Amount allocation.",
+        );
+      }
+      return {
+        participantId: participantIds[index],
+        units: parseAmount(
+          asset,
+          participant.amount,
+          false,
+          "Each participant amount",
+        ).units,
+      };
+    });
+    return { ...base, strategy: "custom", participantUnits };
+  }
+
+  if (input.participants.some((participant) => participant.amount !== undefined)) {
+    throw new BillInputError(
+      "Participant amount fields are only accepted for Custom Amount allocation.",
+    );
+  }
+
+  if (allocation.strategy === "equal") {
+    return {
+      ...base,
+      strategy: "equal",
+      ...(allocation.remainderAssignment
+        ? { remainderAssignment: allocation.remainderAssignment }
+        : {}),
+    };
+  }
+
+  if (allocation.strategy === "percentage") {
+    return {
+      ...base,
+      strategy: "percentage",
+      percentageScale: allocation.percentageScale,
+      percentages: allocation.percentages,
+      ...(allocation.remainderAssignment
+        ? { remainderAssignment: allocation.remainderAssignment }
+        : {}),
+    };
+  }
+
+  return {
+    ...base,
+    strategy: "shares",
+    shares: allocation.shares,
+    ...(allocation.remainderAssignment
+      ? { remainderAssignment: allocation.remainderAssignment }
+      : {}),
+  };
+}
+
 export function prepareBillReview(rawInput: CreateBillInput): BillReview {
   const input = createBillInputSchema.parse(rawInput);
   const asset = requireTestnetSettlementAsset(input.settlementAssetId);
@@ -137,46 +222,81 @@ export function prepareBillReview(rawInput: CreateBillInput): BillReview {
 
   const destinationTag = parseDestinationTag(input.destinationTag);
   const totalAmount = parseAmount(asset, input.totalAmount, false, "Bill total");
-  const creatorShareAmount = parseAmount(
+  const requestedCreatorShareAmount = parseAmount(
     asset,
     input.creatorShareAmount,
     true,
     "Creator share",
   );
-  const participants = input.participants.map((participant) => {
+
+  const normalizedParticipants = input.participants.map((participant, index) => {
     const expectedPayerAddress = participant.expectedPayerAddress.trim();
     if (!isValidClassicAddress(expectedPayerAddress)) {
       throw new BillInputError(
         "Every expected payer must be a valid classic XRPL address.",
       );
     }
-    const expectedAmount = parseAmount(
-      asset,
-      participant.amount,
-      false,
-      "Each participant amount",
-    );
     return {
+      participantId: participantId(participant, index),
       participantLabel: participant.label?.trim() || null,
       expectedPayerAddress,
-      expectedAmount,
-      expectedAmountDrops: compatibilityDrops(asset, expectedAmount.units),
     };
   });
 
-  const allocatedUnits = participants.reduce(
-    (sum, participant) => sum + BigInt(participant.expectedAmount.units),
-    BigInt(creatorShareAmount.units),
-  );
-  if (allocatedUnits !== BigInt(totalAmount.units)) {
-    throw new BillInputError(
-      "Creator share and participant amounts must equal the bill total.",
+  let allocation;
+  try {
+    allocation = allocateBill(
+      buildAllocationInput(
+        input,
+        asset,
+        totalAmount,
+        requestedCreatorShareAmount,
+        normalizedParticipants.map((participant) => participant.participantId),
+      ),
     );
+  } catch (error) {
+    if (error instanceof BillInputError) throw error;
+    if (error instanceof AllocationError) {
+      throw new BillInputError(error.message);
+    }
+    throw error;
   }
 
+  const obligationByParticipant = new Map(
+    allocation.participantObligations.map((obligation) => [
+      obligation.participantId,
+      obligation.units,
+    ]),
+  );
+
+  const participants = normalizedParticipants.map((participant) => {
+    const units = obligationByParticipant.get(participant.participantId);
+    if (!units) {
+      throw new BillInputError(
+        "The allocation did not produce an obligation for every participant.",
+      );
+    }
+    const expectedAmount: MoneyAmount = {
+      code: asset.symbol,
+      units,
+      scale: asset.precision,
+    };
+    return {
+      participantLabel: participant.participantLabel,
+      expectedPayerAddress: participant.expectedPayerAddress,
+      expectedAmount,
+      expectedAmountDrops: compatibilityDrops(asset, units),
+    };
+  });
+
+  const creatorShareAmount: MoneyAmount = {
+    code: asset.symbol,
+    units: allocation.creatorShareUnits,
+    scale: asset.precision,
+  };
   const allocatedAmount: MoneyAmount = {
     code: asset.symbol,
-    units: allocatedUnits.toString(),
+    units: allocation.totalUnits,
     scale: asset.precision,
   };
 
