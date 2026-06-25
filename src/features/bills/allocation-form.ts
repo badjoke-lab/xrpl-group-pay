@@ -43,13 +43,17 @@ function incomplete(message: string): AllocationFormPreview {
   };
 }
 
-function invalid(message: string): AllocationFormPreview {
+function invalid(
+  message: string,
+  allocation: BillAllocationInput | null = null,
+  remainderUnits: string | null = null,
+): AllocationFormPreview {
   return {
     status: "invalid",
     message,
     participantUnits: {},
-    allocation: null,
-    remainderUnits: null,
+    allocation,
+    remainderUnits,
     appliedRemainderAssignment: null,
   };
 }
@@ -78,6 +82,17 @@ function allocationWithRemainder(
   return assignment && allocation.strategy !== "custom"
     ? { ...allocation, remainderAssignment: assignment }
     : allocation;
+}
+
+function previewRemainder(allocationInput: AllocationInput) {
+  if (allocationInput.strategy === "custom") return null;
+  try {
+    return allocateBill(
+      withRemainderAssignment(allocationInput, { kind: "creator" }),
+    ).remainderUnits;
+  } catch {
+    return null;
+  }
 }
 
 export function evaluateAllocationForm(input: {
@@ -210,21 +225,19 @@ export function evaluateAllocationForm(input: {
     };
   } catch (error) {
     if (error instanceof AllocationError) {
+      const remainderUnits = previewRemainder(allocationInput);
       if (error.message.startsWith("A remainder assignment is required")) {
-        const preview = allocateBill(
-          withRemainderAssignment(allocationInput, { kind: "creator" }),
-        );
         return {
           status: "needs_remainder",
           message:
             "This calculation leaves integer remainder units. Choose an explicit remainder rule before freezing the Bill.",
           participantUnits: {},
           allocation,
-          remainderUnits: preview.remainderUnits,
+          remainderUnits,
           appliedRemainderAssignment: null,
         };
       }
-      return invalid(error.message);
+      return invalid(error.message, allocation, remainderUnits);
     }
     throw error;
   }
