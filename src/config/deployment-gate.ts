@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 import {
+  mainnetOperationsModeSchema,
+  type MainnetOperationsMode,
+} from "./payment-operations";
+import {
   resolveXrplSourceTag,
   XrplSourceTagConfigurationError,
 } from "./xrpl-source-tag";
@@ -21,6 +25,7 @@ const rawDeploymentEnvironmentSchema = z.object({
   ALLOW_MAINNET_RUNTIME: booleanTextSchema,
   MAINNET_GATE_APPROVED: booleanTextSchema,
   MAINNET_RELEASE_MODE: mainnetReleaseModeSchema.default("disabled"),
+  MAINNET_OPERATIONS_MODE: mainnetOperationsModeSchema.default("halted"),
   PAYMENTS_DATABASE_BINDING: z.string().trim().min(1).optional(),
 });
 
@@ -33,6 +38,7 @@ export type DeploymentTarget = {
   databaseBinding: "PAYMENTS_DB" | "PAYMENTS_DB_MAINNET";
   sourceTag: number | null;
   mainnetReleaseMode: MainnetReleaseMode;
+  mainnetOperationsMode: MainnetOperationsMode;
   mainnetRuntimeAllowed: boolean;
   mainnetGateApproved: boolean;
 };
@@ -73,6 +79,7 @@ export function resolveDeploymentTarget(
       databaseBinding: "PAYMENTS_DB",
       sourceTag: null,
       mainnetReleaseMode: "disabled",
+      mainnetOperationsMode: "halted",
       mainnetRuntimeAllowed: false,
       mainnetGateApproved: false,
     };
@@ -118,6 +125,7 @@ export function resolveDeploymentTarget(
     databaseBinding: "PAYMENTS_DB_MAINNET",
     sourceTag,
     mainnetReleaseMode: parsed.data.MAINNET_RELEASE_MODE,
+    mainnetOperationsMode: parsed.data.MAINNET_OPERATIONS_MODE,
     mainnetRuntimeAllowed,
     mainnetGateApproved,
   };
