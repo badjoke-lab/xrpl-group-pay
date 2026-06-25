@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "audit_status": "completed",
+  "release_decision": "blocked",
+  "audited_at": "2026-06-26",
+  "controls": [
+    {
+      "id": "repository-gate-controls",
+      "status": "passed",
+      "evidence": "config/mainnet-gate.json records network, database, Source Tag, Asset, recipient-readiness, provider, verifier, and operational controls."
+    },
+    {
+      "id": "build-and-runtime-boundaries",
+      "status": "passed",
+      "evidence": "Build and runtime configuration fail closed for network mismatch, missing approvals, disabled release mode, missing Mainnet Source Tag, and incorrect database binding."
+    },
+    {
+      "id": "mainnet-data-isolation",
+      "status": "passed",
+      "evidence": "Mainnet selects only PAYMENTS_DB_MAINNET and cannot fall back to the Testnet D1 binding."
+    },
+    {
+      "id": "mainnet-payment-pipeline",
+      "status": "passed",
+      "evidence": "Xaman handoff creation and validated-ledger XRP and RLUSD verification are network-scoped and use canonical Asset identity."
+    },
+    {
+      "id": "mainnet-operational-controls",
+      "status": "passed",
+      "evidence": "MAINNET_OPERATIONS_MODE supports enabled, verify-only, and halted states and is enforced before external payment services."
+    },
+    {
+      "id": "regression-and-build-suite",
+      "status": "passed",
+      "evidence": "CI covers environment boundaries, D1 migrations and constraints, lint, type checking, unit and component tests, Next.js, Storybook, Cloudflare Worker, and browser smoke tests."
+    },
+    {
+      "id": "production-d1-provisioning",
+      "status": "pending",
+      "evidence": "The committed Mainnet D1 database and preview identifiers remain placeholders in wrangler.jsonc."
+    },
+    {
+      "id": "production-release-configuration",
+      "status": "pending",
+      "evidence": "The committed Mainnet target remains disabled, unapproved, and operationally halted."
+    },
+    {
+      "id": "production-provider-attestation",
+      "status": "pending",
+      "evidence": "No repository-safe attestation records that production Xaman credentials and callback behavior have been validated."
+    },
+    {
+      "id": "assigned-mainnet-source-tag",
+      "status": "pending",
+      "evidence": "No approved assigned XRPL Mainnet Source Tag is recorded for the production deployment."
+    },
+    {
+      "id": "live-mainnet-xrp-acceptance",
+      "status": "pending",
+      "evidence": "No accepted live Mainnet XRP end-to-end evidence is recorded."
+    },
+    {
+      "id": "live-mainnet-rlusd-acceptance",
+      "status": "pending",
+      "evidence": "No accepted live Mainnet RLUSD end-to-end evidence is recorded."
+    },
+    {
+      "id": "operational-stop-drill",
+      "status": "pending",
+      "evidence": "No production or production-equivalent verify-only and halted-mode drill is recorded."
+    }
+  ],
+  "blocking_findings": [
+    {
+      "id": "production-d1-not-provisioned",
+      "status": "open",
+      "evidence": "Replace the Mainnet D1 placeholder identifiers and apply all migrations to the isolated production database."
+    },
+    {
+      "id": "production-runtime-not-approved",
+      "status": "open",
+      "evidence": "Complete release configuration review before enabling Mainnet build, runtime, gate approval, release mode, or payment operations."
+    },
+    {
+      "id": "production-provider-not-attested",
+      "status": "open",
+      "evidence": "Record a non-secret attestation for production Xaman credentials, forced Mainnet requests, and callback/status behavior."
+    },
+    {
+      "id": "mainnet-source-tag-not-assigned",
+      "status": "open",
+      "evidence": "Record and approve the assigned Mainnet Source Tag without Testnet fallback."
+    },
+    {
+      "id": "live-xrp-acceptance-not-recorded",
+      "status": "open",
+      "evidence": "Complete a controlled Mainnet XRP payment and record validated-ledger, receipt, and Bill settlement evidence."
+    },
+    {
+      "id": "live-rlusd-acceptance-not-recorded",
+      "status": "open",
+      "evidence": "Complete a controlled official RLUSD Mainnet payment and record validated-ledger, receipt, and Bill settlement evidence."
+    },
+    {
+      "id": "operational-stop-drill-not-recorded",
+      "status": "open",
+      "evidence": "Demonstrate verify-only draining and full halt before approving release."
+    }
+  ]
+}
