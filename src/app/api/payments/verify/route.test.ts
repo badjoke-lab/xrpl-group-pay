@@ -6,7 +6,7 @@ import {
   PaymentSlotSettlementConflictError,
   PaymentSlotSettlementDatabaseError,
 } from "@/features/bills/settle-slot";
-import type { PaymentVerificationApiOutcome } from "@/features/payment-verification/types";
+import type { AssetPaymentVerificationApiOutcome } from "@/features/payment-verification/types";
 
 import {
   handleVerificationRequest,
@@ -20,7 +20,7 @@ const TXID = "A".repeat(64);
 const INVOICE_ID = "B".repeat(64);
 const RLUSD = getRlusdAssetDescriptor("testnet");
 
-const verifiedOutcome: PaymentVerificationApiOutcome = {
+const verifiedOutcome: AssetPaymentVerificationApiOutcome = {
   status: "verified",
   proof: {
     network: "testnet",
@@ -47,7 +47,7 @@ const verifiedOutcome: PaymentVerificationApiOutcome = {
   },
 };
 
-const issuedVerifiedOutcome: PaymentVerificationApiOutcome = {
+const issuedVerifiedOutcome: AssetPaymentVerificationApiOutcome = {
   status: "verified",
   payment: {
     contractVersion: "xrpl-group-pay:verified-payment:v1",
@@ -90,7 +90,7 @@ function request(
 }
 
 function dependencies(
-  outcome: PaymentVerificationApiOutcome,
+  outcome: AssetPaymentVerificationApiOutcome,
 ): VerificationRouteDependencies & {
   verifyAndRecord: ReturnType<typeof vi.fn>;
 } {
@@ -186,7 +186,7 @@ describe("POST /api/payments/verify", () => {
         reason: "TRANSACTION_NOT_VALIDATED",
         transactionId: TXID,
         message: "Pending",
-      } satisfies PaymentVerificationApiOutcome,
+      } satisfies AssetPaymentVerificationApiOutcome,
       status: 202,
     },
     {
@@ -195,7 +195,7 @@ describe("POST /api/payments/verify", () => {
         reason: "AMOUNT_MISMATCH",
         transactionId: TXID,
         message: "Mismatch",
-      } satisfies PaymentVerificationApiOutcome,
+      } satisfies AssetPaymentVerificationApiOutcome,
       status: 422,
     },
   ])("returns a $outcome.status outcome without settlement", async ({ outcome, status }) => {
