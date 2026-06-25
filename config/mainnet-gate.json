@@ -25,8 +25,8 @@
     },
     {
       "id": "recipient-readiness",
-      "status": "pending",
-      "evidence": null
+      "status": "passed",
+      "evidence": "Validated-ledger account and trust-line checks fail closed for account existence, destination tags, Deposit Authorization, exact issuer and currency identity, authorization, freeze state, and remaining trust-line capacity."
     },
     {
       "id": "xaman-mainnet-provider",
