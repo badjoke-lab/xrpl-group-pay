@@ -130,14 +130,14 @@ describe("TestnetBillForm", () => {
     fillBaseWithoutAmounts();
 
     fireEvent.click(screen.getByLabelText(/^Percentage/));
-    const percentages = screen.getAllByLabelText(/^Percentage/);
+    const percentages = screen.getAllByPlaceholderText("50");
     fireEvent.change(percentages[0], { target: { value: "25" } });
     fireEvent.change(percentages[1], { target: { value: "75" } });
     expect(screen.getByText("2 XRP", { exact: true })).toBeVisible();
     expect(screen.getByText("6 XRP", { exact: true })).toBeVisible();
 
     fireEvent.click(screen.getByLabelText(/^Shares/));
-    const shares = screen.getAllByLabelText("Shares");
+    const shares = screen.getAllByPlaceholderText("1");
     fireEvent.change(shares[0], { target: { value: "1" } });
     fireEvent.change(shares[1], { target: { value: "1" } });
     expect(screen.getAllByText("4 XRP", { exact: true })).toHaveLength(2);
