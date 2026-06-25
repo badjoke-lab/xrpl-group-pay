@@ -165,7 +165,7 @@ export async function loadPaymentSlotByToken(
     destinationTag: parsed.data.destination_tag,
     participantLabel: parsed.data.participant_label,
     expectedPayerAddress: parsed.data.expected_payer_address,
-    expectedAmountDrops: parsed.data.expected_amount_drops,
+    expectedAmountDrops: parsed.data.expected_amount_units,
     paymentContractVersion: parsed.data.payment_contract_version,
     asset,
     expectedAmount,
