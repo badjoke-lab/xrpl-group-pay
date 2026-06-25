@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+import {
+  resolveXrplSourceTag,
+  XrplSourceTagConfigurationError,
+} from "./xrpl-source-tag";
+
 export const deploymentNetworkSchema = z.enum(["testnet", "mainnet"]);
 export const mainnetReleaseModeSchema = z.enum([
   "disabled",
@@ -26,6 +31,7 @@ export type DeploymentTarget = {
   network: DeploymentNetwork;
   publicNetwork: DeploymentNetwork;
   databaseBinding: "PAYMENTS_DB" | "PAYMENTS_DB_MAINNET";
+  sourceTag: number | null;
   mainnetReleaseMode: MainnetReleaseMode;
   mainnetRuntimeAllowed: boolean;
   mainnetGateApproved: boolean;
@@ -65,6 +71,7 @@ export function resolveDeploymentTarget(
       network,
       publicNetwork: parsed.data.NEXT_PUBLIC_APP_NETWORK,
       databaseBinding: "PAYMENTS_DB",
+      sourceTag: null,
       mainnetReleaseMode: "disabled",
       mainnetRuntimeAllowed: false,
       mainnetGateApproved: false,
@@ -95,10 +102,21 @@ export function resolveDeploymentTarget(
     );
   }
 
+  let sourceTag: number;
+  try {
+    sourceTag = resolveXrplSourceTag(input, "mainnet");
+  } catch (error) {
+    if (error instanceof XrplSourceTagConfigurationError) {
+      throw new DeploymentGateError(error.message);
+    }
+    throw error;
+  }
+
   return {
     network,
     publicNetwork: parsed.data.NEXT_PUBLIC_APP_NETWORK,
     databaseBinding: "PAYMENTS_DB_MAINNET",
+    sourceTag,
     mainnetReleaseMode: parsed.data.MAINNET_RELEASE_MODE,
     mainnetRuntimeAllowed,
     mainnetGateApproved,
