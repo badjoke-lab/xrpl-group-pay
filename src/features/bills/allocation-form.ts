@@ -1,9 +1,12 @@
+import { decimalToUnits, MoneyAmountError } from "@/features/money/money";
+
 import {
   allocateBill,
   AllocationError,
   type AllocationInput,
+  type AppliedRemainderAssignment,
+  type RemainderAssignment,
 } from "./allocation-engine";
-import { decimalToUnits, MoneyAmountError } from "@/features/money/money";
 import type { BillAllocationInput } from "./types";
 
 export type AllocationFormStrategy =
@@ -17,6 +20,7 @@ export type AllocationFormParticipant = {
   amount: string;
   percentage: string;
   shares: string;
+  remainderUnits?: string;
 };
 
 export type AllocationFormPreview = {
@@ -24,6 +28,8 @@ export type AllocationFormPreview = {
   message: string;
   participantUnits: Record<string, string>;
   allocation: BillAllocationInput | null;
+  remainderUnits: string | null;
+  appliedRemainderAssignment: AppliedRemainderAssignment | null;
 };
 
 function incomplete(message: string): AllocationFormPreview {
@@ -32,6 +38,8 @@ function incomplete(message: string): AllocationFormPreview {
     message,
     participantUnits: {},
     allocation: null,
+    remainderUnits: null,
+    appliedRemainderAssignment: null,
   };
 }
 
@@ -41,6 +49,8 @@ function invalid(message: string): AllocationFormPreview {
     message,
     participantUnits: {},
     allocation: null,
+    remainderUnits: null,
+    appliedRemainderAssignment: null,
   };
 }
 
@@ -54,12 +64,29 @@ function parseDecimal(value: string, scale: number) {
   }
 }
 
+function withRemainderAssignment<T extends AllocationInput>(
+  input: T,
+  assignment: RemainderAssignment | undefined,
+): T {
+  return assignment ? ({ ...input, remainderAssignment: assignment } as T) : input;
+}
+
+function allocationWithRemainder(
+  allocation: BillAllocationInput,
+  assignment: RemainderAssignment | undefined,
+): BillAllocationInput {
+  return assignment && allocation.strategy !== "custom"
+    ? { ...allocation, remainderAssignment: assignment }
+    : allocation;
+}
+
 export function evaluateAllocationForm(input: {
   strategy: AllocationFormStrategy;
   totalAmount: string;
   creatorShareAmount: string;
   assetScale: number;
   participants: AllocationFormParticipant[];
+  remainderAssignment?: RemainderAssignment;
 }): AllocationFormPreview {
   const totalUnits = parseDecimal(input.totalAmount, input.assetScale);
   const creatorShareUnits = parseDecimal(
@@ -102,12 +129,15 @@ export function evaluateAllocationForm(input: {
     };
   } else if (input.strategy === "equal") {
     allocation = { strategy: "equal" };
-    allocationInput = {
-      strategy: "equal",
-      totalUnits,
-      creatorShareUnits,
-      participantIds,
-    };
+    allocationInput = withRemainderAssignment(
+      {
+        strategy: "equal",
+        totalUnits,
+        creatorShareUnits,
+        participantIds,
+      },
+      input.remainderAssignment,
+    );
   } else if (input.strategy === "percentage") {
     const percentages = input.participants.map((participant) => {
       const units = parseDecimal(participant.percentage, 2);
@@ -126,12 +156,15 @@ export function evaluateAllocationForm(input: {
         units: string;
       }>,
     };
-    allocationInput = {
-      ...allocation,
-      totalUnits,
-      creatorShareUnits,
-      participantIds,
-    };
+    allocationInput = withRemainderAssignment(
+      {
+        ...allocation,
+        totalUnits,
+        creatorShareUnits,
+        participantIds,
+      },
+      input.remainderAssignment,
+    );
   } else {
     const shares = input.participants.map((participant) => {
       const value = participant.shares.trim();
@@ -146,12 +179,15 @@ export function evaluateAllocationForm(input: {
       strategy: "shares",
       shares: shares as Array<{ participantId: string; units: string }>,
     };
-    allocationInput = {
-      ...allocation,
-      totalUnits,
-      creatorShareUnits,
-      participantIds,
-    };
+    allocationInput = withRemainderAssignment(
+      {
+        ...allocation,
+        totalUnits,
+        creatorShareUnits,
+        participantIds,
+      },
+      input.remainderAssignment,
+    );
   }
 
   try {
@@ -165,17 +201,27 @@ export function evaluateAllocationForm(input: {
           obligation.units,
         ]),
       ),
-      allocation,
+      allocation: allocationWithRemainder(
+        allocation,
+        input.remainderAssignment,
+      ),
+      remainderUnits: result.remainderUnits,
+      appliedRemainderAssignment: result.remainderAssignment,
     };
   } catch (error) {
     if (error instanceof AllocationError) {
       if (error.message.startsWith("A remainder assignment is required")) {
+        const preview = allocateBill(
+          withRemainderAssignment(allocationInput, { kind: "creator" }),
+        );
         return {
           status: "needs_remainder",
           message:
             "This calculation leaves integer remainder units. Choose an explicit remainder rule before freezing the Bill.",
           participantUnits: {},
           allocation,
+          remainderUnits: preview.remainderUnits,
+          appliedRemainderAssignment: null,
         };
       }
       return invalid(error.message);
