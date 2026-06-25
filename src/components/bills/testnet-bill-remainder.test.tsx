@@ -24,10 +24,10 @@ function fillRemainderBill() {
   fireEvent.change(screen.getByLabelText("Creator destination address"), {
     target: { value: BILL_DESTINATION },
   });
-  fireEvent.change(screen.getByLabelText("Total"), {
+  fireEvent.change(screen.getByPlaceholderText("10"), {
     target: { value: "0.000003" },
   });
-  fireEvent.change(screen.getByLabelText("Creator share"), {
+  fireEvent.change(screen.getByPlaceholderText("2"), {
     target: { value: "0" },
   });
   const payers = screen.getAllByLabelText("Expected payer address");
@@ -51,9 +51,7 @@ describe("TestnetBillForm remainder handling", () => {
     fillRemainderBill();
 
     expect(screen.getByText("Remainder rule required")).toBeVisible();
-    expect(
-      screen.getByText(/leaves 1 smallest Asset unit/i),
-    ).toBeVisible();
+    expect(screen.getByText(/leaves 1 smallest Asset unit/i)).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Review bill before freezing" }),
     ).toBeDisabled();
