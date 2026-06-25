@@ -88,6 +88,7 @@ Start with [docs/README.md](docs/README.md).
 - [Make Waves requirements](docs/make-waves-requirements.md)
 - [Mainnet operational controls](docs/mainnet-operational-controls.md)
 - [Mainnet acceptance audit](docs/mainnet-acceptance-audit.md)
+- [Mainnet release evidence](docs/mainnet-release-evidence.md)
 - [Public Roadmap](ROADMAP.md)
 - [Changelog](CHANGELOG.md)
 
@@ -111,6 +112,7 @@ Useful commands:
 pnpm dev
 pnpm db:migrate:local
 pnpm db:check:local
+pnpm check:mainnet-evidence
 pnpm check:mainnet-acceptance
 pnpm lint
 pnpm typecheck
@@ -123,7 +125,7 @@ pnpm build:worker
 
 Testnet and Mainnet use separate configuration, databases, XRPL endpoints, Source Tag values, and Asset Registry entries. Testnet Bills are not copied automatically to Mainnet.
 
-The Mainnet implementation has completed a repository-level acceptance audit, but the production release remains blocked pending the unresolved findings recorded in `config/mainnet-acceptance.json`. The committed Mainnet deployment stays disabled and operationally halted.
+The Mainnet implementation has completed a repository-level acceptance audit, but the production release remains blocked pending the unresolved findings recorded in `config/mainnet-acceptance.json`. Non-secret production proof is recorded through `config/mainnet-release-evidence.json`. The committed Mainnet deployment stays disabled and operationally halted.
 
 ## License
 

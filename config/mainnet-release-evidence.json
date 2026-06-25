@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "network": "mainnet",
+  "updated_at": "2026-06-26",
+  "records": [
+    {
+      "id": "production-d1-provisioning",
+      "status": "pending",
+      "recorded_at": null,
+      "database_name": "xrpl-group-pay-mainnet",
+      "database_id": null,
+      "preview_database_id": null,
+      "migration_count": null,
+      "migrations_applied": false,
+      "receipt_schema_checked": false
+    },
+    {
+      "id": "production-release-configuration",
+      "status": "pending",
+      "recorded_at": null,
+      "public_url": null,
+      "app_network": "mainnet",
+      "public_network": "mainnet",
+      "database_binding": "PAYMENTS_DB_MAINNET",
+      "runtime_allowed": false,
+      "gate_approved": false,
+      "source_tag_approved": false,
+      "release_mode": "disabled",
+      "operations_mode": "halted"
+    },
+    {
+      "id": "production-provider-attestation",
+      "status": "pending",
+      "recorded_at": null,
+      "attestation_reference": null,
+      "credentials_configured": false,
+      "forced_mainnet_request_checked": false,
+      "callback_behavior_checked": false,
+      "status_lookup_checked": false,
+      "secrets_committed": false
+    },
+    {
+      "id": "assigned-mainnet-source-tag",
+      "status": "pending",
+      "recorded_at": null,
+      "source_tag": null,
+      "assignment_reference": null,
+      "no_testnet_fallback": false
+    },
+    {
+      "id": "live-mainnet-xrp-acceptance",
+      "status": "pending",
+      "recorded_at": null,
+      "transaction_hash": null,
+      "ledger_index": null,
+      "validated": false,
+      "transaction_result": null,
+      "amount_drops": null,
+      "receipt_id": null,
+      "proof_digest": null,
+      "duplicate_rejected": false,
+      "replay_rejected": false
+    },
+    {
+      "id": "live-mainnet-rlusd-acceptance",
+      "status": "pending",
+      "recorded_at": null,
+      "transaction_hash": null,
+      "ledger_index": null,
+      "validated": false,
+      "transaction_result": null,
+      "currency": "524C555344000000000000000000000000000000",
+      "issuer": "rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De",
+      "amount_value": null,
+      "receipt_id": null,
+      "proof_digest": null,
+      "recipient_readiness_checked": false,
+      "duplicate_rejected": false,
+      "replay_rejected": false
+    },
+    {
+      "id": "operational-stop-drill",
+      "status": "pending",
+      "recorded_at": null,
+      "environment": "production-equivalent",
+      "verify_only_creation_blocked": false,
+      "verify_only_submitted_payment_settled": false,
+      "verify_only_status_checked": false,
+      "halted_creation_blocked": false,
+      "halted_verification_blocked": false,
+      "halted_status_checked": false,
+      "restore_change_reviewed": false
+    }
+  ]
+}
