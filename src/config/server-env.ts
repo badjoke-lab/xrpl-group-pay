@@ -14,6 +14,7 @@ const rawXamanEnvironmentSchema = z.object({
   XRPL_TESTNET_SOURCE_TAG: z.string().optional(),
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
   APP_NETWORK: z.enum(["testnet", "mainnet"]).default("testnet"),
+  MAINNET_GATE_APPROVED: z.enum(["true", "false"]).default("false"),
 });
 
 export type XamanEnvironment = {
@@ -23,6 +24,7 @@ export type XamanEnvironment = {
   XRPL_SOURCE_TAG: number;
   NEXT_PUBLIC_APP_URL: string;
   APP_NETWORK: "testnet" | "mainnet";
+  MAINNET_GATE_APPROVED: boolean;
 };
 
 export class XamanConfigurationError extends Error {
@@ -49,6 +51,7 @@ export function getXamanEnvironment(
       XRPL_SOURCE_TAG: resolveXrplSourceTag(input, parsed.data.APP_NETWORK),
       NEXT_PUBLIC_APP_URL: parsed.data.NEXT_PUBLIC_APP_URL,
       APP_NETWORK: parsed.data.APP_NETWORK,
+      MAINNET_GATE_APPROVED: parsed.data.MAINNET_GATE_APPROVED === "true",
     };
   } catch {
     throw new XamanConfigurationError();
