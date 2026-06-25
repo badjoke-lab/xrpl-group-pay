@@ -11,6 +11,12 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "vars": {
+    "APP_NETWORK": "testnet",
+    "NEXT_PUBLIC_APP_NETWORK": "testnet",
+    "MAINNET_RELEASE_MODE": "disabled",
+    "PAYMENTS_DATABASE_BINDING": "PAYMENTS_DB"
+  },
   "d1_databases": [
     {
       "binding": "PAYMENTS_DB",
@@ -20,6 +26,46 @@
       "migrations_dir": "migrations"
     }
   ],
+  "env": {
+    "testnet": {
+      "name": "xrpl-group-pay-testnet",
+      "vars": {
+        "APP_NETWORK": "testnet",
+        "NEXT_PUBLIC_APP_NETWORK": "testnet",
+        "MAINNET_RELEASE_MODE": "disabled",
+        "PAYMENTS_DATABASE_BINDING": "PAYMENTS_DB"
+      },
+      "d1_databases": [
+        {
+          "binding": "PAYMENTS_DB",
+          "database_name": "xrpl-group-pay-testnet",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "preview_database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations"
+        }
+      ]
+    },
+    "mainnet": {
+      "name": "xrpl-group-pay-mainnet",
+      "vars": {
+        "APP_NETWORK": "mainnet",
+        "NEXT_PUBLIC_APP_NETWORK": "mainnet",
+        "ALLOW_MAINNET_RUNTIME": "false",
+        "MAINNET_GATE_APPROVED": "false",
+        "MAINNET_RELEASE_MODE": "disabled",
+        "PAYMENTS_DATABASE_BINDING": "PAYMENTS_DB_MAINNET"
+      },
+      "d1_databases": [
+        {
+          "binding": "PAYMENTS_DB_MAINNET",
+          "database_name": "xrpl-group-pay-mainnet",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "preview_database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations"
+        }
+      ]
+    }
+  },
   "observability": {
     "enabled": true
   }
