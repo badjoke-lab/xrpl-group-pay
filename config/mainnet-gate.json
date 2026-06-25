@@ -50,8 +50,8 @@
     },
     {
       "id": "mainnet-acceptance-audit",
-      "status": "pending",
-      "evidence": null
+      "status": "failed",
+      "evidence": "The acceptance audit is complete but release remains blocked by unresolved production provisioning, configuration attestation, live Mainnet XRP and RLUSD evidence, and operational stop-drill findings in config/mainnet-acceptance.json."
     }
   ]
 }
