@@ -2,10 +2,7 @@ import type {
   AllocationResult,
   RemainderAssignment,
 } from "./allocation-engine";
-import type {
-  BillAllocationInput,
-  NormalizedCreateBillInput,
-} from "./types";
+import type { BillAllocationInput } from "./types";
 
 export const BILL_ALLOCATION_CONTRACT_VERSION =
   "xrpl-group-pay:bill-allocation:v1" as const;
@@ -128,7 +125,6 @@ function remainderIncrements(result: AllocationResult) {
 }
 
 export function prepareAllocationPersistence(input: {
-  normalizedInput: NormalizedCreateBillInput;
   allocationInput: BillAllocationInput;
   result: AllocationResult;
   participantIds: string[];
