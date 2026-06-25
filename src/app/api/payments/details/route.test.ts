@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { getXrpAssetDescriptor } from "@/features/assets/registry";
+import type { PaymentDetails } from "@/features/bills/payment-details";
 import {
   PaymentSlotNotFoundError,
   PaymentSlotStateError,
 } from "@/features/bills/payment-slot";
-import type { PaymentDetails } from "@/features/bills/payment-details";
 
 import {
   handlePaymentDetailsRequest,
@@ -12,12 +13,15 @@ import {
 } from "./route";
 
 const token = "a".repeat(64);
+const xrp = getXrpAssetDescriptor("testnet");
 const details: PaymentDetails = {
   billTitle: "Dinner",
   participantLabel: "Alex",
   expectedPayerAddress: "rPayer",
   destinationAddress: "rDestination",
   destinationTag: null,
+  asset: xrp,
+  amount: { code: "XRP", units: "4000000", scale: 6 },
   amountDrops: "4000000",
   sourceTag: 123456,
   invoiceId: "B".repeat(64),
@@ -39,7 +43,7 @@ function dependencies(): PaymentDetailsRouteDependencies & {
 }
 
 describe("POST /api/payments/details", () => {
-  it("returns no-store frozen details without creating a payload", async () => {
+  it("returns no-store frozen Asset details without creating a payload", async () => {
     const deps = dependencies();
     const response = await handlePaymentDetailsRequest(request(), deps);
 
@@ -63,7 +67,10 @@ describe("POST /api/payments/details", () => {
   it("returns state conflicts without exposing payment details", async () => {
     const deps = dependencies();
     deps.loadDetails.mockRejectedValue(
-      new PaymentSlotStateError("SLOT_ALREADY_PAID", "This payment slot is already paid."),
+      new PaymentSlotStateError(
+        "SLOT_ALREADY_PAID",
+        "This payment slot is already paid.",
+      ),
     );
     const response = await handlePaymentDetailsRequest(request(), deps);
 
