@@ -1,9 +1,11 @@
 import type { PaymentIntent } from "@/features/payment-intents/types";
 import type { XrplTxResult } from "@/features/xrpl/schemas";
 
+import type { AssetVerificationOutcome } from "./asset-outcome";
 import type { ExpectedPayment } from "./expected-payment";
-import type { PaymentVerificationOutcome } from "./types";
+import { verifyIssuedPayment } from "./issued-verifier";
 import { verifyXrpPayment } from "./verifier";
+import { verifiedPaymentFromXrpProof } from "./verified-payment";
 
 export type VerificationStrategyInput = {
   intent: PaymentIntent;
@@ -14,7 +16,7 @@ export type VerificationStrategyInput = {
 
 export interface VerificationStrategy {
   readonly strategyId: PaymentIntent["asset"]["verificationStrategy"];
-  verify(input: VerificationStrategyInput): PaymentVerificationOutcome;
+  verify(input: VerificationStrategyInput): AssetVerificationOutcome;
 }
 
 function expectedXrpPayment(
@@ -54,12 +56,32 @@ export const xrpPaymentVerificationStrategy: VerificationStrategy = {
         message: "The XRP strategy received an incompatible Asset.",
       };
     }
-    return verifyXrpPayment(expected, transaction, now);
+    const outcome = verifyXrpPayment(expected, transaction, now);
+    if (outcome.status !== "verified") return outcome;
+    return {
+      status: "verified",
+      payment: verifiedPaymentFromXrpProof(outcome.proof),
+      legacyProof: outcome.proof,
+    };
   },
 };
 
-const strategies = new Map([
+export const issuedPaymentVerificationStrategy: VerificationStrategy = {
+  strategyId: "xrpl-issued-asset-v1",
+  verify({ intent, transactionId, transaction, now }) {
+    return verifyIssuedPayment(intent, transactionId, transaction, now);
+  },
+};
+
+const strategies = new Map<
+  PaymentIntent["asset"]["verificationStrategy"],
+  VerificationStrategy
+>([
   [xrpPaymentVerificationStrategy.strategyId, xrpPaymentVerificationStrategy],
+  [
+    issuedPaymentVerificationStrategy.strategyId,
+    issuedPaymentVerificationStrategy,
+  ],
 ]);
 
 export function dispatchPaymentVerification(
@@ -67,7 +89,7 @@ export function dispatchPaymentVerification(
   transactionId: string,
   transaction: XrplTxResult,
   now = new Date(),
-): PaymentVerificationOutcome {
+): AssetVerificationOutcome {
   const normalizedTransactionId = transactionId.toUpperCase();
   const strategy = strategies.get(intent.asset.verificationStrategy);
 
