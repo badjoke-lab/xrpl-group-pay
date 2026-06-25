@@ -5,6 +5,7 @@ import {
   RLUSD_ISSUERS,
 } from "@/features/assets/rlusd";
 import { createRlusdPaymentIntent } from "@/features/payment-intents/rlusd";
+import type { PaymentIntent } from "@/features/payment-intents/types";
 import type { XrplTxResult } from "@/features/xrpl/schemas";
 
 import {
@@ -27,11 +28,18 @@ const intent = createRlusdPaymentIntent({
   expectedPayer: TEST_SENDER,
 });
 
-function amount(value = "1.25", issuer = RLUSD_ISSUERS.mainnet) {
-  return { currency: RLUSD_CURRENCY_HEX, issuer, value };
+function amount(
+  value = "1.25",
+  issuer = RLUSD_ISSUERS.mainnet,
+  currency = RLUSD_CURRENCY_HEX,
+) {
+  return { currency, issuer, value };
 }
 
-function transaction(): XrplTxResult {
+function transaction(
+  requested: unknown = amount(),
+  delivered: unknown = amount(),
+): XrplTxResult {
   return {
     hash: TEST_TXID,
     validated: true,
@@ -40,7 +48,7 @@ function transaction(): XrplTxResult {
       TransactionType: "Payment",
       Account: TEST_SENDER,
       Destination: TEST_DESTINATION,
-      DeliverMax: amount(),
+      DeliverMax: requested,
       SourceTag: TEST_SOURCE_TAG,
       DestinationTag: 9,
       InvoiceID: TEST_INVOICE_ID,
@@ -48,7 +56,7 @@ function transaction(): XrplTxResult {
     },
     meta: {
       TransactionResult: "tesSUCCESS",
-      delivered_amount: amount(),
+      delivered_amount: delivered,
     },
   };
 }
@@ -56,17 +64,65 @@ function transaction(): XrplTxResult {
 describe("verifyRlusdPayment", () => {
   it("verifies official Mainnet RLUSD", () => {
     expect(
-      verifyRlusdPayment(intent, TEST_TXID, transaction()),
+      verifyRlusdPayment(
+        intent,
+        TEST_TXID,
+        transaction(amount("125e-2"), amount("1.250000")),
+      ),
     ).toMatchObject({
       status: "verified",
+      legacyProof: null,
       payment: {
         network: "mainnet",
         asset: {
           id: "xrpl:mainnet:rlusd",
           issuer: RLUSD_ISSUERS.mainnet,
         },
+        requestedAmount: { units: "1250000", scale: 6 },
+        deliveredAmount: { units: "1250000", scale: 6 },
         idempotencyKey: `mainnet:${TEST_TXID}`,
       },
+    });
+  });
+
+  it("rejects a non-canonical issued Asset", () => {
+    const arbitraryIntent: PaymentIntent = {
+      ...intent,
+      asset: {
+        ...intent.asset,
+        id: "xrpl:mainnet:arbitrary-usd",
+        issuer: TEST_SENDER,
+      },
+    };
+
+    expect(
+      verifyRlusdPayment(arbitraryIntent, TEST_TXID, transaction()),
+    ).toMatchObject({
+      status: "failed",
+      reason: "UNSUPPORTED_VERIFICATION_STRATEGY",
+    });
+  });
+
+  it("rejects a Testnet issuer in the Mainnet requested Amount", () => {
+    expect(
+      verifyRlusdPayment(
+        intent,
+        TEST_TXID,
+        transaction(amount("1.25", RLUSD_ISSUERS.testnet)),
+      ),
+    ).toMatchObject({ status: "failed", reason: "ASSET_MISMATCH" });
+  });
+
+  it("rejects a Testnet issuer in the Mainnet delivered amount", () => {
+    expect(
+      verifyRlusdPayment(
+        intent,
+        TEST_TXID,
+        transaction(amount(), amount("1.25", RLUSD_ISSUERS.testnet)),
+      ),
+    ).toMatchObject({
+      status: "failed",
+      reason: "DELIVERED_ASSET_MISMATCH",
     });
   });
 });
