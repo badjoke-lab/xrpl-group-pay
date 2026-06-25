@@ -1,9 +1,9 @@
 import type { D1DatabaseLike } from "@/features/persistence/d1-types";
-import type { AssetVerificationOutcome } from "@/features/payment-verification/asset-outcome";
 import {
   assetPaymentVerificationApiOutcomeSchema,
   type AssetPaymentVerificationApiOutcome,
-} from "@/features/payment-verification/types";
+} from "@/features/payment-verification/asset-api-outcome";
+import type { AssetVerificationOutcome } from "@/features/payment-verification/asset-outcome";
 
 import type { ResolvedPaymentSlot } from "./payment-slot";
 import { settleVerifiedIssuedPaymentSlot } from "./settle-issued-slot";
