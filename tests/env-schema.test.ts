@@ -10,6 +10,7 @@ describe("parseBuildEnv", () => {
       mainnetGateApproved: false,
       mainnetSourceTagApproved: false,
       mainnetReleaseMode: "disabled",
+      mainnetOperationsMode: "halted",
       paymentsDatabaseBinding: "PAYMENTS_DB",
       xrplSourceTag: null,
     });
@@ -43,6 +44,7 @@ describe("parseBuildEnv", () => {
         MAINNET_GATE_APPROVED: "true",
         MAINNET_SOURCE_TAG_APPROVED: "true",
         MAINNET_RELEASE_MODE: "internal",
+        MAINNET_OPERATIONS_MODE: "enabled",
         PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
         XRPL_MAINNET_SOURCE_TAG: "123",
       }),
@@ -52,6 +54,7 @@ describe("parseBuildEnv", () => {
       mainnetGateApproved: true,
       mainnetSourceTagApproved: true,
       mainnetReleaseMode: "internal",
+      mainnetOperationsMode: "enabled",
       paymentsDatabaseBinding: "PAYMENTS_DB_MAINNET",
       xrplSourceTag: 123,
     });
