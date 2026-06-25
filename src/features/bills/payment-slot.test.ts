@@ -69,6 +69,13 @@ const row = {
   participant_label: "Alex",
   expected_payer_address: "rPayer",
   expected_amount_drops: "1000000",
+  payment_contract_version: "xrpl-group-pay:payment-slot:v1",
+  asset_id: "xrpl:testnet:xrp",
+  asset_type: "native",
+  currency_code: "XRP",
+  issuer: null,
+  amount_scale: 6,
+  expected_amount_units: "1000000",
   invoice_id: "B".repeat(64),
   slot_status: "unpaid",
   bill_status: "open",
@@ -94,7 +101,7 @@ const payable: ResolvedPaymentSlot = {
 };
 
 describe("payment slot capabilities", () => {
-  it("loads a slot with the token hash rather than the raw capability", async () => {
+  it("loads Asset identity and generic units through the capability hash", async () => {
     const database = new Database(row);
     const slot = await loadPaymentSlotByToken(database, token);
 
@@ -102,6 +109,13 @@ describe("payment slot capabilities", () => {
       slotId: "slot-1",
       billTitle: "Dinner",
       expectedAmountDrops: "1000000",
+      expectedAmount: { code: "XRP", units: "1000000", scale: 6 },
+      asset: {
+        id: "xrpl:testnet:xrp",
+        assetType: "native",
+        currency: "XRP",
+        issuer: null,
+      },
       slotStatus: "unpaid",
     });
     expect(database.statement?.values).toEqual([
