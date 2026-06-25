@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { XrplNetwork } from "@/features/assets/types";
+
 import {
   transactionHashSchema,
   xrplRpcEnvelopeSchema,
@@ -12,17 +14,43 @@ export const XRPL_TESTNET_RPC_ENDPOINTS = [
   "https://testnet.xrpl-labs.com/",
 ] as const;
 
+export const XRPL_MAINNET_RPC_ENDPOINTS = [
+  "https://s1.ripple.com:51234/",
+  "https://s2.ripple.com:51234/",
+] as const;
+
+export const XRPL_TRANSACTION_RPC_ENDPOINTS: Readonly<
+  Record<XrplNetwork, readonly string[]>
+> = {
+  testnet: XRPL_TESTNET_RPC_ENDPOINTS,
+  mainnet: XRPL_MAINNET_RPC_ENDPOINTS,
+};
+
+export type MainnetTransactionReadAccess = {
+  network: "mainnet";
+  mainnetGateApproved: true;
+};
+
 export class XrplTransactionPendingError extends Error {
-  constructor() {
-    super("The transaction is not available on the validated Testnet ledger yet.");
+  constructor(readonly network: XrplNetwork = "testnet") {
+    super(
+      `The transaction is not available on the validated XRPL ${network} ledger yet.`,
+    );
     this.name = "XrplTransactionPendingError";
   }
 }
 
 export class XrplNodeUnavailableError extends Error {
-  constructor() {
-    super("XRPL Testnet transaction data is temporarily unavailable.");
+  constructor(readonly network: XrplNetwork = "testnet") {
+    super(`XRPL ${network} transaction data is temporarily unavailable.`);
     this.name = "XrplNodeUnavailableError";
+  }
+}
+
+export class XrplTransactionClientConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "XrplTransactionClientConfigurationError";
   }
 }
 
@@ -37,11 +65,35 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-export class XrplTestnetClient {
+function requireMainnetAccess(
+  network: XrplNetwork,
+  access: MainnetTransactionReadAccess | undefined,
+) {
+  if (
+    network === "mainnet" &&
+    (access?.network !== "mainnet" || access.mainnetGateApproved !== true)
+  ) {
+    throw new XrplTransactionClientConfigurationError(
+      "XRPL Mainnet transaction reads require an explicitly approved Mainnet gate.",
+    );
+  }
+}
+
+export class XrplTransactionClient {
   constructor(
-    private readonly endpoints: readonly string[] = XRPL_TESTNET_RPC_ENDPOINTS,
+    readonly network: XrplNetwork,
+    private readonly endpoints: readonly string[] =
+      XRPL_TRANSACTION_RPC_ENDPOINTS[network],
     private readonly fetcher: typeof fetch = fetch,
-  ) {}
+    mainnetAccess?: MainnetTransactionReadAccess,
+  ) {
+    requireMainnetAccess(network, mainnetAccess);
+    if (endpoints.length === 0) {
+      throw new XrplTransactionClientConfigurationError(
+        "At least one network-scoped XRPL transaction endpoint is required.",
+      );
+    }
+  }
 
   private async requestEndpoint(
     endpoint: string,
@@ -86,7 +138,7 @@ export class XrplTestnetClient {
     if (isRecord(envelope.data.result)) {
       const error = envelope.data.result.error;
       if (error === "txnNotFound") {
-        throw new XrplTransactionPendingError();
+        throw new XrplTransactionPendingError(this.network);
       }
       if (typeof error === "string") {
         throw new XrplNodeResponseError();
@@ -104,7 +156,7 @@ export class XrplTestnetClient {
   async getTransaction(transactionId: string): Promise<XrplTxResult> {
     const parsedTransactionId = transactionHashSchema.safeParse(transactionId);
     if (!parsedTransactionId.success) {
-      throw new XrplNodeUnavailableError();
+      throw new XrplNodeUnavailableError(this.network);
     }
 
     let sawNotFound = false;
@@ -124,9 +176,57 @@ export class XrplTestnetClient {
     }
 
     if (sawNotFound) {
-      throw new XrplTransactionPendingError();
+      throw new XrplTransactionPendingError(this.network);
     }
 
-    throw new XrplNodeUnavailableError();
+    throw new XrplNodeUnavailableError(this.network);
   }
+}
+
+export class XrplTestnetClient extends XrplTransactionClient {
+  constructor(
+    endpoints: readonly string[] = XRPL_TESTNET_RPC_ENDPOINTS,
+    fetcher: typeof fetch = fetch,
+  ) {
+    super("testnet", endpoints, fetcher);
+  }
+}
+
+export class XrplMainnetClient extends XrplTransactionClient {
+  constructor(
+    access: MainnetTransactionReadAccess,
+    endpoints: readonly string[] = XRPL_MAINNET_RPC_ENDPOINTS,
+    fetcher: typeof fetch = fetch,
+  ) {
+    super("mainnet", endpoints, fetcher, access);
+  }
+}
+
+export function createXrplTransactionClient(
+  network: XrplNetwork,
+  options: {
+    deploymentNetwork?: XrplNetwork;
+    mainnetAccess?: MainnetTransactionReadAccess;
+    endpoints?: readonly string[];
+    fetcher?: typeof fetch;
+  } = {},
+): XrplTransactionClient {
+  if (
+    options.deploymentNetwork !== undefined &&
+    options.deploymentNetwork !== network
+  ) {
+    throw new XrplTransactionClientConfigurationError(
+      "The PaymentSlot network does not match the deployment network.",
+    );
+  }
+
+  if (network === "mainnet") {
+    return new XrplMainnetClient(
+      options.mainnetAccess as MainnetTransactionReadAccess,
+      options.endpoints,
+      options.fetcher,
+    );
+  }
+
+  return new XrplTestnetClient(options.endpoints, options.fetcher);
 }
