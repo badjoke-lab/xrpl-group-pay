@@ -16,11 +16,13 @@ CREATE TABLE bill_allocations (
       weight_total_units <> ''
       AND weight_total_units NOT GLOB '*[^0-9]*'
       AND weight_total_units <> '0'
+      AND weight_total_units NOT LIKE '0%'
     )
   ),
   remainder_units TEXT NOT NULL CHECK (
     remainder_units <> ''
     AND remainder_units NOT GLOB '*[^0-9]*'
+    AND (remainder_units = '0' OR remainder_units NOT LIKE '0%')
   ),
   remainder_kind TEXT NOT NULL CHECK (
     remainder_kind IN (
@@ -60,27 +62,30 @@ CREATE TABLE bill_allocation_participants (
     OR (
       input_units <> ''
       AND input_units NOT GLOB '*[^0-9]*'
+      AND (input_units = '0' OR input_units NOT LIKE '0%')
     )
   ),
   base_amount_units TEXT NOT NULL CHECK (
     base_amount_units <> ''
     AND base_amount_units NOT GLOB '*[^0-9]*'
+    AND (base_amount_units = '0' OR base_amount_units NOT LIKE '0%')
   ),
   remainder_increment_units TEXT NOT NULL CHECK (
     remainder_increment_units <> ''
     AND remainder_increment_units NOT GLOB '*[^0-9]*'
+    AND (
+      remainder_increment_units = '0'
+      OR remainder_increment_units NOT LIKE '0%'
+    )
   ),
   final_amount_units TEXT NOT NULL CHECK (
     final_amount_units <> ''
     AND final_amount_units NOT GLOB '*[^0-9]*'
     AND final_amount_units <> '0'
+    AND final_amount_units NOT LIKE '0%'
   ),
   created_at TEXT NOT NULL,
-  PRIMARY KEY (bill_id, participant_id),
-  CHECK (
-    CAST(base_amount_units AS INTEGER) + CAST(remainder_increment_units AS INTEGER)
-    = CAST(final_amount_units AS INTEGER)
-  )
+  PRIMARY KEY (bill_id, participant_id)
 ) STRICT;
 
 INSERT INTO bill_allocations (
