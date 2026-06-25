@@ -113,7 +113,7 @@ export function TestnetBillReview({
             label="Asset type"
             value={issued ? "Issued Asset" : "Native XRP"}
           />
-          {issued && (
+          {review.asset.assetType === "issued" && (
             <div className="lg:col-span-2">
               <ReviewField
                 label="Official issuer"
