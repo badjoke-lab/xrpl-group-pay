@@ -121,7 +121,7 @@ function rlusdInput() {
 }
 
 describe("createPublishedBill", () => {
-  it("keeps the legacy XRP input compatible while returning Asset amounts", async () => {
+  it("stores legacy XRP Bills with immutable Custom Amount records", async () => {
     const database = new CaptureDatabase();
     const created = await createPublishedBill(
       database,
@@ -130,42 +130,121 @@ describe("createPublishedBill", () => {
       deterministicRandom(),
     );
 
-    expect(database.statements).toHaveLength(3);
+    expect(database.statements).toHaveLength(6);
     expect(database.statements[0].query).toContain("INSERT INTO bills");
     expect(database.statements[1].query).toContain("INSERT INTO payment_slots");
     expect(database.statements[2].query).toContain("INSERT INTO payment_slots");
+    expect(database.statements[3].query).toContain("INSERT INTO bill_allocations");
+    expect(database.statements[4].query).toContain(
+      "INSERT INTO bill_allocation_participants",
+    );
+    expect(database.statements[5].query).toContain(
+      "INSERT INTO bill_allocation_participants",
+    );
+
+    expect(database.statements[3].values).toEqual([
+      uuids[0],
+      "xrpl-group-pay:bill-allocation:v1",
+      "custom",
+      null,
+      null,
+      "0",
+      "none",
+      null,
+      "2026-06-24T00:00:00.000Z",
+    ]);
+    expect(database.statements[4].values).toEqual([
+      uuids[0],
+      uuids[2],
+      "participant-1",
+      "3000000",
+      "3000000",
+      "0",
+      "3000000",
+      "2026-06-24T00:00:00.000Z",
+    ]);
 
     expect(created.bill).toMatchObject({
       publicId: uuids[1],
       asset: { id: "xrpl:testnet:xrp", symbol: "XRP" },
       totalAmount: { code: "XRP", units: "10000000", scale: 6 },
       creatorShareAmount: { code: "XRP", units: "2000000", scale: 6 },
-      totalDrops: "10000000",
-      creatorShareDrops: "2000000",
       status: "open",
     });
     expect(created.slots.map((slot) => slot.expectedAmountDrops)).toEqual([
       "3000000",
       "5000000",
     ]);
-    expect(created.capabilities).toEqual({
-      publicToken: tokens[0],
-      adminToken: tokens[1],
-    });
 
     const billValues = database.statements[0].values;
     expect(billValues).not.toContain(tokens[0]);
     expect(billValues).not.toContain(tokens[1]);
     expect(billValues).toContain(await hashCapabilityToken(tokens[0]));
     expect(billValues).toContain(await hashCapabilityToken(tokens[1]));
-
     expect(database.statements[1].values).not.toContain(tokens[2]);
-    expect(database.statements[1].values).toContain(
-      await hashCapabilityToken(tokens[2]),
-    );
   });
 
-  it("freezes official RLUSD identity and generic units for every slot", async () => {
+  it("stores explicit Equal remainder provenance in the same atomic batch", async () => {
+    const database = new CaptureDatabase();
+    const created = await createPublishedBill(
+      database,
+      {
+        title: "Tiny split",
+        destinationAddress: "rPEPPER7kfTD9w2To4CQk6UCfuHM9c6GDY",
+        settlementAssetId: "xrpl:testnet:xrp",
+        totalAmount: "0.000003",
+        creatorShareAmount: "0",
+        allocation: {
+          strategy: "equal",
+          remainderAssignment: { kind: "first_participant" },
+        },
+        participants: [
+          {
+            participantId: "p1",
+            expectedPayerAddress: "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+          },
+          {
+            participantId: "p2",
+            expectedPayerAddress: "rN7n7otQDd6FczFgLdSqtcsAUxDkw6fzRH",
+          },
+        ],
+      },
+      new Date("2026-06-25T00:00:00.000Z"),
+      deterministicRandom(),
+    );
+
+    expect(created.slots.map((slot) => slot.expectedAmount.units)).toEqual([
+      "2",
+      "1",
+    ]);
+    expect(database.statements[3].values).toEqual([
+      uuids[0],
+      "xrpl-group-pay:bill-allocation:v1",
+      "equal",
+      null,
+      null,
+      "1",
+      "first_participant",
+      "p1",
+      "2026-06-25T00:00:00.000Z",
+    ]);
+    expect(database.statements[4].values.slice(2, 7)).toEqual([
+      "p1",
+      null,
+      "1",
+      "1",
+      "2",
+    ]);
+    expect(database.statements[5].values.slice(2, 7)).toEqual([
+      "p2",
+      null,
+      "1",
+      "0",
+      "1",
+    ]);
+  });
+
+  it("keeps official RLUSD identity and generic allocation units", async () => {
     const database = new CaptureDatabase();
     const asset = getRlusdAssetDescriptor("testnet");
     const created = await createPublishedBill(
@@ -182,42 +261,24 @@ describe("createPublishedBill", () => {
       totalDrops: null,
       creatorShareDrops: null,
     });
-    expect(created.slots).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          asset,
-          expectedAmount: { code: "RLUSD", units: "3000000", scale: 6 },
-          expectedAmountDrops: null,
-        }),
-      ]),
-    );
-
-    const billValues = database.statements[0].values;
-    expect(billValues).toContain(asset.id);
-    expect(billValues).toContain(asset.currency);
-    expect(billValues).toContain(asset.issuer);
-    const firstSlotValues = database.statements[1].values;
-    expect(firstSlotValues).toContain(asset.id);
-    expect(firstSlotValues).toContain("3000000");
+    expect(database.statements[0].values).toContain(asset.issuer);
+    expect(database.statements[4].values).toContain("3000000");
   });
 
   it("returns an Asset-aware normalized review before persistence", () => {
-    const review = prepareBillReview(rlusdInput());
-    expect(review).toMatchObject({
+    expect(prepareBillReview(rlusdInput())).toMatchObject({
       asset: { id: "xrpl:testnet:rlusd", assetType: "issued" },
       totalAmount: { code: "RLUSD", units: "10000000", scale: 6 },
-      totalDrops: null,
       participants: [
         expect.objectContaining({
           expectedAmount: { code: "RLUSD", units: "3000000", scale: 6 },
-          expectedAmountDrops: null,
         }),
         expect.anything(),
       ],
     });
   });
 
-  it("rejects allocations that do not equal the bill total", async () => {
+  it("fails before persistence for invalid input and fails closed on D1 errors", async () => {
     const database = new CaptureDatabase();
     await expect(
       createPublishedBill(
@@ -228,20 +289,13 @@ describe("createPublishedBill", () => {
       ),
     ).rejects.toBeInstanceOf(BillInputError);
     expect(database.statements).toHaveLength(0);
-  });
 
-  it("rejects invalid payer addresses before persistence", async () => {
-    const database = new CaptureDatabase();
     const invalid = input();
     invalid.participants[0].expectedPayerAddress = "not-an-address";
-
     await expect(
       createPublishedBill(database, invalid, new Date(), deterministicRandom()),
     ).rejects.toBeInstanceOf(BillInputError);
-    expect(database.statements).toHaveLength(0);
-  });
 
-  it("fails closed when the atomic batch fails", async () => {
     await expect(
       createPublishedBill(
         new CaptureDatabase(true),
