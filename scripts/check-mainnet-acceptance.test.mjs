@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   REQUIRED_ACCEPTANCE_CONTROL_IDS,
+  REQUIRED_ACCEPTANCE_FINDING_IDS,
   runMainnetAcceptanceAudit,
 } from "./check-mainnet-acceptance.mjs";
 
@@ -13,6 +14,14 @@ const temporaryDirectories = [];
 
 function controls(status = "passed") {
   return REQUIRED_ACCEPTANCE_CONTROL_IDS.map((id) => ({
+    id,
+    status,
+    evidence: `Evidence for ${id}.`,
+  }));
+}
+
+function findings(status = "open") {
+  return REQUIRED_ACCEPTANCE_FINDING_IDS.map((id) => ({
     id,
     status,
     evidence: `Evidence for ${id}.`,
@@ -90,9 +99,7 @@ describe("Mainnet acceptance audit", () => {
       controls: controls().map((control, index) =>
         index === 0 ? { ...control, status: "pending" } : control,
       ),
-      blocking_findings: [
-        { id: "production-not-ready", status: "open", evidence: "Blocked." },
-      ],
+      blocking_findings: findings(),
     };
     const paths = await fixture({ acceptance, gateDocument: gate() });
 
@@ -111,9 +118,7 @@ describe("Mainnet acceptance audit", () => {
       release_decision: "approved",
       audited_at: "2026-06-26",
       controls: controls(),
-      blocking_findings: [
-        { id: "closed-finding", status: "resolved", evidence: "Resolved." },
-      ],
+      blocking_findings: findings("resolved"),
     };
     const paths = await fixture({
       acceptance,
@@ -135,7 +140,7 @@ describe("Mainnet acceptance audit", () => {
       controls: controls().map((control, index) =>
         index === 1 ? { ...control, status: "pending" } : control,
       ),
-      blocking_findings: [],
+      blocking_findings: findings("resolved"),
     };
     const incompletePaths = await fixture({
       acceptance: incomplete,
@@ -149,9 +154,9 @@ describe("Mainnet acceptance audit", () => {
     const openFinding = {
       ...incomplete,
       controls: controls(),
-      blocking_findings: [
-        { id: "still-open", status: "open", evidence: "Open." },
-      ],
+      blocking_findings: findings("resolved").map((finding, index) =>
+        index === 0 ? { ...finding, status: "open" } : finding,
+      ),
     };
     const openPaths = await fixture({
       acceptance: openFinding,
@@ -170,9 +175,7 @@ describe("Mainnet acceptance audit", () => {
       release_decision: "blocked",
       audited_at: "2026-06-26",
       controls: controls("pending"),
-      blocking_findings: [
-        { id: "blocker", status: "open", evidence: "Open." },
-      ],
+      blocking_findings: findings(),
     };
     const paths = await fixture({
       acceptance,
@@ -184,29 +187,79 @@ describe("Mainnet acceptance audit", () => {
     );
   });
 
-  it("rejects missing required controls and stale blocker evidence", async () => {
+  it("allows D1 provisioning to resolve while other release findings remain open", async () => {
     const acceptance = {
       schema_version: 1,
       audit_status: "completed",
       release_decision: "blocked",
       audited_at: "2026-06-26",
-      controls: controls().slice(1),
-      blocking_findings: [
-        { id: "blocker", status: "open", evidence: "Open." },
-      ],
+      controls: controls("pending").map((control) =>
+        control.id === "production-d1-provisioning"
+          ? { ...control, status: "passed" }
+          : control,
+      ),
+      blocking_findings: findings().map((finding) =>
+        finding.id === "production-d1-not-provisioned"
+          ? { ...finding, status: "resolved" }
+          : finding,
+      ),
     };
-    const missingPaths = await fixture({ acceptance, gateDocument: gate() });
-    await expect(runMainnetAcceptanceAudit(missingPaths)).rejects.toThrow(
+    const provisionedWrangler = safeBlockedWrangler.replaceAll(
+      "00000000-0000-0000-0000-000000000000",
+      "11111111-1111-4111-8111-111111111111",
+    );
+    const paths = await fixture({
+      acceptance,
+      gateDocument: gate(),
+      wrangler: provisionedWrangler,
+    });
+
+    await expect(runMainnetAcceptanceAudit(paths)).resolves.toMatchObject({
+      release_decision: "blocked",
+    });
+  });
+
+  it("rejects missing required records and stale blocker evidence", async () => {
+    const missingControl = {
+      schema_version: 1,
+      audit_status: "completed",
+      release_decision: "blocked",
+      audited_at: "2026-06-26",
+      controls: controls().slice(1),
+      blocking_findings: findings(),
+    };
+    const missingControlPaths = await fixture({
+      acceptance: missingControl,
+      gateDocument: gate(),
+    });
+    await expect(runMainnetAcceptanceAudit(missingControlPaths)).rejects.toThrow(
       "control is missing",
     );
 
-    const complete = { ...acceptance, controls: controls("pending") };
+    const missingFinding = {
+      ...missingControl,
+      controls: controls("pending"),
+      blocking_findings: findings().slice(1),
+    };
+    const missingFindingPaths = await fixture({
+      acceptance: missingFinding,
+      gateDocument: gate(),
+    });
+    await expect(runMainnetAcceptanceAudit(missingFindingPaths)).rejects.toThrow(
+      "finding is missing",
+    );
+
+    const complete = {
+      ...missingControl,
+      controls: controls("pending"),
+      blocking_findings: findings(),
+    };
     const stalePaths = await fixture({
       acceptance: complete,
       gateDocument: gate(),
       wrangler: safeBlockedWrangler.replace(
         "00000000-0000-0000-0000-000000000000",
-        "11111111-1111-1111-1111-111111111111",
+        "11111111-1111-4111-8111-111111111111",
       ),
     });
     await expect(runMainnetAcceptanceAudit(stalePaths)).rejects.toThrow(
