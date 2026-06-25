@@ -195,7 +195,7 @@ export async function settleVerifiedPaymentSlot(
       receipt: recordedPaymentReceiptSchema.parse({
         receiptId: parsed.data.receipt_id,
         status: (receiptWrite.meta?.changes ?? 0) > 0 ? "created" : "existing",
-        network: "testnet",
+        network: proof.network,
         transactionId: parsed.data.transaction_id,
         invoiceId: parsed.data.invoice_id,
         recordedAt: parsed.data.recorded_at,
