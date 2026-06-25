@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { BILL_REVIEW_FIXTURE } from "@/test/fixtures/bill-review";
+
 import {
   BillReviewRequestError,
   requestBillReview,
@@ -8,33 +10,19 @@ import {
 const input = {
   title: "Dinner",
   destinationAddress: "rPEPPER7kfTD9w2To4CQk6UCfuHM9c6GDY",
-  totalXrp: "3",
-  creatorShareXrp: "1",
+  settlementAssetId: "xrpl:testnet:xrp" as const,
+  totalAmount: "3",
+  creatorShareAmount: "1",
   participants: [
     {
       expectedPayerAddress: "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-      amountXrp: "1",
+      amount: "1",
     },
     {
       expectedPayerAddress: "rN7n7otQDd6FczFgLdSqtcsAUxDkw6fzRH",
-      amountXrp: "1",
+      amount: "1",
     },
   ],
-};
-
-const review = {
-  network: "testnet",
-  title: "Dinner",
-  destinationAddress: input.destinationAddress,
-  destinationTag: null,
-  totalDrops: "3000000",
-  creatorShareDrops: "1000000",
-  allocatedDrops: "3000000",
-  participants: input.participants.map((participant) => ({
-    participantLabel: null,
-    expectedPayerAddress: participant.expectedPayerAddress,
-    expectedAmountDrops: "1000000",
-  })),
 };
 
 function response(body: unknown, status: number) {
@@ -45,12 +33,14 @@ function response(body: unknown, status: number) {
 }
 
 describe("requestBillReview", () => {
-  it("returns a validated review snapshot", async () => {
-    const fetcher = vi.fn().mockResolvedValue(response(review, 200));
+  it("returns a validated Asset review snapshot", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(response(BILL_REVIEW_FIXTURE, 200));
 
     await expect(
       requestBillReview(input, fetcher as unknown as typeof fetch),
-    ).resolves.toEqual(review);
+    ).resolves.toEqual(BILL_REVIEW_FIXTURE);
     expect(fetcher).toHaveBeenCalledWith(
       "/api/bills/review",
       expect.objectContaining({
