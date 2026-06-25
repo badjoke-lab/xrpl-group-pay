@@ -58,6 +58,15 @@ function assertUnique(items, label) {
   }
 }
 
+function parseJsonc(source) {
+  const withoutBlockComments = source.replace(/\/\*[\s\S]*?\*\//g, "");
+  const withoutLineComments = withoutBlockComments.replace(
+    /(^|[^:])\/\/.*$/gm,
+    "$1",
+  );
+  return JSON.parse(withoutLineComments);
+}
+
 export async function readMainnetAcceptance(
   path = resolve(process.cwd(), "config/mainnet-acceptance.json"),
 ) {
@@ -156,22 +165,37 @@ export function assertMainnetAcceptanceMatchesGate(acceptance, gate) {
 export function assertBlockedReleaseEvidence(acceptance, wranglerSource) {
   if (acceptance.release_decision !== "blocked") return;
 
-  const requiredSafeDefaults = [
-    '"ALLOW_MAINNET_RUNTIME": "false"',
-    '"MAINNET_GATE_APPROVED": "false"',
-    '"MAINNET_SOURCE_TAG_APPROVED": "false"',
-    '"MAINNET_RELEASE_MODE": "disabled"',
-    '"MAINNET_OPERATIONS_MODE": "halted"',
-  ];
-  for (const expected of requiredSafeDefaults) {
-    if (!wranglerSource.includes(expected)) {
+  const wrangler = parseJsonc(wranglerSource);
+  const mainnet = wrangler?.env?.mainnet;
+  const variables = mainnet?.vars;
+  if (!mainnet || !variables) {
+    throw new Error("Wrangler must define an explicit Mainnet environment.");
+  }
+
+  const requiredSafeDefaults = {
+    ALLOW_MAINNET_RUNTIME: "false",
+    MAINNET_GATE_APPROVED: "false",
+    MAINNET_SOURCE_TAG_APPROVED: "false",
+    MAINNET_RELEASE_MODE: "disabled",
+    MAINNET_OPERATIONS_MODE: "halted",
+  };
+  for (const [name, expected] of Object.entries(requiredSafeDefaults)) {
+    if (variables[name] !== expected) {
       throw new Error(
-        `Blocked Mainnet acceptance requires the committed safe default ${expected}.`,
+        `Blocked Mainnet acceptance requires ${name}=${expected} in the committed Mainnet environment.`,
       );
     }
   }
 
-  if (!wranglerSource.includes('"database_id": "00000000-0000-0000-0000-000000000000"')) {
+  const mainnetDatabase = mainnet.d1_databases?.find(
+    (database) => database.binding === "PAYMENTS_DB_MAINNET",
+  );
+  if (
+    !mainnetDatabase ||
+    mainnetDatabase.database_id !== "00000000-0000-0000-0000-000000000000" ||
+    mainnetDatabase.preview_database_id !==
+      "00000000-0000-0000-0000-000000000000"
+  ) {
     throw new Error(
       "The production D1 blocker no longer matches the committed Wrangler evidence.",
     );
