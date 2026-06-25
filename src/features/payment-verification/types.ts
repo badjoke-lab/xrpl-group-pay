@@ -1,10 +1,10 @@
 import { z } from "zod";
 
-import { recordedVerifiedPaymentSchema } from "@/features/persistence/record-verified-payment";
 import { recordedPaymentReceiptSchema } from "@/features/persistence/types";
 import { verifiedPaymentSchema } from "./verified-payment";
 
 const transactionHashSchema = z.string().regex(/^[A-F0-9]{64}$/i);
+const canonicalHashSchema = z.string().regex(/^[A-F0-9]{64}$/);
 const dropsSchema = z.string().regex(/^(?:0|[1-9]\d*)$/);
 const uint32Schema = z.number().int().min(0).max(4_294_967_295);
 
@@ -96,11 +96,25 @@ const recordedXrpVerifiedOutcomeSchema = z
   })
   .strict();
 
+const recordedIssuedReceiptSchema = z
+  .object({
+    receiptId: z.string().min(1),
+    status: z.enum(["recorded", "existing"]),
+    network: z.enum(["testnet", "mainnet"]),
+    transactionId: canonicalHashSchema,
+    invoiceId: canonicalHashSchema,
+    assetId: z.string().min(1),
+    recordedAt: z.string().datetime(),
+    verifiedPaymentDigest: canonicalHashSchema,
+    legacyProofDigest: canonicalHashSchema.nullable(),
+  })
+  .strict();
+
 const recordedIssuedVerifiedOutcomeSchema = z
   .object({
     status: z.literal("verified"),
     payment: verifiedPaymentSchema,
-    receipt: recordedVerifiedPaymentSchema,
+    receipt: recordedIssuedReceiptSchema,
   })
   .strict()
   .superRefine((outcome, context) => {
