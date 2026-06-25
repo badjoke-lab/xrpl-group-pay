@@ -3,13 +3,13 @@ import type {
   XrplNetwork,
 } from "./types";
 
-export const RLUSD_CURRENCY_HEX =
-  "524C555344000000000000000000000000000000" as const;
+export const RLUSD_CURRENCY_HEX: string =
+  "524C555344000000000000000000000000000000";
 
-export const RLUSD_ISSUERS = {
+export const RLUSD_ISSUERS: Readonly<Record<XrplNetwork, string>> = {
   testnet: "rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV",
   mainnet: "rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De",
-} as const;
+};
 
 export const XRPL_RLUSD_ASSET_IDS = {
   testnet: "xrpl:testnet:rlusd",
