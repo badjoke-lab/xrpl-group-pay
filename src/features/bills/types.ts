@@ -142,13 +142,27 @@ const legacyXrpCreateBillInputSchema = z
     })),
   }));
 
-export const createBillInputSchema = z.union([
-  canonicalCreateBillInputSchema,
-  legacyXrpCreateBillInputSchema,
-]);
+export type NormalizedCreateBillInput = {
+  title: string;
+  destinationAddress: string;
+  destinationTag?: string | number;
+  settlementAssetId: z.infer<typeof testnetSettlementAssetIdSchema>;
+  totalAmount: string;
+  creatorShareAmount: string;
+  allocation?: BillAllocationInput;
+  participants: Array<{
+    participantId?: string;
+    label?: string;
+    expectedPayerAddress: string;
+    amount?: string;
+  }>;
+};
+
+export const createBillInputSchema = z
+  .union([canonicalCreateBillInputSchema, legacyXrpCreateBillInputSchema])
+  .transform((input): NormalizedCreateBillInput => input);
 
 export type CreateBillInput = z.input<typeof createBillInputSchema>;
-export type NormalizedCreateBillInput = z.output<typeof createBillInputSchema>;
 
 const reviewedParticipantSchema = z
   .object({
