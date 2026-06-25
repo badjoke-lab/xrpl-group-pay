@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  getRlusdAssetDescriptor,
+  getXrpAssetDescriptor,
+} from "@/features/assets/registry";
+import { PAYMENT_SLOT_CONTRACT_VERSION } from "@/features/persistence/asset-records";
 import type {
   D1DatabaseLike,
   D1PreparedStatementLike,
@@ -52,6 +57,7 @@ class Database implements D1DatabaseLike {
 }
 
 const token = "a".repeat(64);
+const xrp = getXrpAssetDescriptor("testnet");
 const row = {
   slot_id: "slot-1",
   slot_public_id: "00000000-0000-4000-8000-000000000001",
@@ -64,6 +70,13 @@ const row = {
   participant_label: "Alex",
   expected_payer_address: "rPayer",
   expected_amount_drops: "4000000",
+  payment_contract_version: PAYMENT_SLOT_CONTRACT_VERSION,
+  asset_id: xrp.id,
+  asset_type: xrp.assetType,
+  currency_code: xrp.currency,
+  issuer: xrp.issuer,
+  amount_scale: xrp.precision,
+  expected_amount_units: "4000000",
   invoice_id: "B".repeat(64),
   slot_status: "unpaid",
   bill_status: "open",
@@ -71,7 +84,7 @@ const row = {
 };
 
 describe("loadPayablePaymentDetails", () => {
-  it("returns the exact frozen fields without writing or exposing raw capability", async () => {
+  it("returns the exact frozen XRP fields without exposing raw capability", async () => {
     const database = new Database(row);
 
     await expect(
@@ -82,6 +95,8 @@ describe("loadPayablePaymentDetails", () => {
       expectedPayerAddress: "rPayer",
       destinationAddress: "rDestination",
       destinationTag: 7,
+      asset: xrp,
+      amount: { code: "XRP", units: "4000000", scale: 6 },
       amountDrops: "4000000",
       sourceTag: 123456,
       invoiceId: "B".repeat(64),
@@ -91,6 +106,31 @@ describe("loadPayablePaymentDetails", () => {
       await hashCapabilityToken(token),
     ]);
     expect(database.statement?.values).not.toContain(token);
+  });
+
+  it("represents RLUSD as an issued Asset and never as XRP drops", async () => {
+    const rlusd = getRlusdAssetDescriptor("testnet");
+
+    await expect(
+      loadPayablePaymentDetails(
+        new Database({
+          ...row,
+          expected_amount_drops: "1250000",
+          asset_id: rlusd.id,
+          asset_type: rlusd.assetType,
+          currency_code: rlusd.currency,
+          issuer: rlusd.issuer,
+          amount_scale: rlusd.precision,
+          expected_amount_units: "1250000",
+        }),
+        token,
+        123456,
+      ),
+    ).resolves.toMatchObject({
+      asset: rlusd,
+      amount: { code: "RLUSD", units: "1250000", scale: 6 },
+      amountDrops: null,
+    });
   });
 
   it("fails closed for an already-paid slot", async () => {
