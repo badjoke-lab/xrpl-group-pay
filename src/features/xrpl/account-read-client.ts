@@ -174,13 +174,35 @@ export class XrplAccountReadClient implements XrplRecipientReadClient {
     return envelope.data.result;
   }
 
+  private isUsableResult(
+    method: "account_info" | "account_lines",
+    params: Record<string, unknown>,
+    result: unknown,
+  ) {
+    if (rpcErrorSchema.safeParse(result).success) return true;
+
+    if (method === "account_info") {
+      const parsed = accountInfoResultSchema.safeParse(result);
+      return (
+        parsed.success && parsed.data.account_data.Account === params.account
+      );
+    }
+
+    const parsed = accountLinesResultSchema.safeParse(result);
+    return parsed.success && parsed.data.account === params.account;
+  }
+
   private async request(
     method: "account_info" | "account_lines",
     params: Record<string, unknown>,
   ): Promise<unknown> {
     for (const endpoint of [...new Set(this.endpoints)]) {
       try {
-        return await this.requestEndpoint(endpoint, method, params);
+        const result = await this.requestEndpoint(endpoint, method, params);
+        if (!this.isUsableResult(method, params, result)) {
+          throw new EndpointResponseError();
+        }
+        return result;
       } catch {
         continue;
       }
@@ -201,17 +223,10 @@ export class XrplAccountReadClient implements XrplRecipientReadClient {
       throw new XrplAccountReadUnavailableError();
     }
 
-    const parsed = accountInfoResultSchema.safeParse(result);
-    if (
-      !parsed.success ||
-      parsed.data.account_data.Account !== normalizedAccount
-    ) {
-      throw new XrplAccountReadUnavailableError();
-    }
-
+    const parsed = accountInfoResultSchema.parse(result);
     return {
-      account: parsed.data.account_data.Account,
-      flags: parsed.data.account_flags,
+      account: parsed.account_data.Account,
+      flags: parsed.account_flags,
     };
   }
 
@@ -236,13 +251,10 @@ export class XrplAccountReadClient implements XrplRecipientReadClient {
         throw new XrplAccountReadUnavailableError();
       }
 
-      const parsed = accountLinesResultSchema.safeParse(result);
-      if (!parsed.success || parsed.data.account !== normalizedAccount) {
-        throw new XrplAccountReadUnavailableError();
-      }
-      lines.push(...parsed.data.lines);
+      const parsed = accountLinesResultSchema.parse(result);
+      lines.push(...parsed.lines);
 
-      marker = parsed.data.marker;
+      marker = parsed.marker;
       if (marker === undefined) return lines;
     }
 
