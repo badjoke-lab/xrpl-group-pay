@@ -1,8 +1,8 @@
 import type { D1DatabaseLike } from "@/features/persistence/d1-types";
 import type { AssetVerificationOutcome } from "@/features/payment-verification/asset-outcome";
 import {
-  paymentVerificationApiOutcomeSchema,
-  type PaymentVerificationApiOutcome,
+  assetPaymentVerificationApiOutcomeSchema,
+  type AssetPaymentVerificationApiOutcome,
 } from "@/features/payment-verification/types";
 
 import type { ResolvedPaymentSlot } from "./payment-slot";
@@ -29,13 +29,13 @@ export async function verifyAndSettleStoredSlotPayment(
   slot: ResolvedPaymentSlot,
   requestId: string,
   dependencies: VerifyAndSettleSlotDependencies,
-): Promise<PaymentVerificationApiOutcome> {
+): Promise<AssetPaymentVerificationApiOutcome> {
   const outcome = await (
     dependencies.verifyPayment ?? verifyStoredSlotAssetPayment
   )(slot, requestId, dependencies.verification);
 
   if (outcome.status !== "verified") {
-    return paymentVerificationApiOutcomeSchema.parse(outcome);
+    return assetPaymentVerificationApiOutcomeSchema.parse(outcome);
   }
 
   if (outcome.legacyProof !== null) {
@@ -43,7 +43,7 @@ export async function verifyAndSettleStoredSlotPayment(
       dependencies.settleXrp ?? settleVerifiedPaymentSlot
     )(database, slot, outcome.legacyProof);
 
-    return paymentVerificationApiOutcomeSchema.parse({
+    return assetPaymentVerificationApiOutcomeSchema.parse({
       status: "verified",
       proof: outcome.legacyProof,
       receipt: settlement.receipt,
@@ -54,7 +54,7 @@ export async function verifyAndSettleStoredSlotPayment(
     dependencies.settleIssued ?? settleVerifiedIssuedPaymentSlot
   )(database, slot, outcome.payment);
 
-  return paymentVerificationApiOutcomeSchema.parse({
+  return assetPaymentVerificationApiOutcomeSchema.parse({
     status: "verified",
     payment: outcome.payment,
     receipt: settlement.receipt,
