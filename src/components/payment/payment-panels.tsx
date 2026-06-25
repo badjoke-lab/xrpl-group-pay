@@ -14,12 +14,14 @@ import {
 
 import { Button } from "@/components/ui/button";
 import type { PaymentDetails } from "@/features/bills/payment-details";
+import { formatMoneyAmount } from "@/features/money/money";
 
 export function dropsToXrp(drops: string) {
-  const padded = drops.padStart(7, "0");
-  const whole = padded.slice(0, -6);
-  const fraction = padded.slice(-6).replace(/0+$/, "");
-  return fraction ? `${whole}.${fraction}` : whole;
+  return formatMoneyAmount({ code: "XRP", units: drops, scale: 6 });
+}
+
+export function formatPaymentAmount(details: PaymentDetails) {
+  return `${formatMoneyAmount(details.amount)} ${details.amount.code}`;
 }
 
 function shortValue(value: string, start = 10, end = 8) {
@@ -88,6 +90,8 @@ export function DetailsErrorPanel({
 }
 
 export function PaymentSummary({ details }: { details: PaymentDetails }) {
+  const isIssued = details.asset.assetType === "issued";
+
   return (
     <section className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8">
       <div className="flex items-start justify-between gap-4">
@@ -107,12 +111,30 @@ export function PaymentSummary({ details }: { details: PaymentDetails }) {
         <div className="rounded-lg border border-border bg-background p-5 text-center">
           <p className="text-sm font-medium text-muted">Your share</p>
           <p className="mt-2 font-heading text-4xl font-bold text-brand">
-            {dropsToXrp(details.amountDrops)} <span className="text-xl">XRP</span>
+            {formatMoneyAmount(details.amount)}{" "}
+            <span className="text-xl">{details.amount.code}</span>
           </p>
+          {isIssued && (
+            <p className="mt-2 text-xs font-semibold text-muted">
+              Official RLUSD on XRPL Testnet
+            </p>
+          )}
         </div>
         <dl className="space-y-3 text-sm">
           {details.participantLabel && (
             <SummaryRow label="Participant" value={details.participantLabel} />
+          )}
+          <SummaryRow
+            label="Settlement Asset"
+            value={details.amount.code}
+          />
+          {details.asset.assetType === "issued" && (
+            <SummaryRow
+              label="Official issuer"
+              value={shortValue(details.asset.issuer)}
+              title={details.asset.issuer}
+              mono
+            />
           )}
           <SummaryRow
             label="Recipient"
@@ -140,7 +162,8 @@ export function PaymentSummary({ details }: { details: PaymentDetails }) {
         <ShieldCheck aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
         <p>
           These values are frozen by the private payment capability. Group Pay
-          cannot edit them and never receives the XRP.
+          cannot edit them and never receives the settlement funds.
+          {isIssued && " The XRPL network fee is paid separately in XRP."}
         </p>
       </div>
     </section>
@@ -180,6 +203,8 @@ export function FinalConfirmation({
   onBack(): void;
   onConfirm(): void;
 }) {
+  const isIssued = details.asset.assetType === "issued";
+
   return (
     <div className="min-h-80">
       <div className="flex items-start gap-3">
@@ -198,8 +223,19 @@ export function FinalConfirmation({
         </div>
       </div>
       <dl className="mt-6 grid gap-3 sm:grid-cols-2">
-        <ConfirmationField label="Amount" value={`${dropsToXrp(details.amountDrops)} XRP`} />
+        <ConfirmationField label="Amount" value={formatPaymentAmount(details)} />
         <ConfirmationField label="Network" value="XRPL Testnet" />
+        <ConfirmationField label="Settlement Asset" value={details.amount.code} />
+        <ConfirmationField label="Network fee asset" value="XRP" />
+        {details.asset.assetType === "issued" && (
+          <div className="sm:col-span-2">
+            <ConfirmationField
+              label="Official issuer"
+              value={details.asset.issuer}
+              mono
+            />
+          </div>
+        )}
         <ConfirmationField label="Destination" value={details.destinationAddress} mono />
         <ConfirmationField label="Expected signer" value={details.expectedPayerAddress} mono />
         <ConfirmationField
@@ -212,10 +248,11 @@ export function FinalConfirmation({
         </div>
       </dl>
       <div className="mt-6 rounded-lg border border-action/25 bg-action/10 p-4">
-        <p className="font-semibold text-action">No XRP moves at this step.</p>
+        <p className="font-semibold text-action">No funds move at this step.</p>
         <p className="mt-1 text-sm leading-6">
-          XRP moves directly to the recipient only after you approve the exact
-          transaction in Xaman.
+          {details.amount.code} moves directly to the recipient only after you
+          approve the exact transaction in Xaman.
+          {isIssued && " The wallet also pays the XRPL network fee in XRP."}
         </p>
       </div>
       <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
