@@ -51,7 +51,10 @@ describe("TestnetBillForm remainder handling", () => {
     fillRemainderBill();
 
     expect(screen.getByText("Remainder rule required")).toBeVisible();
-    expect(screen.getByText(/leaves 1 smallest Asset unit/i)).toBeVisible();
+    expect(
+      screen.getByText("Assign the remainder explicitly"),
+    ).toBeVisible();
+    expect(screen.getByText("1", { selector: "strong" })).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Review bill before freezing" }),
     ).toBeDisabled();
@@ -89,7 +92,7 @@ describe("TestnetBillForm remainder handling", () => {
     fireEvent.click(screen.getByLabelText(/Choose one participant/));
 
     expect(screen.getByLabelText("Remainder participant")).toHaveValue("");
-    expect(screen.getByText("Allocation incomplete")).toBeVisible();
+    expect(screen.getByText("Remainder rule required")).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Review bill before freezing" }),
     ).toBeDisabled();
