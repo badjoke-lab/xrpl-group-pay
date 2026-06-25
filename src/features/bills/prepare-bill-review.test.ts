@@ -58,12 +58,14 @@ describe("prepareBillReview", () => {
     });
   });
 
-  it("rejects invalid addresses and non-exact allocations", () => {
+  it("rejects invalid addresses and non-exact custom allocations", () => {
     expect(() =>
       prepareBillReview({ ...validInput, destinationAddress: "invalid" }),
     ).toThrow(BillInputError);
     expect(() =>
       prepareBillReview({ ...validInput, totalXrp: "11" }),
-    ).toThrow("Creator share and participant amounts must equal the bill total.");
+    ).toThrow(
+      "Creator share and custom participant amounts must equal the Bill total.",
+    );
   });
 });
