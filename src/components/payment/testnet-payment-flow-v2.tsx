@@ -33,11 +33,13 @@ import {
   PaymentDetailsRequestError,
   requestPaymentDetails,
 } from "@/features/bills/payment-details-client";
+import { formatMoneyAmount } from "@/features/money/money";
+import type { AssetPaymentVerificationApiOutcome } from "@/features/payment-verification/asset-api-outcome";
 import { requestPaymentVerification } from "@/features/payment-verification/browser-client";
-import type {
-  LedgerVerificationProof,
-  PaymentVerificationApiOutcome,
-} from "@/features/payment-verification/types";
+import {
+  verifiedPaymentFromXrpProof,
+  type VerifiedPayment,
+} from "@/features/payment-verification/verified-payment";
 import { shouldRefreshFromXamanWebsocket } from "@/features/xaman/status";
 
 const CAPABILITY_PATTERN = /^[a-f0-9]{64}$/i;
@@ -80,8 +82,8 @@ type ViewState =
   | {
       kind: "verified";
       payload: CreatedPayload;
-      proof: LedgerVerificationProof;
-      receiptStatus: "created" | "existing";
+      payment: VerifiedPayment;
+      receiptStatus: "recorded" | "existing";
     }
   | {
       kind: "verificationFailed";
@@ -128,6 +130,25 @@ async function readJson(response: Response) {
     );
   }
   return body;
+}
+
+function paymentMatchesFrozenSlot(
+  payment: VerifiedPayment,
+  payload: CreatedPayload,
+) {
+  const slot = payload.slot;
+  return (
+    payment.network === slot.network &&
+    payment.asset.id === slot.asset.id &&
+    payment.requestedAmount.code === slot.amount.code &&
+    payment.requestedAmount.units === slot.amount.units &&
+    payment.requestedAmount.scale === slot.amount.scale &&
+    payment.sender === slot.expectedPayerAddress &&
+    payment.destination === slot.destinationAddress &&
+    payment.destinationTag === slot.destinationTag &&
+    payment.sourceTag === slot.sourceTag &&
+    payment.invoiceId === slot.invoiceId
+  );
 }
 
 export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
@@ -191,14 +212,31 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
     (
       payload: CreatedPayload,
       transactionId: string,
-      outcome: PaymentVerificationApiOutcome,
+      outcome: AssetPaymentVerificationApiOutcome,
     ) => {
       if (outcome.status === "verified") {
+        const payment =
+          "payment" in outcome
+            ? outcome.payment
+            : verifiedPaymentFromXrpProof(outcome.proof);
+
+        if (!paymentMatchesFrozenSlot(payment, payload)) {
+          setState({
+            kind: "verificationFailed",
+            payload,
+            txid: transactionId,
+            message:
+              "The verified response did not match the frozen participant payment details.",
+          });
+          return;
+        }
+
         setState({
           kind: "verified",
           payload,
-          proof: outcome.proof,
-          receiptStatus: outcome.receipt.status,
+          payment,
+          receiptStatus:
+            outcome.receipt.status === "existing" ? "existing" : "recorded",
         });
       } else if (outcome.status === "pending") {
         setState({
@@ -442,7 +480,7 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
               />
             }
             title="Ledger verified"
-            body={`${state.proof.amountDrops} drops were delivered directly and the payment slot is now marked paid.`}
+            body={`${formatMoneyAmount(state.payment.deliveredAmount)} ${state.payment.deliveredAmount.code} was delivered directly to the recipient and the payment slot is now marked paid.`}
             detail={
               state.receiptStatus === "existing"
                 ? "This exact transaction was already recorded safely."
@@ -464,14 +502,14 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
           <StatusPanel
             icon={<XCircle aria-hidden="true" className="size-11 text-danger" />}
             title="Request rejected"
-            body="No XRP was sent. Review the frozen details again before creating another short-lived request."
+            body="No settlement payment was submitted. Review the frozen details again before creating another short-lived request."
             action={<Button onClick={reopenConfirmation}>Review and try again</Button>}
           />
         ) : (
           <StatusPanel
             icon={<Clock3 aria-hidden="true" className="size-11 text-action" />}
             title="Request expired"
-            body="No XRP was sent. Review the frozen details again before creating a fresh Xaman request."
+            body="No settlement payment was submitted. Review the frozen details again before creating a fresh Xaman request."
             action={
               <Button onClick={reopenConfirmation}>
                 Review and create new request
