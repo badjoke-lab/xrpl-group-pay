@@ -28,7 +28,7 @@ const paymentTemplateSchema = z
 export const TF_PARTIAL_PAYMENT = 0x0002_0000;
 
 export type ExpectedPayment = {
-  network: XrplNetwork;
+  network?: XrplNetwork;
   transactionId: string;
   sender: string;
   destination: string;
