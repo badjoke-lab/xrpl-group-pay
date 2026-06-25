@@ -19,7 +19,9 @@ import {
   PaymentsDatabaseUnavailableError,
 } from "@/features/persistence/cloudflare-d1";
 import type { PaymentVerificationApiOutcome } from "@/features/payment-verification/types";
+import { WalletProviderError } from "@/features/wallet-providers/types";
 import { XamanApiError, XamanClient } from "@/features/xaman/client";
+import { XamanStatusReader } from "@/features/xaman/status-reader";
 import {
   XrplNodeUnavailableError,
   XrplTestnetClient,
@@ -46,10 +48,11 @@ const defaultDependencies: VerificationRouteDependencies = {
     const database = await getPaymentsDatabase();
     const environment = getXamanEnvironment();
     const xaman = new XamanClient(environment);
+    const providerStatus = new XamanStatusReader(xaman);
     const xrpl = new XrplTestnetClient();
     const slot = await loadPaymentSlotByToken(database, paymentToken);
     const outcome = await verifyStoredSlotPayment(slot, payloadId, {
-      getXamanPayload: (id) => xaman.getPayload(id),
+      readProviderStatus: (id) => providerStatus.readStatus(id),
       getXrplTransaction: (transactionId) =>
         xrpl.getTransaction(transactionId),
       sourceTag: environment.XRPL_SOURCE_TAG,
@@ -129,7 +132,7 @@ export async function handleVerificationRequest(
       {
         error: {
           code: "INVALID_VERIFICATION_INPUT",
-          message: "Provide a valid payment capability and Xaman payload identifier.",
+          message: "Provide a valid payment capability and wallet request identifier.",
         },
       },
       400,
@@ -152,7 +155,7 @@ export async function handleVerificationRequest(
       {
         error: {
           code: "INVALID_VERIFICATION_INPUT",
-          message: "Provide a valid Xaman payload identifier.",
+          message: "Provide a valid wallet request identifier.",
         },
       },
       400,
@@ -203,6 +206,19 @@ export async function handleVerificationRequest(
       return json(
         { error: { code: "XAMAN_NOT_CONFIGURED", message: error.message } },
         503,
+      );
+    }
+    if (error instanceof WalletProviderError) {
+      return json(
+        {
+          error: {
+            code: "WALLET_PROVIDER_ERROR",
+            provider: error.providerId,
+            reason: error.code,
+            message: error.message,
+          },
+        },
+        502,
       );
     }
     if (error instanceof XamanApiError) {

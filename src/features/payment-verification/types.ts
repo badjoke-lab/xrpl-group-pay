@@ -7,6 +7,7 @@ const dropsSchema = z.string().regex(/^(?:0|[1-9]\d*)$/);
 const uint32Schema = z.number().int().min(0).max(4_294_967_295);
 
 export const verificationPendingReasonSchema = z.enum([
+  "HANDOFF_NOT_SUBMITTED",
   "XAMAN_NOT_RESOLVED",
   "TRANSACTION_NOT_FOUND",
   "TRANSACTION_NOT_VALIDATED",
@@ -14,6 +15,9 @@ export const verificationPendingReasonSchema = z.enum([
 ]);
 
 export const verificationFailureReasonSchema = z.enum([
+  "INVALID_PROVIDER_HANDOFF",
+  "HANDOFF_FAILED",
+  "UNSUPPORTED_VERIFICATION_STRATEGY",
   "INVALID_XAMAN_TEMPLATE",
   "SLOT_EXPECTATION_MISMATCH",
   "HASH_MISMATCH",
