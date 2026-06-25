@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { getXrpAssetDescriptor } from "@/features/assets/registry";
 import {
   BillProgressDatabaseError,
   BillProgressNotFoundError,
@@ -12,6 +13,7 @@ import {
 } from "./route";
 
 const TOKEN = "a".repeat(64);
+const asset = getXrpAssetDescriptor("testnet");
 
 const progress: BillProgress = {
   access: "admin",
@@ -21,6 +23,9 @@ const progress: BillProgress = {
     network: "testnet",
     destinationAddress: "rDestination",
     destinationTag: null,
+    asset,
+    totalAmount: { code: "XRP", units: "10000000", scale: 6 },
+    creatorShareAmount: { code: "XRP", units: "2000000", scale: 6 },
     totalDrops: "10000000",
     creatorShareDrops: "2000000",
     status: "partially_paid",
@@ -33,6 +38,8 @@ const progress: BillProgress = {
     paidCount: 1,
     pendingCount: 1,
     reviewCount: 0,
+    expectedExternalAmount: { code: "XRP", units: "8000000", scale: 6 },
+    paidAmount: { code: "XRP", units: "3000000", scale: 6 },
     expectedExternalDrops: "8000000",
     paidDrops: "3000000",
   },
@@ -41,6 +48,8 @@ const progress: BillProgress = {
       publicId: "00000000-0000-4000-8000-000000000002",
       participantLabel: "Alex",
       expectedPayerAddress: "rAlex",
+      asset,
+      expectedAmount: { code: "XRP", units: "3000000", scale: 6 },
       expectedAmountDrops: "3000000",
       invoiceId: "A".repeat(64),
       status: "paid",
@@ -73,7 +82,7 @@ function dependencies(): BillProgressRouteDependencies & {
 }
 
 describe("POST /api/bills/progress", () => {
-  it("returns a no-store capability-protected progress snapshot", async () => {
+  it("returns a no-store capability-protected Asset progress snapshot", async () => {
     const deps = dependencies();
     const response = await handleBillProgressRequest(request(), deps);
 
