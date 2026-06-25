@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "state": "blocked",
+  "updated_at": "2026-06-25",
+  "checks": [
+    {
+      "id": "network-config-isolation",
+      "status": "passed",
+      "evidence": "Server and public network values must match."
+    },
+    {
+      "id": "database-binding-isolation",
+      "status": "passed",
+      "evidence": "Mainnet can only select PAYMENTS_DB_MAINNET."
+    },
+    {
+      "id": "mainnet-source-tag",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "mainnet-asset-registry",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "recipient-readiness",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "xaman-mainnet-provider",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "mainnet-xrp-verifier",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "mainnet-rlusd-verifier",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "operational-kill-switch",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "mainnet-acceptance-audit",
+      "status": "pending",
+      "evidence": null
+    }
+  ]
+}
