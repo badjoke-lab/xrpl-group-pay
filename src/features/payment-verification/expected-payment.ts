@@ -1,6 +1,7 @@
 import { isValidClassicAddress } from "xrpl";
 import { z } from "zod";
 
+import type { XrplNetwork } from "@/features/assets/types";
 import type { XamanPayloadResponse } from "@/features/xaman/schemas";
 
 const uint32 = z.number().int().min(0).max(4_294_967_295);
@@ -27,6 +28,7 @@ const paymentTemplateSchema = z
 export const TF_PARTIAL_PAYMENT = 0x0002_0000;
 
 export type ExpectedPayment = {
+  network: XrplNetwork;
   transactionId: string;
   sender: string;
   destination: string;
@@ -53,6 +55,7 @@ function invalidTemplate(message: string): never {
 export function extractExpectedPayment(
   payload: XamanPayloadResponse,
   configuredSourceTag: number,
+  network: XrplNetwork = "testnet",
 ): ExpectedPayment {
   if (
     !payload.meta.resolved ||
@@ -127,6 +130,7 @@ export function extractExpectedPayment(
   }
 
   return {
+    network,
     transactionId: payload.response.txid.toUpperCase(),
     sender: payload.response.account,
     destination: template.Destination,
