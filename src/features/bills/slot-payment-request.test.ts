@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { getRlusdAssetDescriptor } from "@/features/assets/registry";
+import {
+  getRlusdAssetDescriptor,
+  getXrpAssetDescriptor,
+} from "@/features/assets/registry";
 import { PAYMENT_SLOT_CONTRACT_VERSION } from "@/features/persistence/asset-records";
 
 import type { ResolvedPaymentSlot } from "./payment-slot";
@@ -117,6 +120,27 @@ describe("stored slot Payment Intent", () => {
         now,
       ),
     ).toThrow("The XRP builder accepts only a native XRP Payment Intent.");
+  });
+
+  it("never creates a Testnet payload from a Mainnet slot on the legacy path", () => {
+    const asset = getXrpAssetDescriptor("mainnet");
+    const mainnetSlot: ResolvedPaymentSlot = {
+      ...slot,
+      network: "mainnet",
+      paymentContractVersion: PAYMENT_SLOT_CONTRACT_VERSION,
+      asset,
+      expectedAmount: {
+        code: asset.symbol,
+        units: slot.expectedAmountDrops,
+        scale: asset.precision,
+      },
+    };
+
+    expect(() =>
+      buildStoredSlotPaymentPayload(mainnetSlot, 987654, now),
+    ).toThrow(
+      "The legacy Xaman payload helper is restricted to XRPL Testnet.",
+    );
   });
 
   it("fails closed for an invalid configured Source Tag", () => {
