@@ -1,10 +1,11 @@
+import type { XrplTxResult } from "@/features/xrpl/schemas";
+
 import type { ExpectedPayment } from "./expected-payment";
 import { TF_PARTIAL_PAYMENT } from "./expected-payment";
 import type {
   PaymentVerificationOutcome,
   VerificationFailureReason,
 } from "./types";
-import type { XrplTxResult } from "@/features/xrpl/schemas";
 
 function failed(
   reason: VerificationFailureReason,
@@ -23,7 +24,7 @@ export function verifyXrpPayment(
   transaction: XrplTxResult,
   now = new Date(),
 ): PaymentVerificationOutcome {
-  const transactionId = expected.transactionId;
+  const transactionId = expected.transactionId.toUpperCase();
 
   if (!transaction.validated) {
     return {
@@ -38,7 +39,7 @@ export function verifyXrpPayment(
     return failed(
       "HASH_MISMATCH",
       transactionId,
-      "The ledger transaction hash does not match the Xaman result.",
+      "The ledger transaction hash does not match the provider result.",
     );
   }
 
@@ -63,7 +64,7 @@ export function verifyXrpPayment(
     return failed(
       "WRONG_SENDER",
       transactionId,
-      "The validated sender does not match the Xaman signer.",
+      "The validated sender does not match the expected payer.",
     );
   }
 
@@ -71,7 +72,7 @@ export function verifyXrpPayment(
     return failed(
       "WRONG_DESTINATION",
       transactionId,
-      "The validated destination does not match the Sign Request.",
+      "The validated destination does not match the Payment Intent.",
     );
   }
 
@@ -106,7 +107,7 @@ export function verifyXrpPayment(
     return failed(
       "AMOUNT_MISMATCH",
       transactionId,
-      "The validated Payment amount does not match the Sign Request.",
+      "The validated Payment amount does not match the Payment Intent.",
     );
   }
 
@@ -122,7 +123,7 @@ export function verifyXrpPayment(
     return failed(
       "DELIVERED_AMOUNT_MISMATCH",
       transactionId,
-      "The actual delivered XRP amount does not match the Sign Request.",
+      "The actual delivered XRP amount does not match the Payment Intent.",
     );
   }
 
@@ -130,7 +131,7 @@ export function verifyXrpPayment(
     return failed(
       "SOURCE_TAG_MISMATCH",
       transactionId,
-      "The validated Source Tag does not match the Sign Request.",
+      "The validated Source Tag does not match the Payment Intent.",
     );
   }
 
@@ -143,22 +144,22 @@ export function verifyXrpPayment(
     return failed(
       "DESTINATION_TAG_MISMATCH",
       transactionId,
-      "The validated Destination Tag does not match the Sign Request.",
+      "The validated Destination Tag does not match the Payment Intent.",
     );
   }
 
-  if (tx.InvoiceID?.toUpperCase() !== expected.invoiceId) {
+  if (tx.InvoiceID?.toUpperCase() !== expected.invoiceId.toUpperCase()) {
     return failed(
       "INVOICE_ID_MISMATCH",
       transactionId,
-      "The validated InvoiceID does not match the Sign Request.",
+      "The validated InvoiceID does not match the Payment Intent.",
     );
   }
 
   return {
     status: "verified",
     proof: {
-      network: "testnet",
+      network: expected.network,
       transactionId,
       ledgerIndex: transaction.ledger_index,
       sender: expected.sender,
@@ -167,8 +168,8 @@ export function verifyXrpPayment(
       deliveredAmountDrops: transaction.meta.delivered_amount,
       sourceTag: expected.sourceTag,
       destinationTag: expected.destinationTag,
-      invoiceId: expected.invoiceId,
-      idempotencyKey: `testnet:${transactionId}`,
+      invoiceId: expected.invoiceId.toUpperCase(),
+      idempotencyKey: `${expected.network}:${transactionId}`,
       verifiedAt: now.toISOString(),
     },
   };
