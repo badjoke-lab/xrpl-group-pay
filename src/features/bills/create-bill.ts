@@ -3,6 +3,12 @@ import { isValidClassicAddress, xrpToDrops } from "xrpl";
 import { createInvoiceId } from "@/features/xaman/payment-request";
 
 import type { D1DatabaseLike } from "../persistence/d1-types";
+import {
+  billAssetWriteValues,
+  INSERT_ASSET_AWARE_BILL,
+  INSERT_ASSET_AWARE_SLOT,
+  slotAssetWriteValues,
+} from "./bill-write-contract";
 import { createCapabilityToken, hashCapabilityToken } from "./capabilities";
 import {
   billReviewSchema,
@@ -38,47 +44,6 @@ const defaultRandomSource: BillRandomSource = {
   token: () => createCapabilityToken(),
   invoiceId: () => createInvoiceId(),
 };
-
-const INSERT_BILL = `
-  INSERT INTO bills (
-    id,
-    public_id,
-    public_token_hash,
-    admin_token_hash,
-    title,
-    network,
-    destination_address,
-    destination_tag,
-    total_drops,
-    creator_share_drops,
-    status,
-    revision,
-    frozen_at,
-    expires_at,
-    created_at,
-    updated_at
-  ) VALUES (?1, ?2, ?3, ?4, ?5, 'testnet', ?6, ?7, ?8, ?9, 'open', 1, ?10, NULL, ?10, ?10)
-`;
-
-const INSERT_SLOT = `
-  INSERT INTO payment_slots (
-    id,
-    public_id,
-    bill_id,
-    public_token_hash,
-    participant_label,
-    expected_payer_address,
-    expected_amount_drops,
-    invoice_id,
-    status,
-    paid_receipt_id,
-    paid_tx_hash,
-    paid_ledger_index,
-    paid_at,
-    created_at,
-    updated_at
-  ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'unpaid', NULL, NULL, NULL, NULL, ?9, ?9)
-`;
 
 function toDrops(value: string, allowZero: boolean) {
   let drops: string;
@@ -194,7 +159,7 @@ export async function createPublishedBill(
 
   const statements = [
     database
-      .prepare(INSERT_BILL)
+      .prepare(INSERT_ASSET_AWARE_BILL)
       .bind(
         billId,
         billPublicId,
@@ -205,11 +170,15 @@ export async function createPublishedBill(
         review.destinationTag,
         review.totalDrops,
         review.creatorShareDrops,
+        ...billAssetWriteValues(
+          review.totalDrops,
+          review.creatorShareDrops,
+        ),
         timestamp,
       ),
     ...slots.map((slot) =>
       database
-        .prepare(INSERT_SLOT)
+        .prepare(INSERT_ASSET_AWARE_SLOT)
         .bind(
           slot.id,
           slot.publicId,
@@ -219,6 +188,7 @@ export async function createPublishedBill(
           slot.expectedPayerAddress,
           slot.expectedAmountDrops,
           slot.invoiceId,
+          ...slotAssetWriteValues(slot.expectedAmountDrops),
           timestamp,
         ),
     ),
