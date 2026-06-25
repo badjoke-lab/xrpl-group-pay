@@ -20,6 +20,7 @@ describe("extractExpectedPayment", () => {
     expect(
       extractExpectedPayment(makeXamanPayload(), TEST_SOURCE_TAG),
     ).toEqual({
+      network: "testnet",
       transactionId: TEST_TXID,
       sender: TEST_SENDER,
       destination: TEST_DESTINATION,
