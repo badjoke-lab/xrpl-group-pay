@@ -111,6 +111,11 @@ export function buildStoredSlotPaymentPayload(
   now = new Date(),
 ): XamanPaymentPayloadRequest {
   const intent = buildStoredSlotPaymentIntent(slot, sourceTag, now);
+  if (intent.network !== "testnet") {
+    throw new PaymentIntentError(
+      "The legacy Xaman payload helper is restricted to XRPL Testnet.",
+    );
+  }
 
   return {
     txjson: buildXrpPaymentTransaction(intent),
