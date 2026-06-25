@@ -40,7 +40,7 @@ const defaultDependencies: SlotPayloadRouteDependencies = {
     const provider = createXamanProvider(environment);
     return createPersistedSlotPayload(database, paymentToken, {
       sourceTag: environment.XRPL_SOURCE_TAG,
-      createPayload: (request) => provider.createPayloadRequest(request),
+      createHandoff: (intent) => provider.createHandoff(intent),
     });
   },
 };
