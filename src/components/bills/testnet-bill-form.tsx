@@ -141,7 +141,7 @@ export function TestnetBillForm() {
     }
     setBillDraft((current) => ({
       ...current,
-      settlementAssetId: asset.id,
+      settlementAssetId: asset.id as SettlementAssetId,
     }));
   }
 
