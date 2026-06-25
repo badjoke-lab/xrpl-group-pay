@@ -1,6 +1,13 @@
 import { z } from "zod";
 
+import type { AssetDescriptor } from "@/features/assets/types";
+import type { MoneyAmount } from "@/features/money/types";
 import type { D1DatabaseLike } from "@/features/persistence/d1-types";
+import {
+  assetDescriptorFromPersistedRow,
+  moneyAmountFromPersistedUnits,
+  PAYMENT_SLOT_CONTRACT_VERSION,
+} from "@/features/persistence/asset-records";
 
 import { hashCapabilityToken } from "./capabilities";
 
@@ -16,6 +23,13 @@ const paymentSlotRowSchema = z.object({
   participant_label: z.string().max(60).nullable(),
   expected_payer_address: z.string().min(1),
   expected_amount_drops: z.string().regex(/^[1-9]\d*$/),
+  payment_contract_version: z.literal(PAYMENT_SLOT_CONTRACT_VERSION),
+  asset_id: z.string().min(1),
+  asset_type: z.enum(["native", "issued"]),
+  currency_code: z.string().min(1),
+  issuer: z.string().min(1).nullable(),
+  amount_scale: z.number().int().min(0).max(18),
+  expected_amount_units: z.string().regex(/^[1-9]\d*$/),
   invoice_id: z.string().regex(/^[A-F0-9]{64}$/),
   slot_status: z.enum([
     "unpaid",
@@ -45,6 +59,9 @@ export type ResolvedPaymentSlot = {
   participantLabel: string | null;
   expectedPayerAddress: string;
   expectedAmountDrops: string;
+  paymentContractVersion?: typeof PAYMENT_SLOT_CONTRACT_VERSION;
+  asset?: AssetDescriptor;
+  expectedAmount?: MoneyAmount;
   invoiceId: string;
   slotStatus: z.infer<typeof paymentSlotRowSchema>["slot_status"];
   billStatus: z.infer<typeof paymentSlotRowSchema>["bill_status"];
@@ -81,6 +98,13 @@ const SELECT_SLOT = `
     ps.participant_label AS participant_label,
     ps.expected_payer_address AS expected_payer_address,
     ps.expected_amount_drops AS expected_amount_drops,
+    ps.payment_contract_version AS payment_contract_version,
+    ps.asset_id AS asset_id,
+    ps.asset_type AS asset_type,
+    ps.currency_code AS currency_code,
+    ps.issuer AS issuer,
+    ps.amount_scale AS amount_scale,
+    ps.expected_amount_units AS expected_amount_units,
     ps.invoice_id AS invoice_id,
     ps.status AS slot_status,
     b.status AS bill_status,
@@ -117,6 +141,19 @@ export async function loadPaymentSlotByToken(
     throw new PaymentSlotNotFoundError();
   }
 
+  const asset = assetDescriptorFromPersistedRow(parsed.data.network, {
+    asset_id: parsed.data.asset_id,
+    asset_type: parsed.data.asset_type,
+    currency_code: parsed.data.currency_code,
+    issuer: parsed.data.issuer,
+    amount_scale: parsed.data.amount_scale,
+  });
+  const expectedAmount = moneyAmountFromPersistedUnits(
+    asset.symbol,
+    parsed.data.expected_amount_units,
+    asset.precision,
+  );
+
   return {
     slotId: parsed.data.slot_id,
     slotPublicId: parsed.data.slot_public_id,
@@ -129,6 +166,9 @@ export async function loadPaymentSlotByToken(
     participantLabel: parsed.data.participant_label,
     expectedPayerAddress: parsed.data.expected_payer_address,
     expectedAmountDrops: parsed.data.expected_amount_drops,
+    paymentContractVersion: parsed.data.payment_contract_version,
+    asset,
+    expectedAmount,
     invoiceId: parsed.data.invoice_id,
     slotStatus: parsed.data.slot_status,
     billStatus: parsed.data.bill_status,
