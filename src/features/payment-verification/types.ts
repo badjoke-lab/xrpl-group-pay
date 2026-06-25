@@ -56,24 +56,32 @@ export const ledgerVerificationProofSchema = z
       .regex(/^(?:testnet|mainnet):[A-F0-9]{64}$/i),
     verifiedAt: z.string().datetime(),
   })
-  .strict()
-  .superRefine((proof, context) => {
-    const expectedKey = `${proof.network}:${proof.transactionId}`.toLowerCase();
-    if (proof.idempotencyKey.toLowerCase() !== expectedKey) {
-      context.addIssue({
-        code: "custom",
-        path: ["idempotencyKey"],
-        message: "Idempotency key must match the proof network and transaction.",
-      });
-    }
-  });
+  .strict();
+
+function requireProofIdentity(
+  proof: z.infer<typeof ledgerVerificationProofSchema>,
+  context: z.RefinementCtx,
+  path: (string | number)[] = ["idempotencyKey"],
+) {
+  const expectedKey = `${proof.network}:${proof.transactionId}`.toLowerCase();
+  if (proof.idempotencyKey.toLowerCase() !== expectedKey) {
+    context.addIssue({
+      code: "custom",
+      path,
+      message: "Idempotency key must match the proof network and transaction.",
+    });
+  }
+}
 
 const verifiedOutcomeSchema = z
   .object({
     status: z.literal("verified"),
     proof: ledgerVerificationProofSchema,
   })
-  .strict();
+  .strict()
+  .superRefine((outcome, context) => {
+    requireProofIdentity(outcome.proof, context, ["proof", "idempotencyKey"]);
+  });
 
 const pendingOutcomeSchema = z
   .object({
@@ -107,6 +115,7 @@ const recordedVerifiedOutcomeSchema = z
   })
   .strict()
   .superRefine((outcome, context) => {
+    requireProofIdentity(outcome.proof, context, ["proof", "idempotencyKey"]);
     if (outcome.receipt.network !== outcome.proof.network) {
       context.addIssue({
         code: "custom",
