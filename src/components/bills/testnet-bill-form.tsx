@@ -45,11 +45,13 @@ type ParticipantDraft = {
   amount: string;
 };
 
+type SettlementAssetId = "xrpl:testnet:xrp" | "xrpl:testnet:rlusd";
+
 type BillDraft = {
   title: string;
   destinationAddress: string;
   destinationTag: string;
-  settlementAssetId: (typeof ASSETS)[number]["id"];
+  settlementAssetId: SettlementAssetId;
   totalAmount: string;
   creatorShareAmount: string;
   participants: ParticipantDraft[];
@@ -134,9 +136,12 @@ export function TestnetBillForm() {
   }
 
   function selectAsset(asset: AssetDescriptor) {
+    if (asset.id !== "xrpl:testnet:xrp" && asset.id !== "xrpl:testnet:rlusd") {
+      return;
+    }
     setBillDraft((current) => ({
       ...current,
-      settlementAssetId: asset.id as BillDraft["settlementAssetId"],
+      settlementAssetId: asset.id,
     }));
   }
 
