@@ -13,6 +13,7 @@ import {
   loadPaymentSlotByToken,
   requirePayableSlot,
 } from "./payment-slot";
+import { paymentDetailsFromSlot } from "./payment-details";
 import { buildStoredSlotPaymentIntent } from "./slot-payment-request";
 
 export type PersistedPayloadDependencies = {
@@ -82,15 +83,7 @@ export async function createPersistedSlotPayload(
     slot: {
       publicId: slot.slotPublicId,
       billPublicId: slot.billPublicId,
-      billTitle: slot.billTitle,
-      participantLabel: slot.participantLabel,
-      expectedPayerAddress: slot.expectedPayerAddress,
-      destinationAddress: slot.destinationAddress,
-      destinationTag: slot.destinationTag,
-      amountDrops: slot.expectedAmountDrops,
-      sourceTag: dependencies.sourceTag,
-      invoiceId: slot.invoiceId,
-      network: slot.network,
+      ...paymentDetailsFromSlot(slot, dependencies.sourceTag),
     },
   };
 }

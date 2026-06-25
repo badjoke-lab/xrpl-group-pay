@@ -7,6 +7,10 @@ import {
   requirePayableSlot,
   type ResolvedPaymentSlot,
 } from "./payment-slot";
+import {
+  paymentDetailsFromSlot,
+  type PaymentDetails,
+} from "./payment-details";
 import { buildStoredSlotPaymentPayload } from "./slot-payment-request";
 
 export type StoredSlotPayload = {
@@ -15,18 +19,9 @@ export type StoredSlotPayload = {
   deepLink: string;
   qrPng: string;
   websocketUrl: string;
-  slot: {
+  slot: PaymentDetails & {
     publicId: string;
     billPublicId: string;
-    billTitle: string;
-    participantLabel: string | null;
-    expectedPayerAddress: string;
-    destinationAddress: string;
-    destinationTag: number | null;
-    amountDrops: string;
-    sourceTag: number;
-    invoiceId: string;
-    network: "testnet";
   };
 };
 
@@ -100,15 +95,7 @@ export async function createStoredSlotPayload(
     slot: {
       publicId: slot.slotPublicId,
       billPublicId: slot.billPublicId,
-      billTitle: slot.billTitle,
-      participantLabel: slot.participantLabel,
-      expectedPayerAddress: slot.expectedPayerAddress,
-      destinationAddress: slot.destinationAddress,
-      destinationTag: slot.destinationTag,
-      amountDrops: slot.expectedAmountDrops,
-      sourceTag: dependencies.sourceTag,
-      invoiceId: slot.invoiceId,
-      network: slot.network,
+      ...paymentDetailsFromSlot(slot, dependencies.sourceTag),
     },
   };
 }
