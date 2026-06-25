@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { getRlusdAssetDescriptor } from "@/features/assets/registry";
 import {
   RLUSD_CURRENCY_HEX,
   RLUSD_ISSUERS,
@@ -86,10 +87,11 @@ describe("verifyRlusdPayment", () => {
   });
 
   it("rejects a non-canonical issued Asset", () => {
+    const officialAsset = getRlusdAssetDescriptor("mainnet");
     const arbitraryIntent: PaymentIntent = {
       ...intent,
       asset: {
-        ...intent.asset,
+        ...officialAsset,
         id: "xrpl:mainnet:arbitrary-usd",
         issuer: TEST_SENDER,
       },
