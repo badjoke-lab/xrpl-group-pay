@@ -2,6 +2,10 @@ import { z } from "zod";
 
 const networkSchema = z.enum(["testnet", "mainnet"]);
 const releaseModeSchema = z.enum(["disabled", "internal", "limited", "public"]);
+const uint32TextSchema = z
+  .string()
+  .regex(/^\d+$/)
+  .refine((value) => Number(value) <= 4_294_967_295);
 
 const rawBuildEnvSchema = z.object({
   APP_NETWORK: networkSchema.optional(),
@@ -9,8 +13,10 @@ const rawBuildEnvSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
   ALLOW_MAINNET_BUILD: z.enum(["true", "false"]).default("false"),
   MAINNET_GATE_APPROVED: z.enum(["true", "false"]).default("false"),
+  MAINNET_SOURCE_TAG_APPROVED: z.enum(["true", "false"]).default("false"),
   MAINNET_RELEASE_MODE: releaseModeSchema.default("disabled"),
   PAYMENTS_DATABASE_BINDING: z.string().trim().min(1).optional(),
+  XRPL_MAINNET_SOURCE_TAG: uint32TextSchema.optional(),
 });
 
 export function parseBuildEnv(input) {
@@ -50,6 +56,16 @@ export function parseBuildEnv(input) {
         "Mainnet builds require PAYMENTS_DATABASE_BINDING=PAYMENTS_DB_MAINNET.",
       );
     }
+    if (parsed.MAINNET_SOURCE_TAG_APPROVED !== "true") {
+      throw new Error(
+        "Mainnet builds require MAINNET_SOURCE_TAG_APPROVED=true.",
+      );
+    }
+    if (parsed.XRPL_MAINNET_SOURCE_TAG === undefined) {
+      throw new Error(
+        "Mainnet builds require an explicit XRPL_MAINNET_SOURCE_TAG UInt32 value.",
+      );
+    }
     const publicUrl = new URL(parsed.NEXT_PUBLIC_APP_URL);
     if (
       publicUrl.protocol !== "https:" ||
@@ -68,7 +84,13 @@ export function parseBuildEnv(input) {
     publicAppUrl: parsed.NEXT_PUBLIC_APP_URL,
     allowMainnetBuild: parsed.ALLOW_MAINNET_BUILD === "true",
     mainnetGateApproved: parsed.MAINNET_GATE_APPROVED === "true",
+    mainnetSourceTagApproved:
+      parsed.MAINNET_SOURCE_TAG_APPROVED === "true",
     mainnetReleaseMode: parsed.MAINNET_RELEASE_MODE,
+    xrplSourceTag:
+      appNetwork === "mainnet" && parsed.XRPL_MAINNET_SOURCE_TAG !== undefined
+        ? Number(parsed.XRPL_MAINNET_SOURCE_TAG)
+        : null,
     paymentsDatabaseBinding:
       appNetwork === "mainnet" ? "PAYMENTS_DB_MAINNET" : "PAYMENTS_DB",
   };

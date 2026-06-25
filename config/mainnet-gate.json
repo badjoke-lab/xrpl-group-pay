@@ -15,8 +15,8 @@
     },
     {
       "id": "mainnet-source-tag",
-      "status": "pending",
-      "evidence": null
+      "status": "passed",
+      "evidence": "Mainnet build and runtime resolution require a dedicated XRPL_MAINNET_SOURCE_TAG plus explicit gate and Source Tag approvals, with no Testnet fallback."
     },
     {
       "id": "mainnet-asset-registry",

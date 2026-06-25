@@ -8,8 +8,10 @@ describe("parseBuildEnv", () => {
       appNetwork: "testnet",
       allowMainnetBuild: false,
       mainnetGateApproved: false,
+      mainnetSourceTagApproved: false,
       mainnetReleaseMode: "disabled",
       paymentsDatabaseBinding: "PAYMENTS_DB",
+      xrplSourceTag: null,
     });
   });
 
@@ -39,15 +41,19 @@ describe("parseBuildEnv", () => {
         NEXT_PUBLIC_APP_URL: "https://group-pay.example",
         ALLOW_MAINNET_BUILD: "true",
         MAINNET_GATE_APPROVED: "true",
+        MAINNET_SOURCE_TAG_APPROVED: "true",
         MAINNET_RELEASE_MODE: "internal",
         PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
+        XRPL_MAINNET_SOURCE_TAG: "123",
       }),
     ).toMatchObject({
       appNetwork: "mainnet",
       allowMainnetBuild: true,
       mainnetGateApproved: true,
+      mainnetSourceTagApproved: true,
       mainnetReleaseMode: "internal",
       paymentsDatabaseBinding: "PAYMENTS_DB_MAINNET",
+      xrplSourceTag: 123,
     });
   });
 });

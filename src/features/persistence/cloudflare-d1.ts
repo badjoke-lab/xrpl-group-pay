@@ -35,8 +35,10 @@ function deploymentInput(
     "NEXT_PUBLIC_APP_NETWORK",
     "ALLOW_MAINNET_RUNTIME",
     "MAINNET_GATE_APPROVED",
+    "MAINNET_SOURCE_TAG_APPROVED",
     "MAINNET_RELEASE_MODE",
     "PAYMENTS_DATABASE_BINDING",
+    "XRPL_MAINNET_SOURCE_TAG",
   ]) {
     if (typeof bindings[key] === "string") {
       input[key] = bindings[key] as string;
