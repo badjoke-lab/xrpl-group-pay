@@ -4,6 +4,7 @@ import type { XrplTxResult } from "@/features/xrpl/schemas";
 import type { AssetVerificationOutcome } from "./asset-outcome";
 import type { ExpectedPayment } from "./expected-payment";
 import { verifyIssuedPayment } from "./issued-verifier";
+import type { PaymentVerificationOutcome } from "./types";
 import { verifyXrpPayment } from "./verifier";
 import { verifiedPaymentFromXrpProof } from "./verified-payment";
 
@@ -84,7 +85,7 @@ const strategies = new Map<
   ],
 ]);
 
-export function dispatchPaymentVerification(
+export function dispatchAssetPaymentVerification(
   intent: PaymentIntent,
   transactionId: string,
   transaction: XrplTxResult,
@@ -108,4 +109,28 @@ export function dispatchPaymentVerification(
     transaction,
     now,
   });
+}
+
+export function dispatchPaymentVerification(
+  intent: PaymentIntent,
+  transactionId: string,
+  transaction: XrplTxResult,
+  now = new Date(),
+): PaymentVerificationOutcome {
+  const outcome = dispatchAssetPaymentVerification(
+    intent,
+    transactionId,
+    transaction,
+    now,
+  );
+  if (outcome.status !== "verified") return outcome;
+  if (outcome.legacyProof !== null) {
+    return { status: "verified", proof: outcome.legacyProof };
+  }
+  return {
+    status: "failed",
+    reason: "UNSUPPORTED_VERIFICATION_STRATEGY",
+    transactionId: transactionId.toUpperCase(),
+    message: "The verified Asset is not enabled on this endpoint.",
+  };
 }
