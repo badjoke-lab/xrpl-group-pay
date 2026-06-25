@@ -10,11 +10,13 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import type { AllocationViewSummary } from "@/features/bills/allocation-view";
 import type { BillReview } from "@/features/bills/types";
 import { formatMoneyAmount } from "@/features/money/money";
 
 export type TestnetBillReviewProps = {
   review: BillReview;
+  allocationSummary?: AllocationViewSummary;
   creating: boolean;
   error: string | null;
   onBack(): void;
@@ -33,6 +35,7 @@ function amount(value: BillReview["totalAmount"]) {
 
 export function TestnetBillReview({
   review,
+  allocationSummary,
   creating,
   error,
   onBack,
@@ -62,9 +65,9 @@ export function TestnetBillReview({
                 Review before freezing
               </h2>
               <p className="mt-3 max-w-2xl leading-7 text-muted">
-                Confirm every destination, payer, Asset, issuer, and amount. The
-                next step freezes these conditions and creates one capability
-                link per participant.
+                Confirm every destination, payer, Asset, allocation rule, and
+                amount. The next step freezes these conditions and creates one
+                capability link per participant.
               </p>
             </div>
             <LockKeyhole
@@ -125,6 +128,32 @@ export function TestnetBillReview({
         </div>
       </section>
 
+      {allocationSummary && (
+        <section className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8">
+          <h3 className="font-heading text-2xl font-semibold">
+            Allocation rule to freeze
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-muted">
+            These calculation choices accompany the server-validated participant
+            amounts shown below.
+          </p>
+          <dl className="mt-5 grid gap-4 sm:grid-cols-3">
+            <ReviewField
+              label="Method"
+              value={allocationSummary.strategyLabel}
+            />
+            <ReviewField
+              label="Remainder units"
+              value={allocationSummary.remainderUnits}
+            />
+            <ReviewField
+              label="Remainder assignment"
+              value={allocationSummary.remainderAssignmentLabel}
+            />
+          </dl>
+        </section>
+      )}
+
       <section className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-3">
           <Users aria-hidden="true" className="size-6 text-brand" />
@@ -179,8 +208,8 @@ export function TestnetBillReview({
             <h3 className="font-semibold text-action">Final confirmation</h3>
             <p className="mt-1 leading-7 text-foreground">
               No funds move when the Bill is created. The {review.asset.symbol}
-              identity, destination, issuer, amounts, payers, tags, and InvoiceIDs
-              are frozen for every participant link.
+              identity, destination, issuer, allocation result, amounts, payers,
+              tags, and InvoiceIDs are frozen for every participant link.
               {issued && " XRPL network fees remain payable separately in XRP."}
             </p>
           </div>
