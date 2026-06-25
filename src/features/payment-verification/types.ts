@@ -1,11 +1,7 @@
 import { z } from "zod";
 
-import {
-  recordedPaymentReceiptSchema,
-} from "@/features/persistence/types";
-import {
-  recordedVerifiedPaymentSchema,
-} from "@/features/persistence/record-verified-payment";
+import { recordedVerifiedPaymentSchema } from "@/features/persistence/record-verified-payment";
+import { recordedPaymentReceiptSchema } from "@/features/persistence/types";
 import { verifiedPaymentSchema } from "./verified-payment";
 
 const transactionHashSchema = z.string().regex(/^[A-F0-9]{64}$/i);
@@ -147,6 +143,12 @@ const recordedIssuedVerifiedOutcomeSchema = z
 
 export const paymentVerificationApiOutcomeSchema = z.union([
   recordedXrpVerifiedOutcomeSchema,
+  pendingOutcomeSchema,
+  failedOutcomeSchema,
+]);
+
+export const assetPaymentVerificationApiOutcomeSchema = z.union([
+  recordedXrpVerifiedOutcomeSchema,
   recordedIssuedVerifiedOutcomeSchema,
   pendingOutcomeSchema,
   failedOutcomeSchema,
@@ -166,4 +168,7 @@ export type PaymentVerificationOutcome = z.infer<
 >;
 export type PaymentVerificationApiOutcome = z.infer<
   typeof paymentVerificationApiOutcomeSchema
+>;
+export type AssetPaymentVerificationApiOutcome = z.infer<
+  typeof assetPaymentVerificationApiOutcomeSchema
 >;
