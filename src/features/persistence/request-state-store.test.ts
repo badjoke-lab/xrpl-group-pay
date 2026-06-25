@@ -116,7 +116,7 @@ describe("request state persistence", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("stores the provider request and slot state in one batch", async () => {
+  it("stores the provider request identity and slot state in one batch", async () => {
     const database = new Database();
     await persistRequestState(
       database,
@@ -136,6 +136,11 @@ describe("request state persistence", () => {
       state.requestId,
       intent.intentId,
       1,
+      "testnet",
+      "xrpl:testnet:xrp",
+      "native",
+      "XRP",
+      null,
       "available",
       intent.expiresAt,
       null,
