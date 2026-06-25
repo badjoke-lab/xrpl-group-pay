@@ -101,7 +101,7 @@ describe("evaluateAllocationForm", () => {
       evaluateAllocationForm({
         strategy: "shares",
         totalAmount: "10",
-        creatorShareAmount: "1",
+        creatorShareAmount: "0",
         assetScale: 0,
         participants,
       }),
