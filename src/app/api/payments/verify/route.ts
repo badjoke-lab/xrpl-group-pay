@@ -1,6 +1,11 @@
 import { z } from "zod";
 
 import {
+  assertPaymentOperationAllowed,
+  PaymentOperationsConfigurationError,
+  PaymentOperationsHaltedError,
+} from "@/config/payment-operations";
+import {
   getXamanEnvironment,
   XamanConfigurationError,
 } from "@/config/server-env";
@@ -45,6 +50,7 @@ export type VerificationRouteDependencies = {
 
 const defaultDependencies: VerificationRouteDependencies = {
   async verifyAndRecord(paymentToken, payloadId) {
+    assertPaymentOperationAllowed(process.env, "verify");
     const database = await getPaymentsDatabase();
     const environment = getXamanEnvironment();
     const slot = await loadPaymentSlotByToken(database, paymentToken);
@@ -70,10 +76,14 @@ const defaultDependencies: VerificationRouteDependencies = {
   },
 };
 
-function json(body: unknown, status: number) {
+function json(
+  body: unknown,
+  status: number,
+  headers: Record<string, string> = {},
+) {
   return Response.json(body, {
     status,
-    headers: { "Cache-Control": "no-store" },
+    headers: { "Cache-Control": "no-store", ...headers },
   });
 }
 
@@ -170,6 +180,31 @@ export async function handleVerificationRequest(
     if (outcome.status === "failed") return json(outcome, 422);
     return json(outcome, 200);
   } catch (error) {
+    if (error instanceof PaymentOperationsHaltedError) {
+      return json(
+        {
+          error: {
+            code: error.code,
+            operation: error.operation,
+            mode: error.mode,
+            message: error.message,
+          },
+        },
+        503,
+        { "Retry-After": "60" },
+      );
+    }
+    if (error instanceof PaymentOperationsConfigurationError) {
+      return json(
+        {
+          error: {
+            code: "PAYMENT_OPERATIONS_UNAVAILABLE",
+            message: error.message,
+          },
+        },
+        503,
+      );
+    }
     if (error instanceof PaymentSlotNotFoundError) {
       return json(
         {
