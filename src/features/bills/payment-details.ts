@@ -11,21 +11,25 @@ import {
   type ResolvedPaymentSlot,
 } from "./payment-slot";
 
-const legacyDropsSchema = z.string().regex(/^[1-9]\d*$/).nullable();
+const positiveUnitsSchema = z.string().regex(/^[1-9]\d*$/);
+const legacyDropsSchema = positiveUnitsSchema.nullable();
+const commonPaymentDetailsShape = {
+  billTitle: z.string().min(1).max(100),
+  participantLabel: z.string().max(60).nullable(),
+  expectedPayerAddress: z.string().min(1),
+  destinationAddress: z.string().min(1),
+  destinationTag: z.number().int().min(0).max(4_294_967_295).nullable(),
+  sourceTag: z.number().int().min(0).max(4_294_967_295),
+  invoiceId: z.string().regex(/^[A-F0-9]{64}$/),
+  network: z.literal("testnet"),
+} as const;
 
-export const paymentDetailsSchema = z
+const canonicalPaymentDetailsSchema = z
   .object({
-    billTitle: z.string().min(1).max(100),
-    participantLabel: z.string().max(60).nullable(),
-    expectedPayerAddress: z.string().min(1),
-    destinationAddress: z.string().min(1),
-    destinationTag: z.number().int().min(0).max(4_294_967_295).nullable(),
+    ...commonPaymentDetailsShape,
     asset: assetDescriptorSchema,
     amount: moneyAmountSchema,
     amountDrops: legacyDropsSchema,
-    sourceTag: z.number().int().min(0).max(4_294_967_295),
-    invoiceId: z.string().regex(/^[A-F0-9]{64}$/),
-    network: z.literal("testnet"),
   })
   .strict()
   .superRefine((details, context) => {
@@ -67,10 +71,34 @@ export const paymentDetailsSchema = z
       context.addIssue({
         code: "custom",
         path: ["amountDrops"],
-        message: "Issued Assets must not be represented as XRP drops.",
+        message: "Issued Assets must not use the native XRP compatibility field.",
       });
     }
   });
+
+const legacyXrpPaymentDetailsSchema = z
+  .object({
+    ...commonPaymentDetailsShape,
+    amountDrops: positiveUnitsSchema,
+  })
+  .strict()
+  .transform((details) => {
+    const asset = getXrpAssetDescriptor("testnet");
+    return canonicalPaymentDetailsSchema.parse({
+      ...details,
+      asset,
+      amount: {
+        code: asset.symbol,
+        units: details.amountDrops,
+        scale: asset.precision,
+      },
+    });
+  });
+
+export const paymentDetailsSchema = z.union([
+  canonicalPaymentDetailsSchema,
+  legacyXrpPaymentDetailsSchema,
+]);
 
 export type PaymentDetails = z.infer<typeof paymentDetailsSchema>;
 
@@ -85,7 +113,7 @@ export function paymentDetailsFromSlot(
     scale: asset.precision,
   };
 
-  return paymentDetailsSchema.parse({
+  return canonicalPaymentDetailsSchema.parse({
     billTitle: slot.billTitle,
     participantLabel: slot.participantLabel,
     expectedPayerAddress: slot.expectedPayerAddress,
