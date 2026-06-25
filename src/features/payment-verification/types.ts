@@ -1,10 +1,8 @@
 import { z } from "zod";
 
 import { recordedPaymentReceiptSchema } from "@/features/persistence/types";
-import { verifiedPaymentSchema } from "./verified-payment";
 
 const transactionHashSchema = z.string().regex(/^[A-F0-9]{64}$/i);
-const canonicalHashSchema = z.string().regex(/^[A-F0-9]{64}$/);
 const dropsSchema = z.string().regex(/^(?:0|[1-9]\d*)$/);
 const uint32Schema = z.number().int().min(0).max(4_294_967_295);
 
@@ -88,7 +86,7 @@ export const paymentVerificationOutcomeSchema = z.discriminatedUnion("status", [
   failedOutcomeSchema,
 ]);
 
-const recordedXrpVerifiedOutcomeSchema = z
+const recordedVerifiedOutcomeSchema = z
   .object({
     status: z.literal("verified"),
     proof: ledgerVerificationProofSchema,
@@ -96,74 +94,8 @@ const recordedXrpVerifiedOutcomeSchema = z
   })
   .strict();
 
-const recordedIssuedReceiptSchema = z
-  .object({
-    receiptId: z.string().min(1),
-    status: z.enum(["recorded", "existing"]),
-    network: z.enum(["testnet", "mainnet"]),
-    transactionId: canonicalHashSchema,
-    invoiceId: canonicalHashSchema,
-    assetId: z.string().min(1),
-    recordedAt: z.string().datetime(),
-    verifiedPaymentDigest: canonicalHashSchema,
-    legacyProofDigest: canonicalHashSchema.nullable(),
-  })
-  .strict();
-
-const recordedIssuedVerifiedOutcomeSchema = z
-  .object({
-    status: z.literal("verified"),
-    payment: verifiedPaymentSchema,
-    receipt: recordedIssuedReceiptSchema,
-  })
-  .strict()
-  .superRefine((outcome, context) => {
-    if (outcome.payment.asset.assetType !== "issued") {
-      context.addIssue({
-        code: "custom",
-        path: ["payment", "asset", "assetType"],
-        message: "The generic endpoint outcome requires an issued Asset.",
-      });
-    }
-    if (outcome.receipt.network !== outcome.payment.network) {
-      context.addIssue({
-        code: "custom",
-        path: ["receipt", "network"],
-        message: "Receipt and verified payment networks must match.",
-      });
-    }
-    if (outcome.receipt.transactionId !== outcome.payment.transactionId) {
-      context.addIssue({
-        code: "custom",
-        path: ["receipt", "transactionId"],
-        message: "Receipt and verified payment transactions must match.",
-      });
-    }
-    if (outcome.receipt.invoiceId !== outcome.payment.invoiceId) {
-      context.addIssue({
-        code: "custom",
-        path: ["receipt", "invoiceId"],
-        message: "Receipt and verified payment InvoiceIDs must match.",
-      });
-    }
-    if (outcome.receipt.assetId !== outcome.payment.asset.id) {
-      context.addIssue({
-        code: "custom",
-        path: ["receipt", "assetId"],
-        message: "Receipt and verified payment Assets must match.",
-      });
-    }
-  });
-
 export const paymentVerificationApiOutcomeSchema = z.union([
-  recordedXrpVerifiedOutcomeSchema,
-  pendingOutcomeSchema,
-  failedOutcomeSchema,
-]);
-
-export const assetPaymentVerificationApiOutcomeSchema = z.union([
-  recordedXrpVerifiedOutcomeSchema,
-  recordedIssuedVerifiedOutcomeSchema,
+  recordedVerifiedOutcomeSchema,
   pendingOutcomeSchema,
   failedOutcomeSchema,
 ]);
@@ -182,7 +114,4 @@ export type PaymentVerificationOutcome = z.infer<
 >;
 export type PaymentVerificationApiOutcome = z.infer<
   typeof paymentVerificationApiOutcomeSchema
->;
-export type AssetPaymentVerificationApiOutcome = z.infer<
-  typeof assetPaymentVerificationApiOutcomeSchema
 >;
