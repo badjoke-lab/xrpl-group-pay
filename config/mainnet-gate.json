@@ -40,8 +40,8 @@
     },
     {
       "id": "mainnet-rlusd-verifier",
-      "status": "pending",
-      "evidence": null
+      "status": "passed",
+      "evidence": "The canonical RLUSD verifier accepts only the official network-scoped Asset identity and requires validated-ledger tesSUCCESS plus exact payer, destination, issuer, currency, requested amount, delivered amount, tags, InvoiceID, and Mainnet receipt identity."
     },
     {
       "id": "operational-kill-switch",

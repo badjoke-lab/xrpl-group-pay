@@ -3,7 +3,7 @@ import type { XrplTxResult } from "@/features/xrpl/schemas";
 
 import type { AssetVerificationOutcome } from "./asset-outcome";
 import type { ExpectedPayment } from "./expected-payment";
-import { verifyIssuedPayment } from "./issued-verifier";
+import { verifyRlusdPayment } from "./rlusd-verifier";
 import type { PaymentVerificationOutcome } from "./types";
 import { verifyXrpPayment } from "./verifier";
 import { verifiedPaymentFromXrpProof } from "./verified-payment";
@@ -71,16 +71,7 @@ export const xrpPaymentVerificationStrategy: VerificationStrategy = {
 export const issuedPaymentVerificationStrategy: VerificationStrategy = {
   strategyId: "xrpl-issued-asset-v1",
   verify({ intent, transactionId, transaction, now }) {
-    if (intent.network === "mainnet") {
-      return {
-        status: "failed",
-        reason: "UNSUPPORTED_VERIFICATION_STRATEGY",
-        transactionId,
-        message:
-          "Mainnet issued-Asset verification remains blocked until its independent verifier gate is complete.",
-      };
-    }
-    return verifyIssuedPayment(intent, transactionId, transaction, now);
+    return verifyRlusdPayment(intent, transactionId, transaction, now);
   },
 };
 
