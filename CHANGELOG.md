@@ -7,21 +7,31 @@ Meaningful user-facing, security, compatibility, persistence, and operational ch
 ### Added
 
 - Introduced fixed-precision `MoneyAmount` primitives and an immutable Asset Registry foundation with separate XRP Testnet and Mainnet descriptors.
-- Added a wallet-neutral Payment Intent contract and a provider-independent XRP transaction builder.
-- Added the Wallet Provider contract and an initial Xaman adapter with explicit Testnet and native-XRP capabilities.
+- Added official network-specific RLUSD Asset descriptors and issued-Payment transaction construction.
+- Added wallet-neutral Payment Intent contracts and a Xaman adapter that supports native XRP and official RLUSD on Testnet.
+- Added strict validated-ledger verification for XRP and issued RLUSD Payments.
+- Added generic Asset-aware verified-payment records and issued-asset PaymentSlot settlement.
+- Added XRP or official RLUSD selection to Bill creation with one frozen Settlement Asset across every participant slot.
+- Added Asset-aware review, participant payment details, sharing, and Bill progress views.
 - Added durable provider-request lifecycle records with one active request allowed per PaymentSlot.
 
 ### Changed
 
-- Existing slot-bound Xaman requests are now derived from frozen Payment Intents while preserving their current Testnet transaction and handoff shape.
-- Payment request creation now records provider ID, provider request ID, Payment Intent identity and revision, status, expiry, and submitted transaction identity when available.
-- Approved the Make Waves v1 target for XRP and official RLUSD on XRPL.
-- Defined Payment Intent, Wallet Provider, Asset Registry, verification, and versioned receipt boundaries.
+- Bill totals, creator shares, and participant obligations now use canonical fixed-precision Asset units while retaining bounded legacy XRP compatibility fields.
+- Existing slot-bound Xaman requests are derived from frozen Payment Intents and Asset identity.
+- Payment request creation records provider ID, provider request ID, Payment Intent identity and revision, status, expiry, and submitted transaction identity when available.
+- Bill progress and verification responses normalize legacy XRP shapes into the shared Asset-aware contracts.
 - Defined Equal, Percentage, Shares, and Custom Amount allocation contracts.
 - Defined English, Japanese, and Korean localization requirements.
 - Added public Roadmap and Changelog governance.
 
-The new request-state persistence preserves the currently available XRP Testnet response shape and payer interface. Runtime availability remains XRP Testnet with Xaman until corresponding asset, network, and localization releases are completed.
+### Security
+
+- Official RLUSD currency and network-specific issuer identity are frozen and verified without floating-point arithmetic.
+- A Bill cannot mix Settlement Assets across participant PaymentSlots.
+- Issued-asset delivered values, destination, sender, tags, InvoiceID, network, result, and unsupported path fields are verified before settlement.
+
+Runtime availability now includes XRP and official RLUSD Bills on XRPL Testnet through Xaman. Mainnet, additional wallets, allocation strategies beyond Custom Amount, and additional interface languages remain planned until separately merged and tested.
 
 ## [0.1.0] — 2026-06-24
 
