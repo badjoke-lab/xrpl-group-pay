@@ -6,7 +6,7 @@ import {
   PaymentSlotSettlementConflictError,
   PaymentSlotSettlementDatabaseError,
 } from "@/features/bills/settle-slot";
-import type { AssetPaymentVerificationApiOutcome } from "@/features/payment-verification/types";
+import type { AssetPaymentVerificationApiOutcome } from "@/features/payment-verification/asset-api-outcome";
 
 import {
   handleVerificationRequest,
