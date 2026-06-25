@@ -1,5 +1,7 @@
 import { isValidClassicAddress, xrpToDrops } from "xrpl";
 
+import type { XrplPaymentTransaction } from "@/features/xrpl/transaction-builder";
+
 import type { CreatePaymentInput } from "./schemas";
 
 export const TESTNET_FORCE_NETWORK = "TESTNET" as const;
@@ -67,14 +69,7 @@ export function normalizePaymentInput(input: CreatePaymentInput) {
 }
 
 export type XamanPaymentPayloadRequest = {
-  txjson: {
-    TransactionType: "Payment";
-    Destination: string;
-    Amount: string;
-    SourceTag: number;
-    InvoiceID: string;
-    DestinationTag?: number;
-  };
+  txjson: XrplPaymentTransaction;
   options: {
     submit: true;
     expire: number;
