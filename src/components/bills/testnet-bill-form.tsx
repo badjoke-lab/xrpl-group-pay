@@ -20,6 +20,10 @@ import {
 } from "@/features/assets/registry";
 import type { AssetDescriptor } from "@/features/assets/types";
 import {
+  type AllocationFormStrategy,
+  evaluateAllocationForm,
+} from "@/features/bills/allocation-form";
+import {
   calculateAssetAllocationPreview,
   formatAllocationUnits,
 } from "@/features/bills/allocation-preview";
@@ -32,17 +36,47 @@ import type {
   CreateBillInput,
   CreatedBill,
 } from "@/features/bills/types";
+import { decimalToUnits, unitsToDecimal } from "@/features/money/money";
 
 const ASSETS = [
   getXrpAssetDescriptor("testnet"),
   getRlusdAssetDescriptor("testnet"),
 ] as const;
 
+const STRATEGIES: Array<{
+  id: AllocationFormStrategy;
+  label: string;
+  description: string;
+}> = [
+  {
+    id: "custom",
+    label: "Custom Amount",
+    description: "Enter each participant obligation directly.",
+  },
+  {
+    id: "equal",
+    label: "Equal",
+    description: "Split the participant portion evenly.",
+  },
+  {
+    id: "percentage",
+    label: "Percentage",
+    description: "Assign exact percentages totaling 100%.",
+  },
+  {
+    id: "shares",
+    label: "Shares",
+    description: "Use positive whole-number relative weights.",
+  },
+];
+
 type ParticipantDraft = {
   id: string;
   label: string;
   expectedPayerAddress: string;
   amount: string;
+  percentage: string;
+  shares: string;
 };
 
 type SettlementAssetId = "xrpl:testnet:xrp" | "xrpl:testnet:rlusd";
@@ -54,6 +88,7 @@ type BillDraft = {
   settlementAssetId: SettlementAssetId;
   totalAmount: string;
   creatorShareAmount: string;
+  allocationStrategy: AllocationFormStrategy;
   participants: ParticipantDraft[];
 };
 
@@ -63,6 +98,8 @@ function participant(): ParticipantDraft {
     label: "",
     expectedPayerAddress: "",
     amount: "",
+    percentage: "",
+    shares: "1",
   };
 }
 
@@ -74,6 +111,7 @@ function draft(): BillDraft {
     settlementAssetId: "xrpl:testnet:xrp",
     totalAmount: "",
     creatorShareAmount: "",
+    allocationStrategy: "custom",
     participants: [participant(), participant()],
   };
 }
@@ -90,20 +128,51 @@ async function readJson(response: Response) {
 
 function toInput(value: BillDraft): CreateBillInput {
   const destinationTag = value.destinationTag.trim();
-  return {
+  const base = {
     title: value.title,
     destinationAddress: value.destinationAddress,
     ...(destinationTag ? { destinationTag } : {}),
     settlementAssetId: value.settlementAssetId,
     totalAmount: value.totalAmount,
     creatorShareAmount: value.creatorShareAmount,
-    participants: value.participants.map(
-      ({ label, expectedPayerAddress, amount }) => ({
-        ...(label.trim() ? { label } : {}),
-        expectedPayerAddress,
-        amount,
-      }),
-    ),
+  };
+  const participants = value.participants.map((item) => ({
+    participantId: item.id,
+    ...(item.label.trim() ? { label: item.label } : {}),
+    expectedPayerAddress: item.expectedPayerAddress,
+    ...(value.allocationStrategy === "custom" ? { amount: item.amount } : {}),
+  }));
+
+  if (value.allocationStrategy === "custom") {
+    return { ...base, allocation: { strategy: "custom" }, participants };
+  }
+  if (value.allocationStrategy === "equal") {
+    return { ...base, allocation: { strategy: "equal" }, participants };
+  }
+  if (value.allocationStrategy === "percentage") {
+    return {
+      ...base,
+      allocation: {
+        strategy: "percentage",
+        percentageScale: 2,
+        percentages: value.participants.map((item) => ({
+          participantId: item.id,
+          units: decimalToUnits(item.percentage, 2),
+        })),
+      },
+      participants,
+    };
+  }
+  return {
+    ...base,
+    allocation: {
+      strategy: "shares",
+      shares: value.participants.map((item) => ({
+        participantId: item.id,
+        units: item.shares.trim(),
+      })),
+    },
+    participants,
   };
 }
 
@@ -117,7 +186,7 @@ export function TestnetBillForm() {
 
   const selectedAsset =
     ASSETS.find((asset) => asset.id === billDraft.settlementAssetId) ?? ASSETS[0];
-  const allocation = useMemo(
+  const customAllocation = useMemo(
     () =>
       calculateAssetAllocationPreview({
         totalAmount: billDraft.totalAmount,
@@ -127,6 +196,26 @@ export function TestnetBillForm() {
       }),
     [billDraft, selectedAsset.precision],
   );
+  const strategyPreview = useMemo(
+    () =>
+      evaluateAllocationForm({
+        strategy: billDraft.allocationStrategy,
+        totalAmount: billDraft.totalAmount,
+        creatorShareAmount: billDraft.creatorShareAmount,
+        assetScale: selectedAsset.precision,
+        participants: billDraft.participants.map((item) => ({
+          participantId: item.id,
+          amount: item.amount,
+          percentage: item.percentage,
+          shares: item.shares,
+        })),
+      }),
+    [billDraft, selectedAsset.precision],
+  );
+  const canReview =
+    billDraft.allocationStrategy === "custom"
+      ? customAllocation.status === "exact"
+      : strategyPreview.status === "exact";
 
   function updateBill(
     field: keyof Omit<BillDraft, "participants">,
@@ -142,6 +231,13 @@ export function TestnetBillForm() {
     setBillDraft((current) => ({
       ...current,
       settlementAssetId: asset.id as SettlementAssetId,
+    }));
+  }
+
+  function selectStrategy(strategy: AllocationFormStrategy) {
+    setBillDraft((current) => ({
+      ...current,
+      allocationStrategy: strategy,
     }));
   }
 
@@ -170,6 +266,7 @@ export function TestnetBillForm() {
 
   async function submitReview(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canReview) return;
     setReviewing(true);
     setError(null);
     try {
@@ -215,7 +312,6 @@ export function TestnetBillForm() {
   }
 
   if (created) return <CreatedBillShare created={created} onReset={reset} />;
-
   if (review) {
     return (
       <TestnetBillReview
@@ -257,56 +353,24 @@ export function TestnetBillForm() {
       <fieldset className="mt-8">
         <legend className="text-sm font-semibold">Settlement Asset</legend>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          {ASSETS.map((asset) => {
-            const selected = asset.id === selectedAsset.id;
-            return (
-              <label
-                key={asset.id}
-                className={`cursor-pointer rounded-xl border p-5 transition-colors ${
-                  selected
-                    ? "border-brand bg-brand-subtle"
-                    : "border-border bg-background hover:border-brand/50"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="settlementAsset"
-                  value={asset.id}
-                  checked={selected}
-                  onChange={() => selectAsset(asset)}
-                  className="sr-only"
-                />
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-heading text-xl font-semibold">
-                      {asset.symbol}
-                    </p>
-                    <p className="mt-1 text-sm leading-6 text-muted">
-                      {asset.assetType === "native"
-                        ? "Native XRP on XRPL Testnet"
-                        : "Official Ripple USD issued on XRPL Testnet"}
-                    </p>
-                  </div>
-                  <div
-                    className={`flex size-8 items-center justify-center rounded-full ${
-                      selected ? "bg-brand text-white" : "bg-surface text-muted"
-                    }`}
-                  >
-                    {selected ? (
-                      <CheckCircle2 aria-hidden="true" className="size-5" />
-                    ) : (
-                      <Coins aria-hidden="true" className="size-5" />
-                    )}
-                  </div>
-                </div>
-                {asset.assetType === "issued" && (
-                  <p className="mt-3 break-all font-mono text-[11px] text-muted">
-                    Issuer {asset.issuer}
-                  </p>
-                )}
-              </label>
-            );
-          })}
+          {ASSETS.map((asset) => (
+            <ChoiceCard
+              key={asset.id}
+              name="settlementAsset"
+              value={asset.id}
+              checked={asset.id === selectedAsset.id}
+              label={asset.symbol}
+              description={
+                asset.assetType === "native"
+                  ? "Native XRP on XRPL Testnet"
+                  : "Official Ripple USD issued on XRPL Testnet"
+              }
+              detail={
+                asset.assetType === "issued" ? `Issuer ${asset.issuer}` : null
+              }
+              onChange={() => selectAsset(asset)}
+            />
+          ))}
         </div>
         {selectedAsset.assetType === "issued" && (
           <p className="mt-3 rounded-lg border border-action/25 bg-action/10 p-4 text-sm leading-6">
@@ -358,6 +422,29 @@ export function TestnetBillForm() {
           inputMode="numeric"
         />
       </div>
+
+      <fieldset className="mt-10">
+        <legend className="font-heading text-xl font-semibold">
+          Allocation method
+        </legend>
+        <p className="mt-1 text-sm text-muted">
+          The server recomputes the final obligations before the Bill is frozen.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {STRATEGIES.map((strategy) => (
+            <ChoiceCard
+              key={strategy.id}
+              name="allocationStrategy"
+              value={strategy.id}
+              checked={billDraft.allocationStrategy === strategy.id}
+              label={strategy.label}
+              description={strategy.description}
+              detail={null}
+              onChange={() => selectStrategy(strategy.id)}
+            />
+          ))}
+        </div>
+      </fieldset>
 
       <div className="mt-10 flex items-center justify-between gap-4">
         <div>
@@ -419,22 +506,64 @@ export function TestnetBillForm() {
                 required
                 mono
               />
-              <Field
-                label="Assigned amount"
-                value={item.amount}
-                onChange={(value) => updateParticipant(item.id, "amount", value)}
-                placeholder="4"
-                required
-                suffix={selectedAsset.symbol}
-                inputMode="decimal"
-              />
+              {billDraft.allocationStrategy === "custom" && (
+                <Field
+                  label="Assigned amount"
+                  value={item.amount}
+                  onChange={(value) => updateParticipant(item.id, "amount", value)}
+                  placeholder="4"
+                  required
+                  suffix={selectedAsset.symbol}
+                  inputMode="decimal"
+                />
+              )}
+              {billDraft.allocationStrategy === "percentage" && (
+                <Field
+                  label="Percentage"
+                  value={item.percentage}
+                  onChange={(value) =>
+                    updateParticipant(item.id, "percentage", value)
+                  }
+                  placeholder="50"
+                  required
+                  suffix="%"
+                  inputMode="decimal"
+                />
+              )}
+              {billDraft.allocationStrategy === "shares" && (
+                <Field
+                  label="Shares"
+                  value={item.shares}
+                  onChange={(value) => updateParticipant(item.id, "shares", value)}
+                  placeholder="1"
+                  required
+                  inputMode="numeric"
+                />
+              )}
+              {billDraft.allocationStrategy !== "custom" &&
+                strategyPreview.status === "exact" && (
+                  <div className="rounded-md border border-border bg-surface p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+                      Calculated obligation
+                    </p>
+                    <p className="mt-2 font-heading text-lg font-semibold text-brand">
+                      {unitsToDecimal(
+                        strategyPreview.participantUnits[item.id],
+                        selectedAsset.precision,
+                      )}{" "}
+                      {selectedAsset.symbol}
+                    </p>
+                  </div>
+                )}
             </div>
           </fieldset>
         ))}
       </div>
 
       <AllocationStatus
-        allocation={allocation}
+        strategy={billDraft.allocationStrategy}
+        customAllocation={customAllocation}
+        strategyPreview={strategyPreview}
         assetSymbol={selectedAsset.symbol}
       />
 
@@ -450,7 +579,7 @@ export function TestnetBillForm() {
       <Button
         type="submit"
         className="mt-7 w-full"
-        disabled={reviewing || allocation.status !== "exact"}
+        disabled={reviewing || !canReview}
       >
         {reviewing ? (
           <>
@@ -465,21 +594,122 @@ export function TestnetBillForm() {
   );
 }
 
+function ChoiceCard({
+  name,
+  value,
+  checked,
+  label,
+  description,
+  detail,
+  onChange,
+}: {
+  name: string;
+  value: string;
+  checked: boolean;
+  label: string;
+  description: string;
+  detail: string | null;
+  onChange(): void;
+}) {
+  return (
+    <label
+      className={`cursor-pointer rounded-xl border p-5 transition-colors ${
+        checked
+          ? "border-brand bg-brand-subtle"
+          : "border-border bg-background hover:border-brand/50"
+      }`}
+    >
+      <input
+        type="radio"
+        name={name}
+        value={value}
+        checked={checked}
+        onChange={onChange}
+        className="sr-only"
+      />
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="font-heading text-lg font-semibold">{label}</p>
+          <p className="mt-1 text-sm leading-6 text-muted">{description}</p>
+        </div>
+        <div
+          className={`flex size-8 items-center justify-center rounded-full ${
+            checked ? "bg-brand text-white" : "bg-surface text-muted"
+          }`}
+        >
+          {checked ? (
+            <CheckCircle2 aria-hidden="true" className="size-5" />
+          ) : (
+            <Coins aria-hidden="true" className="size-5" />
+          )}
+        </div>
+      </div>
+      {detail && (
+        <p className="mt-3 break-all font-mono text-[11px] text-muted">
+          {detail}
+        </p>
+      )}
+    </label>
+  );
+}
+
 function AllocationStatus({
-  allocation,
+  strategy,
+  customAllocation,
+  strategyPreview,
   assetSymbol,
 }: {
-  allocation: ReturnType<typeof calculateAssetAllocationPreview>;
+  strategy: AllocationFormStrategy;
+  customAllocation: ReturnType<typeof calculateAssetAllocationPreview>;
+  strategyPreview: ReturnType<typeof evaluateAllocationForm>;
   assetSymbol: string;
 }) {
-  const exact = allocation.status === "exact";
-  const Icon = exact ? CheckCircle2 : CircleAlert;
-  let message = "Enter the total, creator share, and every participant amount.";
-  if (allocation.status === "under" && allocation.differenceUnits !== null) {
-    message = `${formatAllocationUnits(allocation.differenceUnits, allocation.scale)} ${assetSymbol} remains to allocate.`;
+  if (strategy !== "custom") {
+    const exact = strategyPreview.status === "exact";
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className={`mt-6 flex items-start gap-3 rounded-lg border p-4 ${
+          exact
+            ? "border-success/25 bg-success/10 text-success"
+            : strategyPreview.status === "needs_remainder"
+              ? "border-action/25 bg-action/10 text-action"
+              : "border-border bg-background text-muted"
+        }`}
+      >
+        {exact ? (
+          <CheckCircle2 aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+        ) : (
+          <CircleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+        )}
+        <div>
+          <p className="font-semibold">
+            {exact
+              ? "Allocation exact"
+              : strategyPreview.status === "needs_remainder"
+                ? "Remainder rule required"
+                : "Allocation incomplete"}
+          </p>
+          <p className="mt-1 text-sm leading-6">{strategyPreview.message}</p>
+        </div>
+      </div>
+    );
   }
-  if (allocation.status === "over" && allocation.differenceUnits !== null) {
-    message = `${formatAllocationUnits(-allocation.differenceUnits, allocation.scale)} ${assetSymbol} is allocated above the bill total.`;
+
+  const exact = customAllocation.status === "exact";
+  let message = "Enter the total, creator share, and every participant amount.";
+  if (
+    customAllocation.status === "under" &&
+    customAllocation.differenceUnits !== null
+  ) {
+    message = `${formatAllocationUnits(customAllocation.differenceUnits, customAllocation.scale)} ${assetSymbol} remains to allocate.`;
+  }
+  if (
+    customAllocation.status === "over" &&
+    customAllocation.differenceUnits !== null
+  ) {
+    message = `${formatAllocationUnits(-customAllocation.differenceUnits, customAllocation.scale)} ${assetSymbol} is allocated above the bill total.`;
   }
   if (exact) {
     message = `Creator share and participant amounts match the ${assetSymbol} total.`;
@@ -495,7 +725,11 @@ function AllocationStatus({
           : "border-border bg-background text-muted"
       }`}
     >
-      <Icon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+      {exact ? (
+        <CheckCircle2 aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+      ) : (
+        <CircleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+      )}
       <div>
         <p className="font-semibold">
           {exact ? "Allocation exact" : "Allocation incomplete"}

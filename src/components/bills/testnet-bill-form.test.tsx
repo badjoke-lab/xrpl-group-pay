@@ -42,6 +42,24 @@ function fillBill() {
   fireEvent.change(amounts[1], { target: { value: "5" } });
 }
 
+function fillBaseWithoutAmounts() {
+  fireEvent.change(screen.getByLabelText("Bill title"), {
+    target: { value: "Dinner" },
+  });
+  fireEvent.change(screen.getByLabelText("Creator destination address"), {
+    target: { value: BILL_DESTINATION },
+  });
+  fireEvent.change(screen.getByPlaceholderText("10"), {
+    target: { value: "10" },
+  });
+  fireEvent.change(screen.getByPlaceholderText("2"), {
+    target: { value: "2" },
+  });
+  const payers = screen.getAllByLabelText("Expected payer address");
+  fireEvent.change(payers[0], { target: { value: PAYER_ONE } });
+  fireEvent.change(payers[1], { target: { value: PAYER_TWO } });
+}
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -49,17 +67,18 @@ afterEach(() => {
 });
 
 describe("TestnetBillForm", () => {
-  it("starts with two slots and blocks review until allocation is exact", () => {
+  it("starts with Custom Amount and blocks review until allocation is exact", () => {
     render(<TestnetBillForm />);
     expect(screen.getByText("Participant 1")).toBeVisible();
     expect(screen.getByText("Participant 2")).toBeVisible();
+    expect(screen.getByLabelText(/Custom Amount/)).toBeChecked();
     expect(screen.getByText("Allocation incomplete")).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Review bill before freezing" }),
     ).toBeDisabled();
   });
 
-  it("shows under, exact, and over allocation feedback", () => {
+  it("shows under, exact, and over Custom Amount feedback", () => {
     render(<TestnetBillForm />);
     fireEvent.change(screen.getByPlaceholderText("10"), {
       target: { value: "10" },
@@ -75,6 +94,53 @@ describe("TestnetBillForm", () => {
     expect(screen.getByText("Allocation exact")).toBeVisible();
     fireEvent.change(amounts[1], { target: { value: "6" } });
     expect(screen.getByText(/allocated above the bill total/)).toBeVisible();
+  });
+
+  it("switches to Equal and sends a server-authoritative strategy request", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(BILL_REVIEW_FIXTURE));
+    vi.stubGlobal("fetch", fetcher);
+
+    render(<TestnetBillForm />);
+    fireEvent.click(screen.getByLabelText(/^Equal/));
+    fillBaseWithoutAmounts();
+
+    expect(screen.queryByLabelText("Assigned amount")).toBeNull();
+    expect(screen.getByText("Allocation exact")).toBeVisible();
+    expect(screen.getAllByText("4 XRP", { exact: true })).toHaveLength(2);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Review bill before freezing" }),
+    );
+    await screen.findByRole("heading", { name: "Review before freezing" });
+
+    const request = JSON.parse(
+      (fetcher.mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(request.allocation).toEqual({ strategy: "equal" });
+    expect(request.participants).toHaveLength(2);
+    expect(request.participants[0]).toMatchObject({
+      participantId: expect.any(String),
+      expectedPayerAddress: PAYER_ONE,
+    });
+    expect(request.participants[0]).not.toHaveProperty("amount");
+  });
+
+  it("renders Percentage and Shares controls with calculated obligations", () => {
+    render(<TestnetBillForm />);
+    fillBaseWithoutAmounts();
+
+    fireEvent.click(screen.getByLabelText(/^Percentage/));
+    const percentages = screen.getAllByPlaceholderText("50");
+    fireEvent.change(percentages[0], { target: { value: "25" } });
+    fireEvent.change(percentages[1], { target: { value: "75" } });
+    expect(screen.getByText("2 XRP", { exact: true })).toBeVisible();
+    expect(screen.getByText("6 XRP", { exact: true })).toBeVisible();
+
+    fireEvent.click(screen.getByLabelText(/^Shares/));
+    const shares = screen.getAllByPlaceholderText("1");
+    fireEvent.change(shares[0], { target: { value: "1" } });
+    fireEvent.change(shares[1], { target: { value: "1" } });
+    expect(screen.getAllByText("4 XRP", { exact: true })).toHaveLength(2);
   });
 
   it("reviews without creating, preserves edits, and freezes only on confirmation", async () => {
