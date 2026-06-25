@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "state": "blocked",
-  "updated_at": "2026-06-25",
+  "updated_at": "2026-06-26",
   "checks": [
     {
       "id": "network-config-isolation",
@@ -30,8 +30,8 @@
     },
     {
       "id": "xaman-mainnet-provider",
-      "status": "pending",
-      "evidence": null
+      "status": "passed",
+      "evidence": "Network-scoped provider requests force the selected XRPL network, revalidate canonical Asset identity, require explicit Mainnet access, and persist request identity."
     },
     {
       "id": "mainnet-xrp-verifier",
