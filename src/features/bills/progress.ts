@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+import {
+  assetRegistry,
+  getXrpAssetDescriptor,
+} from "@/features/assets/registry";
+import { assetDescriptorSchema } from "@/features/assets/types";
+import { moneyAmountSchema } from "@/features/money/types";
 import type { D1DatabaseLike } from "@/features/persistence/d1-types";
 
 import { hashCapabilityToken } from "./capabilities";
@@ -25,6 +31,8 @@ export const paymentSlotProgressStatusSchema = z.enum([
 ]);
 
 const upperHex256Schema = z.string().regex(/^[A-F0-9]{64}$/);
+const integerUnitsSchema = z.string().regex(/^(?:0|[1-9]\d*)$/);
+const positiveUnitsSchema = z.string().regex(/^[1-9]\d*$/);
 
 const billRowSchema = z.object({
   id: z.string().min(1),
@@ -33,8 +41,11 @@ const billRowSchema = z.object({
   network: z.literal("testnet"),
   destination_address: z.string().min(1),
   destination_tag: z.number().int().min(0).max(4_294_967_295).nullable(),
-  total_drops: z.string().regex(/^[1-9]\d*$/),
-  creator_share_drops: z.string().regex(/^(?:0|[1-9]\d*)$/),
+  total_drops: positiveUnitsSchema,
+  creator_share_drops: integerUnitsSchema,
+  settlement_asset_id: z.string().min(1).nullable().optional(),
+  total_amount_units: positiveUnitsSchema.nullable().optional(),
+  creator_share_amount_units: integerUnitsSchema.nullable().optional(),
   status: billStatusSchema,
   revision: z.number().int().min(1),
   frozen_at: z.string().datetime(),
@@ -46,7 +57,9 @@ const slotRowSchema = z.object({
   public_id: z.string().uuid(),
   participant_label: z.string().max(60).nullable(),
   expected_payer_address: z.string().min(1),
-  expected_amount_drops: z.string().regex(/^[1-9]\d*$/),
+  expected_amount_drops: positiveUnitsSchema,
+  asset_id: z.string().min(1).nullable().optional(),
+  expected_amount_units: positiveUnitsSchema.nullable().optional(),
   invoice_id: upperHex256Schema,
   status: paymentSlotProgressStatusSchema,
   paid_tx_hash: upperHex256Schema.nullable(),
@@ -66,8 +79,11 @@ export const billProgressSchema = z
         network: z.literal("testnet"),
         destinationAddress: z.string().min(1),
         destinationTag: z.number().int().min(0).max(4_294_967_295).nullable(),
-        totalDrops: z.string().regex(/^[1-9]\d*$/),
-        creatorShareDrops: z.string().regex(/^(?:0|[1-9]\d*)$/),
+        asset: assetDescriptorSchema,
+        totalAmount: moneyAmountSchema,
+        creatorShareAmount: moneyAmountSchema,
+        totalDrops: positiveUnitsSchema.nullable(),
+        creatorShareDrops: integerUnitsSchema.nullable(),
         status: billStatusSchema,
         revision: z.number().int().min(1),
         frozenAt: z.string().datetime(),
@@ -80,8 +96,10 @@ export const billProgressSchema = z
         paidCount: z.number().int().min(0),
         pendingCount: z.number().int().min(0),
         reviewCount: z.number().int().min(0),
-        expectedExternalDrops: z.string().regex(/^(?:0|[1-9]\d*)$/),
-        paidDrops: z.string().regex(/^(?:0|[1-9]\d*)$/),
+        expectedExternalAmount: moneyAmountSchema,
+        paidAmount: moneyAmountSchema,
+        expectedExternalDrops: integerUnitsSchema.nullable(),
+        paidDrops: integerUnitsSchema.nullable(),
       })
       .strict(),
     slots: z.array(
@@ -90,7 +108,9 @@ export const billProgressSchema = z
           publicId: z.string().uuid(),
           participantLabel: z.string().max(60).nullable(),
           expectedPayerAddress: z.string().min(1).nullable(),
-          expectedAmountDrops: z.string().regex(/^[1-9]\d*$/),
+          asset: assetDescriptorSchema,
+          expectedAmount: moneyAmountSchema,
+          expectedAmountDrops: positiveUnitsSchema.nullable(),
           invoiceId: upperHex256Schema.nullable(),
           status: paymentSlotProgressStatusSchema,
           paidTransactionId: upperHex256Schema.nullable(),
@@ -130,6 +150,9 @@ const SELECT_BILL = `
     destination_tag,
     total_drops,
     creator_share_drops,
+    settlement_asset_id,
+    total_amount_units,
+    creator_share_amount_units,
     status,
     revision,
     frozen_at,
@@ -146,17 +169,22 @@ const SELECT_SLOTS = `
     slots.participant_label,
     slots.expected_payer_address,
     slots.expected_amount_drops,
+    slots.asset_id,
+    slots.expected_amount_units,
     slots.invoice_id,
     slots.status,
     slots.paid_tx_hash,
     slots.paid_ledger_index,
     slots.paid_at,
-    receipts.proof_digest,
+    CASE
+      WHEN slots.asset_type = 'native' THEN records.legacy_proof_digest
+      ELSE NULL
+    END AS proof_digest,
     slots.updated_at
   FROM payment_slots AS slots
-  LEFT JOIN verified_payment_receipts AS receipts
-    ON receipts.network = 'testnet'
-    AND receipts.transaction_id = slots.paid_tx_hash
+  LEFT JOIN verified_payment_records AS records
+    ON records.network = 'testnet'
+    AND records.transaction_id = slots.paid_tx_hash
   WHERE slots.bill_id = (
     SELECT id
     FROM bills
@@ -168,6 +196,16 @@ const SELECT_SLOTS = `
 
 function isReviewStatus(status: z.infer<typeof paymentSlotProgressStatusSchema>) {
   return status === "needs_review" || status === "verification_failed";
+}
+
+function requireAsset(assetId: string | null | undefined) {
+  try {
+    return assetId
+      ? assetRegistry.require(assetId)
+      : getXrpAssetDescriptor("testnet");
+  } catch {
+    throw new BillProgressDatabaseError();
+  }
 }
 
 export async function loadBillProgressByToken(
@@ -199,30 +237,46 @@ export async function loadBillProgressByToken(
 
     const slots = z.array(slotRowSchema).safeParse(slotsResult.results ?? []);
     if (!slots.success) throw new BillProgressDatabaseError();
-    if (
-      slots.data.some(
-        (slot) => slot.status === "paid" && slot.proof_digest === null,
-      )
-    ) {
-      throw new BillProgressDatabaseError();
-    }
 
-    const expectedExternalDrops = slots.data.reduce(
-      (sum, slot) => sum + BigInt(slot.expected_amount_drops),
+    const asset = requireAsset(bill.data.settlement_asset_id);
+    const totalUnits = bill.data.total_amount_units ?? bill.data.total_drops;
+    const creatorShareUnits =
+      bill.data.creator_share_amount_units ?? bill.data.creator_share_drops;
+
+    const normalizedSlots = slots.data.map((slot) => {
+      const slotAsset = requireAsset(slot.asset_id);
+      if (slotAsset.id !== asset.id) throw new BillProgressDatabaseError();
+      const expectedUnits =
+        slot.expected_amount_units ?? slot.expected_amount_drops;
+      if (
+        slot.status === "paid" &&
+        slotAsset.assetType === "native" &&
+        slot.proof_digest === null
+      ) {
+        throw new BillProgressDatabaseError();
+      }
+      return { row: slot, asset: slotAsset, expectedUnits };
+    });
+
+    const expectedExternalUnits = normalizedSlots.reduce(
+      (sum, slot) => sum + BigInt(slot.expectedUnits),
       0n,
     );
-    const paidDrops = slots.data.reduce(
+    const paidUnits = normalizedSlots.reduce(
       (sum, slot) =>
-        slot.status === "paid"
-          ? sum + BigInt(slot.expected_amount_drops)
+        slot.row.status === "paid"
+          ? sum + BigInt(slot.expectedUnits)
           : sum,
       0n,
     );
-    const paidCount = slots.data.filter((slot) => slot.status === "paid").length;
-    const reviewCount = slots.data.filter((slot) =>
-      isReviewStatus(slot.status),
+    const paidCount = normalizedSlots.filter(
+      (slot) => slot.row.status === "paid",
+    ).length;
+    const reviewCount = normalizedSlots.filter((slot) =>
+      isReviewStatus(slot.row.status),
     ).length;
     const isAdmin = bill.data.access_role === "admin";
+    const native = asset.assetType === "native";
 
     return billProgressSchema.parse({
       access: bill.data.access_role,
@@ -232,33 +286,63 @@ export async function loadBillProgressByToken(
         network: bill.data.network,
         destinationAddress: bill.data.destination_address,
         destinationTag: bill.data.destination_tag,
-        totalDrops: bill.data.total_drops,
-        creatorShareDrops: bill.data.creator_share_drops,
+        asset,
+        totalAmount: {
+          code: asset.symbol,
+          units: totalUnits,
+          scale: asset.precision,
+        },
+        creatorShareAmount: {
+          code: asset.symbol,
+          units: creatorShareUnits,
+          scale: asset.precision,
+        },
+        totalDrops: native ? totalUnits : null,
+        creatorShareDrops: native ? creatorShareUnits : null,
         status: bill.data.status,
         revision: bill.data.revision,
         frozenAt: bill.data.frozen_at,
         updatedAt: bill.data.updated_at,
       },
       summary: {
-        participantCount: slots.data.length,
+        participantCount: normalizedSlots.length,
         paidCount,
-        pendingCount: slots.data.length - paidCount - reviewCount,
+        pendingCount: normalizedSlots.length - paidCount - reviewCount,
         reviewCount,
-        expectedExternalDrops: expectedExternalDrops.toString(),
-        paidDrops: paidDrops.toString(),
+        expectedExternalAmount: {
+          code: asset.symbol,
+          units: expectedExternalUnits.toString(),
+          scale: asset.precision,
+        },
+        paidAmount: {
+          code: asset.symbol,
+          units: paidUnits.toString(),
+          scale: asset.precision,
+        },
+        expectedExternalDrops: native
+          ? expectedExternalUnits.toString()
+          : null,
+        paidDrops: native ? paidUnits.toString() : null,
       },
-      slots: slots.data.map((slot) => ({
-        publicId: slot.public_id,
-        participantLabel: isAdmin ? slot.participant_label : null,
-        expectedPayerAddress: isAdmin ? slot.expected_payer_address : null,
-        expectedAmountDrops: slot.expected_amount_drops,
-        invoiceId: isAdmin ? slot.invoice_id : null,
-        status: slot.status,
-        paidTransactionId: slot.paid_tx_hash,
-        paidLedgerIndex: slot.paid_ledger_index,
-        paidAt: slot.paid_at,
-        proofToken: slot.proof_digest,
-        updatedAt: slot.updated_at,
+      slots: normalizedSlots.map(({ row, asset: slotAsset, expectedUnits }) => ({
+        publicId: row.public_id,
+        participantLabel: isAdmin ? row.participant_label : null,
+        expectedPayerAddress: isAdmin ? row.expected_payer_address : null,
+        asset: slotAsset,
+        expectedAmount: {
+          code: slotAsset.symbol,
+          units: expectedUnits,
+          scale: slotAsset.precision,
+        },
+        expectedAmountDrops:
+          slotAsset.assetType === "native" ? expectedUnits : null,
+        invoiceId: isAdmin ? row.invoice_id : null,
+        status: row.status,
+        paidTransactionId: row.paid_tx_hash,
+        paidLedgerIndex: row.paid_ledger_index,
+        paidAt: row.paid_at,
+        proofToken: row.proof_digest,
+        updatedAt: row.updated_at,
       })),
     });
   } catch (error) {
