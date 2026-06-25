@@ -1,9 +1,12 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { getXrpAssetDescriptor } from "@/features/assets/registry";
+
 import { TestnetBillProgress } from "./testnet-bill-progress";
 
 const TOKEN = "ab".repeat(32);
+const asset = getXrpAssetDescriptor("testnet");
 
 const progress = {
   access: "admin",
@@ -13,6 +16,9 @@ const progress = {
     network: "testnet",
     destinationAddress: "rDestination",
     destinationTag: null,
+    asset,
+    totalAmount: { code: "XRP", units: "10000000", scale: 6 },
+    creatorShareAmount: { code: "XRP", units: "2000000", scale: 6 },
     totalDrops: "10000000",
     creatorShareDrops: "2000000",
     status: "partially_paid",
@@ -25,6 +31,8 @@ const progress = {
     paidCount: 1,
     pendingCount: 1,
     reviewCount: 0,
+    expectedExternalAmount: { code: "XRP", units: "8000000", scale: 6 },
+    paidAmount: { code: "XRP", units: "3000000", scale: 6 },
     expectedExternalDrops: "8000000",
     paidDrops: "3000000",
   },
@@ -33,24 +41,30 @@ const progress = {
       publicId: "00000000-0000-4000-8000-000000000002",
       participantLabel: "Alex",
       expectedPayerAddress: "rAlex",
+      asset,
+      expectedAmount: { code: "XRP", units: "3000000", scale: 6 },
       expectedAmountDrops: "3000000",
       invoiceId: "A".repeat(64),
       status: "paid",
       paidTransactionId: "B".repeat(64),
       paidLedgerIndex: 12345,
       paidAt: "2026-06-24T00:05:00.000Z",
+      proofToken: "D".repeat(64),
       updatedAt: "2026-06-24T00:05:00.000Z",
     },
     {
       publicId: "00000000-0000-4000-8000-000000000003",
       participantLabel: "Blair",
       expectedPayerAddress: "rBlair",
+      asset,
+      expectedAmount: { code: "XRP", units: "5000000", scale: 6 },
       expectedAmountDrops: "5000000",
       invoiceId: "C".repeat(64),
       status: "unpaid",
       paidTransactionId: null,
       paidLedgerIndex: null,
       paidAt: null,
+      proofToken: null,
       updatedAt: "2026-06-24T00:00:00.000Z",
     },
   ],
@@ -70,7 +84,7 @@ afterEach(() => {
 });
 
 describe("TestnetBillProgress", () => {
-  it("renders independent participant states for the creator", async () => {
+  it("renders Asset-aware participant states for the creator", async () => {
     const fetcher = vi.fn().mockResolvedValue(jsonResponse(progress));
     vi.stubGlobal("fetch", fetcher);
 
@@ -81,6 +95,8 @@ describe("TestnetBillProgress", () => {
     ).toBeVisible();
     expect(screen.getByText("Creator view")).toBeVisible();
     expect(screen.getByText("1/2 paid")).toBeVisible();
+    expect(screen.getByText("10 XRP")).toBeVisible();
+    expect(screen.getByText("3 XRP",  { exact: true })).toBeVisible();
     expect(screen.getByText("Alex")).toBeVisible();
     expect(screen.getByText("Blair")).toBeVisible();
     expect(screen.getByText("Paid")).toBeVisible();
