@@ -2,7 +2,7 @@
 
 **Status:** Active  
 **Scope:** Public documentation map and precedence rules  
-**Last reviewed:** 2026-06-24  
+**Last reviewed:** 2026-06-26  
 **Document class:** Public
 
 ## 1. Purpose
@@ -48,8 +48,10 @@ These documents define approved behavior. They may describe target behavior that
 - `persistence-scope.md` — durable records, compatibility guarantees, and current database scope.
 - `d1-provisioning.md` — local, Testnet, and Mainnet D1 provisioning and migration controls.
 - `transaction-proof.md` — public proof fields, digest contracts, privacy boundary, and integrity checks.
+- `mainnet-operational-controls.md` — Mainnet enabled, verify-only, and halted runtime behavior.
+- `mainnet-acceptance-audit.md` — final cross-control audit, current release decision, unresolved findings, and approval procedure.
 
-Any change to custody, asset identity, wallet authority, expected payment facts, ledger verification, receipt compatibility, or public proof requires all affected documents in this section to be updated before implementation.
+Any change to custody, asset identity, wallet authority, expected payment facts, ledger verification, receipt compatibility, public proof, Mainnet operations, or release acceptance requires all affected documents in this section to be updated before implementation.
 
 ## 6. Feature contracts
 
@@ -97,6 +99,7 @@ A major PR must state whether it affects:
 - verification or Receipt Contracts;
 - privacy or persistence;
 - localization;
+- Mainnet operations or acceptance;
 - Roadmap;
 - Changelog.
 
