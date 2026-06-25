@@ -48,6 +48,16 @@ export const REQUIRED_ACCEPTANCE_CONTROL_IDS = [
   "operational-stop-drill",
 ];
 
+export const REQUIRED_ACCEPTANCE_FINDING_IDS = [
+  "production-d1-not-provisioned",
+  "production-runtime-not-approved",
+  "production-provider-not-attested",
+  "mainnet-source-tag-not-assigned",
+  "live-xrp-acceptance-not-recorded",
+  "live-rlusd-acceptance-not-recorded",
+  "operational-stop-drill-not-recorded",
+];
+
 function assertUnique(items, label) {
   const seen = new Set();
   for (const item of items) {
@@ -55,6 +65,24 @@ function assertUnique(items, label) {
       throw new Error(`${label} IDs must be unique: ${item.id}`);
     }
     seen.add(item.id);
+  }
+}
+
+function assertRequiredIds(items, requiredIds, label) {
+  const ids = new Set(items.map((item) => item.id));
+  for (const id of requiredIds) {
+    if (!ids.has(id)) {
+      throw new Error(`${label} is missing: ${id}`);
+    }
+  }
+
+  const unknown = items.filter((item) => !requiredIds.includes(item.id));
+  if (unknown.length > 0) {
+    throw new Error(
+      `Unknown ${label.toLowerCase()}s: ${unknown
+        .map((item) => item.id)
+        .join(", ")}`,
+    );
   }
 }
 
@@ -77,24 +105,16 @@ export async function readMainnetAcceptance(
 export function assertMainnetAcceptanceDocument(acceptance) {
   assertUnique(acceptance.controls, "Mainnet acceptance control");
   assertUnique(acceptance.blocking_findings, "Mainnet acceptance finding");
-
-  const controlIds = new Set(acceptance.controls.map((control) => control.id));
-  for (const id of REQUIRED_ACCEPTANCE_CONTROL_IDS) {
-    if (!controlIds.has(id)) {
-      throw new Error(`Mainnet acceptance control is missing: ${id}`);
-    }
-  }
-
-  const unknownControls = acceptance.controls.filter(
-    (control) => !REQUIRED_ACCEPTANCE_CONTROL_IDS.includes(control.id),
+  assertRequiredIds(
+    acceptance.controls,
+    REQUIRED_ACCEPTANCE_CONTROL_IDS,
+    "Mainnet acceptance control",
   );
-  if (unknownControls.length > 0) {
-    throw new Error(
-      `Unknown Mainnet acceptance controls: ${unknownControls
-        .map((control) => control.id)
-        .join(", ")}`,
-    );
-  }
+  assertRequiredIds(
+    acceptance.blocking_findings,
+    REQUIRED_ACCEPTANCE_FINDING_IDS,
+    "Mainnet acceptance finding",
+  );
 
   const incomplete = acceptance.controls.filter(
     (control) => control.status !== "passed",
@@ -190,14 +210,38 @@ export function assertBlockedReleaseEvidence(acceptance, wranglerSource) {
   const mainnetDatabase = mainnet.d1_databases?.find(
     (database) => database.binding === "PAYMENTS_DB_MAINNET",
   );
+  if (!mainnetDatabase) {
+    throw new Error("Wrangler must define the PAYMENTS_DB_MAINNET binding.");
+  }
+
+  const placeholder = "00000000-0000-0000-0000-000000000000";
+  const d1Control = acceptance.controls.find(
+    (control) => control.id === "production-d1-provisioning",
+  );
+  const d1Finding = acceptance.blocking_findings.find(
+    (finding) => finding.id === "production-d1-not-provisioned",
+  );
+  const d1StillBlocked =
+    d1Control.status !== "passed" || d1Finding.status === "open";
+
+  if (d1StillBlocked) {
+    if (
+      mainnetDatabase.database_id !== placeholder ||
+      mainnetDatabase.preview_database_id !== placeholder
+    ) {
+      throw new Error(
+        "The production D1 blocker no longer matches the committed Wrangler evidence.",
+      );
+    }
+    return;
+  }
+
   if (
-    !mainnetDatabase ||
-    mainnetDatabase.database_id !== "00000000-0000-0000-0000-000000000000" ||
-    mainnetDatabase.preview_database_id !==
-      "00000000-0000-0000-0000-000000000000"
+    mainnetDatabase.database_id === placeholder ||
+    mainnetDatabase.preview_database_id === placeholder
   ) {
     throw new Error(
-      "The production D1 blocker no longer matches the committed Wrangler evidence.",
+      "Resolved production D1 acceptance requires non-placeholder Mainnet identifiers.",
     );
   }
 }
