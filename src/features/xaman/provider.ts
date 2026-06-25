@@ -7,10 +7,8 @@ import {
   type WalletProvider,
   type WalletProviderCapabilities,
 } from "@/features/wallet-providers/types";
-import {
-  buildXrpPaymentTransaction,
-  XrplPaymentBuildError,
-} from "@/features/xrpl/payment-builder";
+import { XrplPaymentBuildError } from "@/features/xrpl/payment-builder";
+import { buildXrplPaymentTransaction } from "@/features/xrpl/transaction-builder";
 
 import { XamanApiError, XamanClient } from "./client";
 import {
@@ -24,7 +22,7 @@ export type XamanPayloadClient = Pick<XamanClient, "createPayload">;
 export const XAMAN_PROVIDER_CAPABILITIES = {
   paymentRails: ["xrpl"],
   networks: ["testnet"],
-  assetTypes: ["native"],
+  assetTypes: ["native", "issued"],
   handoffMethods: ["mobile-uri", "browser-uri", "qr"],
   statusChannel: true,
 } as const satisfies WalletProviderCapabilities;
@@ -40,7 +38,7 @@ function buildXamanRequest(intent: PaymentIntent): XamanPaymentPayloadRequest {
 
   try {
     return {
-      txjson: buildXrpPaymentTransaction(intent),
+      txjson: buildXrplPaymentTransaction(intent),
       options: {
         submit: true,
         expire: 5,
