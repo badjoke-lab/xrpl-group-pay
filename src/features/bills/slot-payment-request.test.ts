@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { getRlusdAssetDescriptor } from "@/features/assets/registry";
+import { PAYMENT_SLOT_CONTRACT_VERSION } from "@/features/persistence/asset-records";
+
 import type { ResolvedPaymentSlot } from "./payment-slot";
 import {
   buildStoredSlotPaymentIntent,
@@ -31,10 +34,11 @@ const slot: ResolvedPaymentSlot = {
 const now = new Date("2026-06-24T00:00:00.000Z");
 
 describe("stored slot Payment Intent", () => {
-  it("derives a frozen wallet-neutral intent from server state", () => {
+  it("derives a frozen wallet-neutral XRP intent from server state", () => {
     expect(buildStoredSlotPaymentIntent(slot, 123456, now)).toMatchObject({
       paymentSlotId: slot.slotPublicId,
       network: "testnet",
+      asset: { id: "xrpl:testnet:xrp", assetType: "native" },
       amount: { code: "XRP", units: "4000001", scale: 6 },
       destination: DESTINATION,
       destinationTag: 9,
@@ -46,7 +50,41 @@ describe("stored slot Payment Intent", () => {
     });
   });
 
-  it("preserves the existing Xaman Testnet request shape", () => {
+  it("derives an official RLUSD intent from the frozen issued Asset", () => {
+    const asset = getRlusdAssetDescriptor("testnet");
+    const issuedSlot: ResolvedPaymentSlot = {
+      ...slot,
+      paymentContractVersion: PAYMENT_SLOT_CONTRACT_VERSION,
+      asset,
+      expectedAmount: {
+        code: asset.symbol,
+        units: "1250000",
+        scale: asset.precision,
+      },
+      expectedAmountDrops: "1250000",
+    };
+
+    expect(
+      buildStoredSlotPaymentIntent(issuedSlot, 123456, now),
+    ).toMatchObject({
+      paymentSlotId: slot.slotPublicId,
+      network: "testnet",
+      asset: {
+        id: "xrpl:testnet:rlusd",
+        assetType: "issued",
+        currency: asset.currency,
+        issuer: asset.issuer,
+      },
+      amount: { code: "RLUSD", units: "1250000", scale: 6 },
+      destination: DESTINATION,
+      destinationTag: 9,
+      sourceTag: 123456,
+      invoiceId: INVOICE_ID,
+      expectedPayer: PAYER,
+    });
+  });
+
+  it("preserves the existing Xaman Testnet XRP request shape", () => {
     expect(buildStoredSlotPaymentPayload(slot, 123456, now)).toEqual({
       txjson: {
         TransactionType: "Payment",
@@ -58,6 +96,27 @@ describe("stored slot Payment Intent", () => {
       },
       options: { submit: true, expire: 5, force_network: "TESTNET" },
     });
+  });
+
+  it("keeps issued-asset wallet handoff disabled on the legacy payload path", () => {
+    const asset = getRlusdAssetDescriptor("testnet");
+    expect(() =>
+      buildStoredSlotPaymentPayload(
+        {
+          ...slot,
+          paymentContractVersion: PAYMENT_SLOT_CONTRACT_VERSION,
+          asset,
+          expectedAmount: {
+            code: asset.symbol,
+            units: "1250000",
+            scale: asset.precision,
+          },
+          expectedAmountDrops: "1250000",
+        },
+        123456,
+        now,
+      ),
+    ).toThrow("The XRP builder accepts only a native XRP Payment Intent.");
   });
 
   it("fails closed for an invalid configured Source Tag", () => {
