@@ -11,10 +11,11 @@ import { createInvoiceId } from "@/features/xaman/payment-request";
 
 import type { D1DatabaseLike } from "../persistence/d1-types";
 import {
-  allocateBill,
-  AllocationError,
-  type AllocationInput,
-} from "./allocation-engine";
+  BILL_ALLOCATION_CONTRACT_VERSION,
+  INSERT_BILL_ALLOCATION,
+  INSERT_BILL_ALLOCATION_PARTICIPANT,
+  prepareAllocationPersistence,
+} from "./allocation-persistence";
 import {
   billAssetWriteValues,
   INSERT_ASSET_AWARE_BILL,
@@ -23,6 +24,11 @@ import {
   slotAssetWriteValues,
 } from "./bill-write-contract";
 import { createCapabilityToken, hashCapabilityToken } from "./capabilities";
+import {
+  BillAllocationPreparationError,
+  prepareBillAllocation,
+  type PreparedBillAllocation,
+} from "./prepare-bill-allocation";
 import {
   billReviewSchema,
   createdBillSchema,
@@ -57,6 +63,12 @@ const defaultRandomSource: BillRandomSource = {
   uuid: () => crypto.randomUUID(),
   token: () => createCapabilityToken(),
   invoiceId: () => createInvoiceId(),
+};
+
+type PreparedBill = {
+  input: NormalizedCreateBillInput;
+  review: BillReview;
+  allocation: PreparedBillAllocation;
 };
 
 function requireTestnetSettlementAsset(assetId: string): AssetDescriptor {
@@ -133,86 +145,7 @@ function parseDestinationTag(value: string | number | undefined) {
   return parsed;
 }
 
-function participantId(
-  participant: NormalizedCreateBillInput["participants"][number],
-  index: number,
-) {
-  return participant.participantId ?? `participant-${index + 1}`;
-}
-
-function buildAllocationInput(
-  input: NormalizedCreateBillInput,
-  asset: AssetDescriptor,
-  totalAmount: MoneyAmount,
-  creatorShareAmount: MoneyAmount,
-  participantIds: string[],
-): AllocationInput {
-  const allocation = input.allocation ?? { strategy: "custom" as const };
-  const base = {
-    totalUnits: totalAmount.units,
-    creatorShareUnits: creatorShareAmount.units,
-    participantIds,
-  };
-
-  if (allocation.strategy === "custom") {
-    const participantUnits = input.participants.map((participant, index) => {
-      if (participant.amount === undefined) {
-        throw new BillInputError(
-          "Every participant requires an amount for Custom Amount allocation.",
-        );
-      }
-      return {
-        participantId: participantIds[index],
-        units: parseAmount(
-          asset,
-          participant.amount,
-          false,
-          "Each participant amount",
-        ).units,
-      };
-    });
-    return { ...base, strategy: "custom", participantUnits };
-  }
-
-  if (input.participants.some((participant) => participant.amount !== undefined)) {
-    throw new BillInputError(
-      "Participant amount fields are only accepted for Custom Amount allocation.",
-    );
-  }
-
-  if (allocation.strategy === "equal") {
-    return {
-      ...base,
-      strategy: "equal",
-      ...(allocation.remainderAssignment
-        ? { remainderAssignment: allocation.remainderAssignment }
-        : {}),
-    };
-  }
-
-  if (allocation.strategy === "percentage") {
-    return {
-      ...base,
-      strategy: "percentage",
-      percentageScale: allocation.percentageScale,
-      percentages: allocation.percentages,
-      ...(allocation.remainderAssignment
-        ? { remainderAssignment: allocation.remainderAssignment }
-        : {}),
-    };
-  }
-
-  return {
-    ...base,
-    strategy: "shares",
-    shares: allocation.shares,
-    ...(allocation.remainderAssignment
-      ? { remainderAssignment: allocation.remainderAssignment }
-      : {}),
-  };
-}
-
-export function prepareBillReview(rawInput: CreateBillInput): BillReview {
+function prepareBill(rawInput: CreateBillInput): PreparedBill {
   const input = createBillInputSchema.parse(rawInput);
   const asset = requireTestnetSettlementAsset(input.settlementAssetId);
   const destinationAddress = input.destinationAddress.trim();
@@ -229,7 +162,7 @@ export function prepareBillReview(rawInput: CreateBillInput): BillReview {
     "Creator share",
   );
 
-  const normalizedParticipants = input.participants.map((participant, index) => {
+  const normalizedParticipants = input.participants.map((participant) => {
     const expectedPayerAddress = participant.expectedPayerAddress.trim();
     if (!isValidClassicAddress(expectedPayerAddress)) {
       throw new BillInputError(
@@ -237,40 +170,36 @@ export function prepareBillReview(rawInput: CreateBillInput): BillReview {
       );
     }
     return {
-      participantId: participantId(participant, index),
       participantLabel: participant.label?.trim() || null,
       expectedPayerAddress,
     };
   });
 
-  let allocation;
+  let allocation: PreparedBillAllocation;
   try {
-    allocation = allocateBill(
-      buildAllocationInput(
-        input,
-        asset,
-        totalAmount,
-        requestedCreatorShareAmount,
-        normalizedParticipants.map((participant) => participant.participantId),
-      ),
-    );
+    allocation = prepareBillAllocation({
+      normalizedInput: input,
+      asset,
+      totalUnits: totalAmount.units,
+      creatorShareUnits: requestedCreatorShareAmount.units,
+    });
   } catch (error) {
-    if (error instanceof BillInputError) throw error;
-    if (error instanceof AllocationError) {
+    if (error instanceof BillAllocationPreparationError) {
       throw new BillInputError(error.message);
     }
     throw error;
   }
 
   const obligationByParticipant = new Map(
-    allocation.participantObligations.map((obligation) => [
+    allocation.result.participantObligations.map((obligation) => [
       obligation.participantId,
       obligation.units,
     ]),
   );
 
-  const participants = normalizedParticipants.map((participant) => {
-    const units = obligationByParticipant.get(participant.participantId);
+  const participants = normalizedParticipants.map((participant, index) => {
+    const participantId = allocation.participantIds[index];
+    const units = obligationByParticipant.get(participantId);
     if (!units) {
       throw new BillInputError(
         "The allocation did not produce an obligation for every participant.",
@@ -291,16 +220,16 @@ export function prepareBillReview(rawInput: CreateBillInput): BillReview {
 
   const creatorShareAmount: MoneyAmount = {
     code: asset.symbol,
-    units: allocation.creatorShareUnits,
+    units: allocation.result.creatorShareUnits,
     scale: asset.precision,
   };
   const allocatedAmount: MoneyAmount = {
     code: asset.symbol,
-    units: allocation.totalUnits,
+    units: allocation.result.totalUnits,
     scale: asset.precision,
   };
 
-  return billReviewSchema.parse({
+  const review = billReviewSchema.parse({
     network: "testnet",
     title: input.title.trim(),
     destinationAddress,
@@ -314,6 +243,12 @@ export function prepareBillReview(rawInput: CreateBillInput): BillReview {
     allocatedDrops: compatibilityDrops(asset, allocatedAmount.units),
     participants,
   });
+
+  return { input, review, allocation };
+}
+
+export function prepareBillReview(rawInput: CreateBillInput): BillReview {
+  return prepareBill(rawInput).review;
 }
 
 export async function createPublishedBill(
@@ -322,7 +257,8 @@ export async function createPublishedBill(
   now = new Date(),
   random: BillRandomSource = defaultRandomSource,
 ): Promise<CreatedBill> {
-  const review = prepareBillReview(rawInput);
+  const prepared = prepareBill(rawInput);
+  const { review, allocation } = prepared;
 
   const billId = random.uuid();
   const billPublicId = random.uuid();
@@ -335,11 +271,12 @@ export async function createPublishedBill(
   const timestamp = now.toISOString();
 
   const slots = await Promise.all(
-    review.participants.map(async (participant) => {
+    review.participants.map(async (participant, index) => {
       const paymentToken = random.token();
       return {
         id: random.uuid(),
         publicId: random.uuid(),
+        participantId: allocation.participantIds[index],
         paymentToken,
         publicTokenHash: await hashCapabilityToken(paymentToken),
         invoiceId: random.invoiceId().toUpperCase(),
@@ -347,6 +284,12 @@ export async function createPublishedBill(
       };
     }),
   );
+
+  const allocationRecord = prepareAllocationPersistence({
+    allocationInput: allocation.contractInput,
+    result: allocation.result,
+    participantIds: allocation.participantIds,
+  });
 
   const statements = [
     database
@@ -381,6 +324,33 @@ export async function createPublishedBill(
           legacyCompatibilityUnits(slot.expectedAmount.units),
           slot.invoiceId,
           ...slotAssetWriteValues(review.asset, slot.expectedAmount.units),
+          timestamp,
+        ),
+    ),
+    database
+      .prepare(INSERT_BILL_ALLOCATION)
+      .bind(
+        billId,
+        BILL_ALLOCATION_CONTRACT_VERSION,
+        allocationRecord.strategy,
+        allocationRecord.weightScale,
+        allocationRecord.weightTotalUnits,
+        allocationRecord.remainderUnits,
+        allocationRecord.remainderKind,
+        allocationRecord.remainderParticipantId,
+        timestamp,
+      ),
+    ...allocationRecord.participants.map((participant, index) =>
+      database
+        .prepare(INSERT_BILL_ALLOCATION_PARTICIPANT)
+        .bind(
+          billId,
+          slots[index].id,
+          participant.participantId,
+          participant.inputUnits,
+          participant.baseAmountUnits,
+          participant.remainderIncrementUnits,
+          participant.finalAmountUnits,
           timestamp,
         ),
     ),
