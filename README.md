@@ -8,24 +8,25 @@ A creator prepares a Bill, allocates participant obligations, shares individual 
 
 The merged application currently provides:
 
-- one-time XRP Bills on XRPL Testnet;
-- creator share and custom participant amounts;
+- one-time XRP or official RLUSD Bills on XRPL Testnet;
+- one frozen Settlement Asset per Bill and all of its participant slots;
+- creator share and custom participant amounts in fixed-precision Asset units;
 - expected payer XRPL addresses;
 - separate participant capabilities;
 - creator review before Bill freeze;
 - participant final confirmation;
-- Xaman Payment handoff;
+- Xaman handoff for native XRP and issued RLUSD Payments;
 - Source Tag and unique InvoiceID;
-- strict validated-ledger XRP verification;
-- durable D1 receipts;
+- strict validated-ledger XRP and issued-asset verification;
+- durable Asset-aware D1 payment records;
 - atomic Bill progress updates;
-- public transaction proof;
+- public XRP transaction proof;
 - responsive payer and creator views.
 
 | Area | Available now |
 |---|---|
 | Network | XRPL Testnet |
-| Settlement Asset | XRP |
+| Settlement Asset | XRP or official network-specific RLUSD; one Asset per Bill |
 | Wallet Provider | Xaman |
 | Allocation | Creator share and custom participant amounts |
 | Interface language | English |
@@ -33,19 +34,15 @@ The merged application currently provides:
 
 ## Approved Make Waves v1 target
 
-The approved target adds:
+The remaining approved target adds:
 
-- XRP and official network-specific RLUSD on XRPL;
-- one frozen Settlement Asset per Bill;
 - Equal, Percentage, Shares, and Custom Amount allocation;
 - explicit remainder handling;
-- wallet-neutral Payment Intents;
-- Xaman behind a Wallet Provider boundary;
-- XRP and issued-asset verification and receipt contracts;
-- RLUSD recipient readiness;
+- further wallet-neutral Payment Intent and Wallet Provider integration;
+- RLUSD recipient-readiness checks;
 - English, Japanese, and Korean critical flows;
 - controlled XRPL Mainnet release;
-- public Roadmap and Changelog pages.
+- public Roadmap and Changelog pages in the application interface.
 
 Target features are not claimed as available until their implementation is merged and tested.
 
