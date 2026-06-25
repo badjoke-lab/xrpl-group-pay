@@ -21,6 +21,7 @@ import {
   requestBillProgress,
 } from "@/features/bills/progress-client";
 import { useCapabilityToken } from "@/features/capabilities/use-capability-token";
+import { formatMoneyAmount } from "@/features/money/money";
 
 export type TestnetBillProgressProps = {
   capabilityToken?: string;
@@ -33,11 +34,8 @@ type ProgressViewState =
 
 type SlotStatus = BillProgress["slots"][number]["status"];
 
-function dropsToXrp(drops: string) {
-  const padded = drops.padStart(7, "0");
-  const whole = padded.slice(0, -6);
-  const fraction = padded.slice(-6).replace(/0+$/, "");
-  return fraction ? `${whole}.${fraction}` : whole;
+function amount(value: BillProgress["bill"]["totalAmount"]) {
+  return `${formatMoneyAmount(value)} ${value.code}`;
 }
 
 function shortValue(value: string, start = 9, end = 7) {
@@ -207,6 +205,7 @@ function ProgressSnapshot({
         );
   const isSettled = progress.bill.status === "settled";
   const isAdmin = progress.access === "admin";
+  const issued = progress.bill.asset.assetType === "issued";
 
   return (
     <div className="space-y-7">
@@ -217,6 +216,9 @@ function ProgressSnapshot({
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-pill bg-brand-subtle px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
                   Testnet
+                </span>
+                <span className="rounded-pill border border-border px-3 py-1 text-xs font-bold">
+                  {progress.bill.asset.symbol}
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-pill border border-border px-3 py-1 text-xs font-semibold text-muted">
                   {isAdmin ? (
@@ -232,9 +234,17 @@ function ProgressSnapshot({
               </h2>
               <p className="mt-3 max-w-2xl leading-7 text-muted">
                 {isSettled
-                  ? "Every participant payment has been verified on a validated XRP Ledger."
-                  : "Each slot updates independently only after its exact XRP Payment is verified."}
+                  ? `Every participant ${progress.bill.asset.symbol} payment has been verified on a validated XRP Ledger.`
+                  : `Each slot updates independently only after its exact ${progress.bill.asset.symbol} Payment is verified.`}
               </p>
+              {issued && (
+                <p
+                  className="mt-3 break-all font-mono text-xs text-muted"
+                  title={progress.bill.asset.issuer}
+                >
+                  Official issuer {progress.bill.asset.issuer}
+                </p>
+              )}
             </div>
             <Button
               variant="secondary"
@@ -277,11 +287,11 @@ function ProgressSnapshot({
         <div className="grid border-t border-border sm:grid-cols-2 lg:grid-cols-4">
           <SummaryCell
             label="Bill total"
-            value={`${dropsToXrp(progress.bill.totalDrops)} XRP`}
+            value={amount(progress.bill.totalAmount)}
           />
           <SummaryCell
             label="Verified externally"
-            value={`${dropsToXrp(progress.summary.paidDrops)} XRP`}
+            value={amount(progress.summary.paidAmount)}
           />
           <SummaryCell
             label="Pending slots"
@@ -306,7 +316,7 @@ function ProgressSnapshot({
               Settlement complete
             </h3>
             <p className="mt-1 leading-7">
-              The bill is settled because all externally payable slots have a
+              The Bill is settled because all externally payable slots have a
               durable verified receipt.
             </p>
           </div>
@@ -356,7 +366,7 @@ function ProgressSnapshot({
                   </div>
                   <div className="flex flex-wrap items-center gap-3 sm:justify-end">
                     <span className="font-heading text-xl font-semibold text-brand">
-                      {dropsToXrp(slot.expectedAmountDrops)} XRP
+                      {amount(slot.expectedAmount)}
                     </span>
                     <span
                       className={`inline-flex items-center gap-1.5 rounded-pill px-3 py-1 text-xs font-bold ${presentation.className}`}
