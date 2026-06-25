@@ -85,50 +85,6 @@ describe("requestPaymentVerification", () => {
     },
   );
 
-  it("accepts a canonical issued-payment verification outcome", async () => {
-    const asset = getRlusdAssetDescriptor("testnet");
-    const outcome = {
-      status: "verified",
-      payment: {
-        contractVersion: "xrpl-group-pay:verified-payment:v1",
-        receiptContract: asset.receiptContract,
-        network: "testnet",
-        transactionId: TXID,
-        ledgerIndex: 1,
-        sender: "rSender",
-        destination: "rDestination",
-        asset,
-        requestedAmount: { code: "RLUSD", units: "1250000", scale: 6 },
-        deliveredAmount: { code: "RLUSD", units: "1250000", scale: 6 },
-        sourceTag: 1,
-        destinationTag: null,
-        invoiceId: INVOICE_ID,
-        idempotencyKey: `testnet:${TXID}`,
-        verifiedAt: "2026-06-25T00:00:00.000Z",
-      },
-      receipt: {
-        receiptId: `testnet:${TXID}`,
-        status: "recorded",
-        network: "testnet",
-        transactionId: TXID,
-        invoiceId: INVOICE_ID,
-        assetId: asset.id,
-        recordedAt: "2026-06-25T00:00:01.000Z",
-        verifiedPaymentDigest: "D".repeat(64),
-        legacyProofDigest: null,
-      },
-    };
-    const fetcher = vi.fn().mockResolvedValue(response(outcome, 200));
-
-    await expect(
-      requestPaymentVerification(
-        PAYMENT_TOKEN,
-        PAYLOAD_ID,
-        fetcher as unknown as typeof fetch,
-      ),
-    ).resolves.toEqual(outcome);
-  });
-
   it("keeps infrastructure failures retryable", async () => {
     const fetcher = vi.fn().mockResolvedValue(
       response(
@@ -195,7 +151,44 @@ describe("requestPaymentVerification", () => {
       },
       200,
     ],
-  ])("rejects malformed or status-inconsistent responses", async (body, status) => {
+    [
+      (() => {
+        const asset = getRlusdAssetDescriptor("testnet");
+        return {
+          status: "verified",
+          payment: {
+            contractVersion: "xrpl-group-pay:verified-payment:v1",
+            receiptContract: asset.receiptContract,
+            network: "testnet",
+            transactionId: TXID,
+            ledgerIndex: 1,
+            sender: "rSender",
+            destination: "rDestination",
+            asset,
+            requestedAmount: { code: "RLUSD", units: "1250000", scale: 6 },
+            deliveredAmount: { code: "RLUSD", units: "1250000", scale: 6 },
+            sourceTag: 1,
+            destinationTag: null,
+            invoiceId: INVOICE_ID,
+            idempotencyKey: `testnet:${TXID}`,
+            verifiedAt: "2026-06-25T00:00:00.000Z",
+          },
+          receipt: {
+            receiptId: `testnet:${TXID}`,
+            status: "recorded",
+            network: "testnet",
+            transactionId: TXID,
+            invoiceId: INVOICE_ID,
+            assetId: asset.id,
+            recordedAt: "2026-06-25T00:00:01.000Z",
+            verifiedPaymentDigest: "D".repeat(64),
+            legacyProofDigest: null,
+          },
+        };
+      })(),
+      200,
+    ],
+  ])("rejects malformed, status-inconsistent, or not-yet-enabled UI responses", async (body, status) => {
     const fetcher = vi.fn().mockResolvedValue(response(body, status));
 
     await expect(
