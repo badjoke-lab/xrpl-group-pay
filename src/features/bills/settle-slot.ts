@@ -10,7 +10,9 @@ import {
   recordedPaymentReceiptSchema,
   type RecordedPaymentReceipt,
 } from "@/features/persistence/types";
+import { digestVerifiedPayment } from "@/features/persistence/verified-payment-digest";
 import type { LedgerVerificationProof } from "@/features/payment-verification/types";
+import { verifiedPaymentFromXrpProof } from "@/features/payment-verification/verified-payment";
 
 import type { ResolvedPaymentSlot } from "./payment-slot";
 import { INSERT_SLOT_RECEIPT, SELECT_SLOT_SETTLEMENT } from "./receipt-write-sql";
@@ -113,6 +115,8 @@ export async function settleVerifiedPaymentSlot(
   assertProofMatchesSlot(slot, proof);
   const recordedAt = now.toISOString();
   const proofDigest = await digestVerifiedProof(proof);
+  const verifiedPayment = verifiedPaymentFromXrpProof(proof);
+  const verifiedPaymentDigest = await digestVerifiedPayment(verifiedPayment);
   const receiptId = proof.idempotencyKey;
 
   const statements = [
@@ -131,6 +135,16 @@ export async function settleVerifiedPaymentSlot(
       proof.verifiedAt,
       recordedAt,
       proofDigest,
+      verifiedPayment.contractVersion,
+      verifiedPayment.receiptContract,
+      verifiedPayment.asset.id,
+      verifiedPayment.asset.assetType,
+      verifiedPayment.asset.currency,
+      verifiedPayment.asset.issuer,
+      verifiedPayment.asset.precision,
+      verifiedPayment.requestedAmount.units,
+      verifiedPayment.deliveredAmount.units,
+      verifiedPaymentDigest,
       slot.slotId,
     ),
     database.prepare(MARK_SLOT_PAID).bind(
