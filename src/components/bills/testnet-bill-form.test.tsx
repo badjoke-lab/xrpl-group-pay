@@ -130,7 +130,7 @@ describe("TestnetBillForm", () => {
     fillBaseWithoutAmounts();
 
     fireEvent.click(screen.getByLabelText(/^Percentage/));
-    const percentages = screen.getAllByLabelText("Percentage");
+    const percentages = screen.getAllByLabelText(/^Percentage/);
     fireEvent.change(percentages[0], { target: { value: "25" } });
     fireEvent.change(percentages[1], { target: { value: "75" } });
     expect(screen.getByText("2 XRP", { exact: true })).toBeVisible();
