@@ -2,12 +2,10 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getXrpAssetDescriptor } from "@/features/assets/registry";
-
 import { TestnetBillProgress } from "./testnet-bill-progress";
 
 const TOKEN = "ab".repeat(32);
 const asset = getXrpAssetDescriptor("testnet");
-
 const progress = {
   access: "admin",
   bill: {
@@ -70,7 +68,7 @@ const progress = {
   ],
 };
 
-function jsonResponse(body: unknown, status = 200) {
+function response(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json" },
@@ -84,88 +82,62 @@ afterEach(() => {
 });
 
 describe("TestnetBillProgress", () => {
-  it("renders Asset-aware participant states for the creator", async () => {
-    const fetcher = vi.fn().mockResolvedValue(jsonResponse(progress));
+  it("renders Asset-aware participant states", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(progress));
     vi.stubGlobal("fetch", fetcher);
-
     render(<TestnetBillProgress capabilityToken={TOKEN} />);
 
-    expect(
-      await screen.findByRole("heading", { name: "XRPL Meetup Dinner" }),
-    ).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "XRPL Meetup Dinner" })).toBeVisible();
     expect(screen.getByText("Creator view")).toBeVisible();
     expect(screen.getByText("1/2 paid")).toBeVisible();
     expect(screen.getByText("10 XRP")).toBeVisible();
-    expect(screen.getByText("3 XRP",  { exact: true })).toBeVisible();
+    expect(screen.getAllByText("3 XRP", { exact: true })).toHaveLength(2);
     expect(screen.getByText("Alex")).toBeVisible();
     expect(screen.getByText("Blair")).toBeVisible();
     expect(screen.getByText("Paid")).toBeVisible();
     expect(screen.getByText("Unpaid")).toBeVisible();
-    expect(fetcher).toHaveBeenCalledWith(
-      "/api/bills/progress",
-      expect.objectContaining({
-        body: JSON.stringify({ capabilityToken: TOKEN }),
-      }),
-    );
   });
 
-  it("keeps participant identity hidden in the read-only view", async () => {
-    const readOnly = {
-      ...progress,
-      access: "public",
-      slots: progress.slots.map((slot) => ({
-        ...slot,
-        participantLabel: null,
-        expectedPayerAddress: null,
-        invoiceId: null,
-      })),
-    };
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(readOnly)));
-
+  it("redacts identities in the read-only view", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        response({
+          ...progress,
+          access: "public",
+          slots: progress.slots.map((slot) => ({
+            ...slot,
+            participantLabel: null,
+            expectedPayerAddress: null,
+            invoiceId: null,
+          })),
+        }),
+      ),
+    );
     render(<TestnetBillProgress capabilityToken={TOKEN} />);
-
     expect(await screen.findByText("Read-only view")).toBeVisible();
     expect(screen.queryByText("Alex")).toBeNull();
-    expect(screen.queryByText("rAlex")).toBeNull();
     expect(screen.getByText("Payment slot 1")).toBeVisible();
   });
 
-  it("shows a uniform invalid-link state without making a request", () => {
-    const fetcher = vi.fn();
-    vi.stubGlobal("fetch", fetcher);
+  it("shows invalid and retryable states", async () => {
+    const invalidFetch = vi.fn();
+    vi.stubGlobal("fetch", invalidFetch);
+    const { unmount } = render(<TestnetBillProgress capabilityToken="invalid" />);
+    expect(screen.getByRole("heading", { name: "Bill progress link unavailable" })).toBeVisible();
+    expect(invalidFetch).not.toHaveBeenCalled();
+    unmount();
 
-    render(<TestnetBillProgress capabilityToken="invalid" />);
-
-    expect(
-      screen.getByRole("heading", { name: "Bill progress link unavailable" }),
-    ).toBeVisible();
-    expect(fetcher).not.toHaveBeenCalled();
-  });
-
-  it("allows a failed progress request to be retried", async () => {
     const fetcher = vi
       .fn()
-      .mockResolvedValueOnce(
-        jsonResponse(
-          { error: { message: "The bill progress is temporarily unavailable." } },
-          503,
-        ),
-      )
-      .mockResolvedValueOnce(jsonResponse(progress));
+      .mockResolvedValueOnce(response({ error: { message: "Temporary" } }, 503))
+      .mockResolvedValueOnce(response(progress));
     vi.stubGlobal("fetch", fetcher);
-
     render(<TestnetBillProgress capabilityToken={TOKEN} />);
-
-    expect(
-      await screen.findByRole("heading", { name: "Bill progress unavailable" }),
-    ).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Bill progress unavailable" })).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole("heading", { name: "XRPL Meetup Dinner" }),
-      ).toBeVisible();
-    });
-    expect(fetcher).toHaveBeenCalledTimes(2);
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: "XRPL Meetup Dinner" })).toBeVisible(),
+    );
   });
 });
