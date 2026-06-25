@@ -11,9 +11,8 @@ import {
 import {
   PaymentSlotSettlementConflictError,
   PaymentSlotSettlementDatabaseError,
-  settleVerifiedPaymentSlot,
 } from "@/features/bills/settle-slot";
-import { verifyStoredSlotPayment } from "@/features/bills/stored-slot-verification";
+import { verifyAndSettleStoredSlotPayment } from "@/features/bills/verify-and-settle-slot";
 import {
   getPaymentsDatabase,
   PaymentsDatabaseUnavailableError,
@@ -51,23 +50,15 @@ const defaultDependencies: VerificationRouteDependencies = {
     const providerStatus = new XamanStatusReader(xaman);
     const xrpl = new XrplTestnetClient();
     const slot = await loadPaymentSlotByToken(database, paymentToken);
-    const outcome = await verifyStoredSlotPayment(slot, payloadId, {
-      readProviderStatus: (id) => providerStatus.readStatus(id),
-      getXrplTransaction: (transactionId) =>
-        xrpl.getTransaction(transactionId),
-      sourceTag: environment.XRPL_SOURCE_TAG,
+
+    return verifyAndSettleStoredSlotPayment(database, slot, payloadId, {
+      verification: {
+        readProviderStatus: (id) => providerStatus.readStatus(id),
+        getXrplTransaction: (transactionId) =>
+          xrpl.getTransaction(transactionId),
+        sourceTag: environment.XRPL_SOURCE_TAG,
+      },
     });
-
-    if (outcome.status !== "verified") {
-      return outcome;
-    }
-
-    const settlement = await settleVerifiedPaymentSlot(
-      database,
-      slot,
-      outcome.proof,
-    );
-    return { ...outcome, receipt: settlement.receipt };
   },
 };
 
