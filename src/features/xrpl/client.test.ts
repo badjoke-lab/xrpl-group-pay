@@ -1,10 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { makeXrplTransaction, TEST_TXID } from "@/features/payment-verification/test-helpers";
+import {
+  makeXrplTransaction,
+  TEST_TXID,
+} from "@/features/payment-verification/test-helpers";
 
 import {
+  createXrplTransactionClient,
   XrplNodeUnavailableError,
   XrplTestnetClient,
+  XrplTransactionClientConfigurationError,
   XrplTransactionPendingError,
 } from "./client";
 
@@ -15,7 +20,7 @@ function rpcResponse(result: unknown) {
   });
 }
 
-describe("XrplTestnetClient", () => {
+describe("XRPL transaction client", () => {
   it("requests API v2 and fails over to the second Testnet endpoint", async () => {
     const fetcher = vi
       .fn()
@@ -76,5 +81,43 @@ describe("XrplTestnetClient", () => {
     await expect(client.getTransaction(TEST_TXID)).rejects.toBeInstanceOf(
       XrplNodeUnavailableError,
     );
+  });
+
+  it("requires explicit Mainnet gate access", () => {
+    expect(() => createXrplTransactionClient("mainnet")).toThrow(
+      XrplTransactionClientConfigurationError,
+    );
+  });
+
+  it("reads Mainnet only through an approved network-scoped client", async () => {
+    const fetcher = vi.fn().mockResolvedValue(rpcResponse(makeXrplTransaction()));
+    const client = createXrplTransactionClient("mainnet", {
+      deploymentNetwork: "mainnet",
+      mainnetAccess: {
+        network: "mainnet",
+        mainnetGateApproved: true,
+      },
+      endpoints: ["https://mainnet.test/"],
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    await expect(client.getTransaction(TEST_TXID)).resolves.toMatchObject({
+      hash: TEST_TXID,
+      validated: true,
+    });
+    expect(client.network).toBe("mainnet");
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  it("rejects PaymentSlot and deployment network crossover", () => {
+    expect(() =>
+      createXrplTransactionClient("mainnet", {
+        deploymentNetwork: "testnet",
+        mainnetAccess: {
+          network: "mainnet",
+          mainnetGateApproved: true,
+        },
+      }),
+    ).toThrow(XrplTransactionClientConfigurationError);
   });
 });

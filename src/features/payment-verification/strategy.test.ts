@@ -67,7 +67,38 @@ describe("verification dispatch", () => {
     ).toMatchObject({ status: "verified" });
   });
 
-  it("routes RLUSD to the issued strategy without enabling the legacy endpoint", () => {
+  it("routes Mainnet XRP to a Mainnet-scoped proof", () => {
+    const intent = createXrpPaymentIntent({
+      paymentSlotId: "slot-mainnet-xrp",
+      network: "mainnet",
+      amountDrops: TEST_AMOUNT_DROPS,
+      destination: TEST_DESTINATION,
+      destinationTag: 9,
+      sourceTag: TEST_SOURCE_TAG,
+      invoiceId: TEST_INVOICE_ID,
+      expectedPayer: TEST_SENDER,
+    });
+
+    expect(
+      dispatchAssetPaymentVerification(
+        intent,
+        TEST_TXID,
+        makeXrplTransaction(),
+      ),
+    ).toMatchObject({
+      status: "verified",
+      legacyProof: {
+        network: "mainnet",
+        idempotencyKey: `mainnet:${TEST_TXID}`,
+      },
+      payment: {
+        network: "mainnet",
+        asset: { id: "xrpl:mainnet:xrp" },
+      },
+    });
+  });
+
+  it("routes Testnet RLUSD without enabling the legacy endpoint", () => {
     const intent = createRlusdPaymentIntent({
       paymentSlotId: "slot-rlusd-1",
       network: "testnet",
@@ -88,6 +119,26 @@ describe("verification dispatch", () => {
     });
     expect(
       dispatchPaymentVerification(intent, TEST_TXID, rlusdTransaction()),
+    ).toMatchObject({
+      status: "failed",
+      reason: "UNSUPPORTED_VERIFICATION_STRATEGY",
+    });
+  });
+
+  it("keeps Mainnet RLUSD blocked for the independent PR #55 verifier", () => {
+    const intent = createRlusdPaymentIntent({
+      paymentSlotId: "slot-mainnet-rlusd",
+      network: "mainnet",
+      amountUnits: "1250000",
+      destination: TEST_DESTINATION,
+      destinationTag: 9,
+      sourceTag: TEST_SOURCE_TAG,
+      invoiceId: TEST_INVOICE_ID,
+      expectedPayer: TEST_SENDER,
+    });
+
+    expect(
+      dispatchAssetPaymentVerification(intent, TEST_TXID, rlusdTransaction()),
     ).toMatchObject({
       status: "failed",
       reason: "UNSUPPORTED_VERIFICATION_STRATEGY",

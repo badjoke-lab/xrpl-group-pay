@@ -35,8 +35,8 @@
     },
     {
       "id": "mainnet-xrp-verifier",
-      "status": "pending",
-      "evidence": null
+      "status": "passed",
+      "evidence": "Network-scoped Mainnet transaction reads require explicit gate approval and XRP verification checks validated ledger status, tesSUCCESS, exact payer, destination, drops, delivered amount, tags, InvoiceID, and Mainnet idempotency identity."
     },
     {
       "id": "mainnet-rlusd-verifier",

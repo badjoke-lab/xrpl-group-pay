@@ -35,6 +35,7 @@ function expectedXrpPayment(
   }
 
   return {
+    network: intent.network,
     transactionId,
     sender: intent.expectedPayer,
     destination: intent.destination,
@@ -70,6 +71,15 @@ export const xrpPaymentVerificationStrategy: VerificationStrategy = {
 export const issuedPaymentVerificationStrategy: VerificationStrategy = {
   strategyId: "xrpl-issued-asset-v1",
   verify({ intent, transactionId, transaction, now }) {
+    if (intent.network === "mainnet") {
+      return {
+        status: "failed",
+        reason: "UNSUPPORTED_VERIFICATION_STRATEGY",
+        transactionId,
+        message:
+          "Mainnet issued-Asset verification remains blocked until its independent verifier gate is complete.",
+      };
+    }
     return verifyIssuedPayment(intent, transactionId, transaction, now);
   },
 };

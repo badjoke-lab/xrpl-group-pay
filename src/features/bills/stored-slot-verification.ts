@@ -93,8 +93,7 @@ export async function verifyStoredSlotAssetPayment(
         status: "pending",
         reason: "TRANSACTION_NOT_FOUND",
         transactionId,
-        message:
-          "The transaction is not available on a validated Testnet ledger yet.",
+        message: `The transaction is not available on a validated XRPL ${slot.network} ledger yet.`,
       };
     }
     throw error;
