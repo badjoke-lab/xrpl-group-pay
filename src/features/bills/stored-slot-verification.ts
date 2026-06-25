@@ -1,8 +1,5 @@
-import {
-  dispatchAssetPaymentVerification,
-  dispatchPaymentVerification,
-} from "@/features/payment-verification/strategy";
 import type { AssetVerificationOutcome } from "@/features/payment-verification/asset-outcome";
+import { dispatchAssetPaymentVerification } from "@/features/payment-verification/strategy";
 import type { PaymentVerificationOutcome } from "@/features/payment-verification/types";
 import type { ProviderRequestStatus } from "@/features/wallet-providers/status-reader";
 import { XrplTransactionPendingError } from "@/features/xrpl/client";
@@ -118,21 +115,10 @@ export async function verifyStoredSlotPayment(
   if (outcome.legacyProof !== null) {
     return { status: "verified", proof: outcome.legacyProof };
   }
-
-  const intent = buildStoredSlotPaymentIntent(
-    slot,
-    dependencies.sourceTag,
-    dependencies.now?.() ?? new Date(),
-  );
-  return dispatchPaymentVerification(
-    intent,
-    outcome.payment.transactionId,
-    {
-      hash: outcome.payment.transactionId,
-      validated: true,
-      ledger_index: outcome.payment.ledgerIndex,
-      tx_json: {},
-      meta: { TransactionResult: "tesSUCCESS" },
-    },
-  );
+  return {
+    status: "failed",
+    reason: "UNSUPPORTED_VERIFICATION_STRATEGY",
+    transactionId: outcome.payment.transactionId,
+    message: "The verified Asset is not enabled on the legacy XRP verifier.",
+  };
 }
