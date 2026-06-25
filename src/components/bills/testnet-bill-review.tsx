@@ -10,8 +10,8 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { formatDropsAsXrp } from "@/features/bills/allocation-preview";
 import type { BillReview } from "@/features/bills/types";
+import { formatMoneyAmount } from "@/features/money/money";
 
 export type TestnetBillReviewProps = {
   review: BillReview;
@@ -27,8 +27,8 @@ function shortValue(value: string, start = 12, end = 10) {
     : value;
 }
 
-function xrp(drops: string) {
-  return formatDropsAsXrp(BigInt(drops));
+function amount(value: BillReview["totalAmount"]) {
+  return `${formatMoneyAmount(value)} ${value.code}`;
 }
 
 export function TestnetBillReview({
@@ -38,6 +38,8 @@ export function TestnetBillReview({
   onBack,
   onConfirm,
 }: TestnetBillReviewProps) {
+  const issued = review.asset.assetType === "issued";
+
   return (
     <section className="space-y-6">
       <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
@@ -52,14 +54,17 @@ export function TestnetBillReview({
                   <CheckCircle2 aria-hidden="true" className="size-3.5" />
                   Allocation exact
                 </span>
+                <span className="rounded-pill border border-border px-3 py-1 text-xs font-bold">
+                  {review.asset.symbol}
+                </span>
               </div>
               <h2 className="mt-4 font-heading text-3xl font-semibold sm:text-4xl">
                 Review before freezing
               </h2>
               <p className="mt-3 max-w-2xl leading-7 text-muted">
-                Confirm every destination and amount. The next step freezes these
-                payment conditions and creates one capability link per
-                participant.
+                Confirm every destination, payer, Asset, issuer, and amount. The
+                next step freezes these conditions and creates one capability
+                link per participant.
               </p>
             </div>
             <LockKeyhole
@@ -70,16 +75,16 @@ export function TestnetBillReview({
         </div>
 
         <dl className="grid border-t border-border sm:grid-cols-2 lg:grid-cols-4">
-          <SummaryCell label="Bill total" value={`${xrp(review.totalDrops)} XRP`} />
+          <SummaryCell label="Bill total" value={amount(review.totalAmount)} />
           <SummaryCell
             label="Creator share"
-            value={`${xrp(review.creatorShareDrops)} XRP`}
+            value={amount(review.creatorShareAmount)}
           />
           <SummaryCell
             label="Participants"
             value={String(review.participants.length)}
           />
-          <SummaryCell label="Allocated" value={`${xrp(review.allocatedDrops)} XRP`} />
+          <SummaryCell label="Allocated" value={amount(review.allocatedAmount)} />
         </dl>
       </div>
 
@@ -100,6 +105,23 @@ export function TestnetBillReview({
             }
           />
           <ReviewField label="Network" value="XRPL Testnet" />
+          <ReviewField
+            label="Settlement Asset"
+            value={review.asset.symbol}
+          />
+          <ReviewField
+            label="Asset type"
+            value={issued ? "Issued Asset" : "Native XRP"}
+          />
+          {review.asset.assetType === "issued" && (
+            <div className="lg:col-span-2">
+              <ReviewField
+                label="Official issuer"
+                value={review.asset.issuer}
+                mono
+              />
+            </div>
+          )}
         </div>
       </section>
 
@@ -111,7 +133,8 @@ export function TestnetBillReview({
               Participant allocations
             </h3>
             <p className="mt-1 text-sm text-muted">
-              Each row becomes a separate immutable payment slot.
+              Each row becomes a separate immutable {review.asset.symbol} payment
+              slot.
             </p>
           </div>
         </div>
@@ -138,7 +161,7 @@ export function TestnetBillReview({
                   </p>
                 </div>
                 <p className="font-heading text-xl font-semibold text-brand">
-                  {xrp(participant.expectedAmountDrops)} XRP
+                  {amount(participant.expectedAmount)}
                 </p>
               </div>
             </article>
@@ -155,9 +178,10 @@ export function TestnetBillReview({
           <div>
             <h3 className="font-semibold text-action">Final confirmation</h3>
             <p className="mt-1 leading-7 text-foreground">
-              No XRP moves when the bill is created. However, destination,
-              amount, payer, tag, and InvoiceID conditions are frozen for every
-              issued payment link.
+              No funds move when the Bill is created. The {review.asset.symbol}
+              identity, destination, issuer, amounts, payers, tags, and InvoiceIDs
+              are frozen for every participant link.
+              {issued && " XRPL network fees remain payable separately in XRP."}
             </p>
           </div>
         </div>
@@ -173,7 +197,12 @@ export function TestnetBillReview({
       )}
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-        <Button type="button" variant="secondary" onClick={onBack} disabled={creating}>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onBack}
+          disabled={creating}
+        >
           <ArrowLeft aria-hidden="true" className="size-4" />
           Back to edit
         </Button>

@@ -1,5 +1,12 @@
-import { isValidClassicAddress, xrpToDrops } from "xrpl";
+import { isValidClassicAddress } from "xrpl";
 
+import { assetRegistry, AssetRegistryError } from "@/features/assets/registry";
+import type { AssetDescriptor } from "@/features/assets/types";
+import {
+  decimalToUnits,
+  MoneyAmountError,
+  type MoneyAmount,
+} from "@/features/money/money";
 import { createInvoiceId } from "@/features/xaman/payment-request";
 
 import type { D1DatabaseLike } from "../persistence/d1-types";
@@ -7,6 +14,7 @@ import {
   billAssetWriteValues,
   INSERT_ASSET_AWARE_BILL,
   INSERT_ASSET_AWARE_SLOT,
+  legacyCompatibilityUnits,
   slotAssetWriteValues,
 } from "./bill-write-contract";
 import { createCapabilityToken, hashCapabilityToken } from "./capabilities";
@@ -45,25 +53,65 @@ const defaultRandomSource: BillRandomSource = {
   invoiceId: () => createInvoiceId(),
 };
 
-function toDrops(value: string, allowZero: boolean) {
-  let drops: string;
+function requireTestnetSettlementAsset(assetId: string): AssetDescriptor {
   try {
-    drops = xrpToDrops(value);
-  } catch {
+    const asset = assetRegistry.require(assetId);
+    if (asset.paymentRail !== "xrpl" || asset.network !== "testnet") {
+      throw new BillInputError(
+        "Select an approved XRPL Testnet Settlement Asset.",
+      );
+    }
+    if (asset.id !== "xrpl:testnet:xrp" && asset.id !== "xrpl:testnet:rlusd") {
+      throw new BillInputError(
+        "Select XRP or official RLUSD for this Testnet Bill.",
+      );
+    }
+    return asset;
+  } catch (error) {
+    if (error instanceof BillInputError) throw error;
+    if (error instanceof AssetRegistryError) {
+      throw new BillInputError("The selected Settlement Asset is not supported.");
+    }
+    throw error;
+  }
+}
+
+function parseAmount(
+  asset: AssetDescriptor,
+  value: string,
+  allowZero: boolean,
+  field: string,
+): MoneyAmount {
+  let units: string;
+  try {
+    units = decimalToUnits(value, asset.precision);
+  } catch (error) {
+    if (error instanceof MoneyAmountError) {
+      throw new BillInputError(
+        `${field} must be a plain ${asset.symbol} amount with no more than ${asset.precision} decimal places.`,
+      );
+    }
+    throw error;
+  }
+
+  const integer = BigInt(units);
+  if (integer < 0n || (!allowZero && integer === 0n)) {
     throw new BillInputError(
-      "Use XRP amounts with no more than six decimal places.",
+      allowZero
+        ? `${field} cannot be negative.`
+        : `${field} must be greater than zero.`,
     );
   }
 
-  const amount = BigInt(drops);
-  if (amount < 0n || (!allowZero && amount === 0n)) {
-    throw new BillInputError(
-      allowZero
-        ? "The XRP amount cannot be negative."
-        : "Each participant amount must be greater than zero.",
-    );
-  }
-  return drops;
+  return {
+    code: asset.symbol,
+    units,
+    scale: asset.precision,
+  };
+}
+
+function compatibilityDrops(asset: AssetDescriptor, units: string) {
+  return asset.assetType === "native" ? units : null;
 }
 
 function parseDestinationTag(value: string | number | undefined) {
@@ -81,14 +129,20 @@ function parseDestinationTag(value: string | number | undefined) {
 
 export function prepareBillReview(rawInput: CreateBillInput): BillReview {
   const input = createBillInputSchema.parse(rawInput);
+  const asset = requireTestnetSettlementAsset(input.settlementAssetId);
   const destinationAddress = input.destinationAddress.trim();
   if (!isValidClassicAddress(destinationAddress)) {
     throw new BillInputError("Enter a valid classic XRPL destination address.");
   }
 
   const destinationTag = parseDestinationTag(input.destinationTag);
-  const totalDrops = toDrops(input.totalXrp, false);
-  const creatorShareDrops = toDrops(input.creatorShareXrp, true);
+  const totalAmount = parseAmount(asset, input.totalAmount, false, "Bill total");
+  const creatorShareAmount = parseAmount(
+    asset,
+    input.creatorShareAmount,
+    true,
+    "Creator share",
+  );
   const participants = input.participants.map((participant) => {
     const expectedPayerAddress = participant.expectedPayerAddress.trim();
     if (!isValidClassicAddress(expectedPayerAddress)) {
@@ -96,31 +150,48 @@ export function prepareBillReview(rawInput: CreateBillInput): BillReview {
         "Every expected payer must be a valid classic XRPL address.",
       );
     }
+    const expectedAmount = parseAmount(
+      asset,
+      participant.amount,
+      false,
+      "Each participant amount",
+    );
     return {
       participantLabel: participant.label?.trim() || null,
       expectedPayerAddress,
-      expectedAmountDrops: toDrops(participant.amountXrp, false),
+      expectedAmount,
+      expectedAmountDrops: compatibilityDrops(asset, expectedAmount.units),
     };
   });
 
-  const allocatedDrops = participants.reduce(
-    (sum, participant) => sum + BigInt(participant.expectedAmountDrops),
-    BigInt(creatorShareDrops),
+  const allocatedUnits = participants.reduce(
+    (sum, participant) => sum + BigInt(participant.expectedAmount.units),
+    BigInt(creatorShareAmount.units),
   );
-  if (allocatedDrops !== BigInt(totalDrops)) {
+  if (allocatedUnits !== BigInt(totalAmount.units)) {
     throw new BillInputError(
       "Creator share and participant amounts must equal the bill total.",
     );
   }
+
+  const allocatedAmount: MoneyAmount = {
+    code: asset.symbol,
+    units: allocatedUnits.toString(),
+    scale: asset.precision,
+  };
 
   return billReviewSchema.parse({
     network: "testnet",
     title: input.title.trim(),
     destinationAddress,
     destinationTag,
-    totalDrops,
-    creatorShareDrops,
-    allocatedDrops: allocatedDrops.toString(),
+    asset,
+    totalAmount,
+    creatorShareAmount,
+    allocatedAmount,
+    totalDrops: compatibilityDrops(asset, totalAmount.units),
+    creatorShareDrops: compatibilityDrops(asset, creatorShareAmount.units),
+    allocatedDrops: compatibilityDrops(asset, allocatedAmount.units),
     participants,
   });
 }
@@ -168,11 +239,12 @@ export async function createPublishedBill(
         review.title,
         review.destinationAddress,
         review.destinationTag,
-        review.totalDrops,
-        review.creatorShareDrops,
+        legacyCompatibilityUnits(review.totalAmount.units),
+        legacyCompatibilityUnits(review.creatorShareAmount.units),
         ...billAssetWriteValues(
-          review.totalDrops,
-          review.creatorShareDrops,
+          review.asset,
+          review.totalAmount.units,
+          review.creatorShareAmount.units,
         ),
         timestamp,
       ),
@@ -186,9 +258,9 @@ export async function createPublishedBill(
           slot.publicTokenHash,
           slot.participantLabel,
           slot.expectedPayerAddress,
-          slot.expectedAmountDrops,
+          legacyCompatibilityUnits(slot.expectedAmount.units),
           slot.invoiceId,
-          ...slotAssetWriteValues(slot.expectedAmountDrops),
+          ...slotAssetWriteValues(review.asset, slot.expectedAmount.units),
           timestamp,
         ),
     ),
@@ -214,6 +286,9 @@ export async function createPublishedBill(
       network: review.network,
       destinationAddress: review.destinationAddress,
       destinationTag: review.destinationTag,
+      asset: review.asset,
+      totalAmount: review.totalAmount,
+      creatorShareAmount: review.creatorShareAmount,
       totalDrops: review.totalDrops,
       creatorShareDrops: review.creatorShareDrops,
       status: "open",
@@ -226,6 +301,8 @@ export async function createPublishedBill(
       publicId: slot.publicId,
       participantLabel: slot.participantLabel,
       expectedPayerAddress: slot.expectedPayerAddress,
+      asset: review.asset,
+      expectedAmount: slot.expectedAmount,
       expectedAmountDrops: slot.expectedAmountDrops,
       invoiceId: slot.invoiceId,
       status: "unpaid",

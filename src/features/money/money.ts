@@ -7,6 +7,8 @@ import {
   type MoneyAmount,
 } from "./types";
 
+export type { MoneyAmount } from "./types";
+
 export class MoneyAmountError extends Error {
   constructor(message: string) {
     super(message);

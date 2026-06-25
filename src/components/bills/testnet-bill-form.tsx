@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   CheckCircle2,
   CircleAlert,
+  Coins,
   LoaderCircle,
   Plus,
   Trash2,
@@ -14,8 +15,13 @@ import { CreatedBillShare } from "@/components/bills/created-bill-share";
 import { TestnetBillReview } from "@/components/bills/testnet-bill-review";
 import { Button } from "@/components/ui/button";
 import {
-  calculateAllocationPreview,
-  formatDropsAsXrp,
+  getRlusdAssetDescriptor,
+  getXrpAssetDescriptor,
+} from "@/features/assets/registry";
+import type { AssetDescriptor } from "@/features/assets/types";
+import {
+  calculateAssetAllocationPreview,
+  formatAllocationUnits,
 } from "@/features/bills/allocation-preview";
 import {
   BillReviewRequestError,
@@ -27,19 +33,27 @@ import type {
   CreatedBill,
 } from "@/features/bills/types";
 
+const ASSETS = [
+  getXrpAssetDescriptor("testnet"),
+  getRlusdAssetDescriptor("testnet"),
+] as const;
+
 type ParticipantDraft = {
   id: string;
   label: string;
   expectedPayerAddress: string;
-  amountXrp: string;
+  amount: string;
 };
+
+type SettlementAssetId = "xrpl:testnet:xrp" | "xrpl:testnet:rlusd";
 
 type BillDraft = {
   title: string;
   destinationAddress: string;
   destinationTag: string;
-  totalXrp: string;
-  creatorShareXrp: string;
+  settlementAssetId: SettlementAssetId;
+  totalAmount: string;
+  creatorShareAmount: string;
   participants: ParticipantDraft[];
 };
 
@@ -48,7 +62,7 @@ function participant(): ParticipantDraft {
     id: crypto.randomUUID(),
     label: "",
     expectedPayerAddress: "",
-    amountXrp: "",
+    amount: "",
   };
 }
 
@@ -57,8 +71,9 @@ function draft(): BillDraft {
     title: "",
     destinationAddress: "",
     destinationTag: "",
-    totalXrp: "",
-    creatorShareXrp: "",
+    settlementAssetId: "xrpl:testnet:xrp",
+    totalAmount: "",
+    creatorShareAmount: "",
     participants: [participant(), participant()],
   };
 }
@@ -79,13 +94,14 @@ function toInput(value: BillDraft): CreateBillInput {
     title: value.title,
     destinationAddress: value.destinationAddress,
     ...(destinationTag ? { destinationTag } : {}),
-    totalXrp: value.totalXrp,
-    creatorShareXrp: value.creatorShareXrp,
+    settlementAssetId: value.settlementAssetId,
+    totalAmount: value.totalAmount,
+    creatorShareAmount: value.creatorShareAmount,
     participants: value.participants.map(
-      ({ label, expectedPayerAddress, amountXrp }) => ({
+      ({ label, expectedPayerAddress, amount }) => ({
         ...(label.trim() ? { label } : {}),
         expectedPayerAddress,
-        amountXrp,
+        amount,
       }),
     ),
   };
@@ -99,20 +115,34 @@ export function TestnetBillForm() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const selectedAsset =
+    ASSETS.find((asset) => asset.id === billDraft.settlementAssetId) ?? ASSETS[0];
   const allocation = useMemo(
     () =>
-      calculateAllocationPreview({
-        totalXrp: billDraft.totalXrp,
-        creatorShareXrp: billDraft.creatorShareXrp,
-        participantAmountsXrp: billDraft.participants.map(
-          (item) => item.amountXrp,
-        ),
+      calculateAssetAllocationPreview({
+        totalAmount: billDraft.totalAmount,
+        creatorShareAmount: billDraft.creatorShareAmount,
+        participantAmounts: billDraft.participants.map((item) => item.amount),
+        scale: selectedAsset.precision,
       }),
-    [billDraft],
+    [billDraft, selectedAsset.precision],
   );
 
-  function updateBill(field: keyof Omit<BillDraft, "participants">, value: string) {
+  function updateBill(
+    field: keyof Omit<BillDraft, "participants">,
+    value: string,
+  ) {
     setBillDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  function selectAsset(asset: AssetDescriptor) {
+    if (asset.id !== "xrpl:testnet:xrp" && asset.id !== "xrpl:testnet:rlusd") {
+      return;
+    }
+    setBillDraft((current) => ({
+      ...current,
+      settlementAssetId: asset.id as SettlementAssetId,
+    }));
   }
 
   function updateParticipant(
@@ -215,14 +245,76 @@ export function TestnetBillForm() {
             Shared bill
           </p>
           <h2 className="mt-2 font-heading text-3xl font-semibold">
-            Assign each participant an XRP share
+            Choose one Settlement Asset for the Bill
           </h2>
           <p className="mt-2 leading-7 text-muted">
-            Enter the bill conditions first. Nothing is frozen until the review
-            step is confirmed.
+            Every participant pays the same frozen Asset. Nothing becomes payable
+            until the review step is confirmed.
           </p>
         </div>
       </div>
+
+      <fieldset className="mt-8">
+        <legend className="text-sm font-semibold">Settlement Asset</legend>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {ASSETS.map((asset) => {
+            const selected = asset.id === selectedAsset.id;
+            return (
+              <label
+                key={asset.id}
+                className={`cursor-pointer rounded-xl border p-5 transition-colors ${
+                  selected
+                    ? "border-brand bg-brand-subtle"
+                    : "border-border bg-background hover:border-brand/50"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="settlementAsset"
+                  value={asset.id}
+                  checked={selected}
+                  onChange={() => selectAsset(asset)}
+                  className="sr-only"
+                />
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-heading text-xl font-semibold">
+                      {asset.symbol}
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-muted">
+                      {asset.assetType === "native"
+                        ? "Native XRP on XRPL Testnet"
+                        : "Official Ripple USD issued on XRPL Testnet"}
+                    </p>
+                  </div>
+                  <div
+                    className={`flex size-8 items-center justify-center rounded-full ${
+                      selected ? "bg-brand text-white" : "bg-surface text-muted"
+                    }`}
+                  >
+                    {selected ? (
+                      <CheckCircle2 aria-hidden="true" className="size-5" />
+                    ) : (
+                      <Coins aria-hidden="true" className="size-5" />
+                    )}
+                  </div>
+                </div>
+                {asset.assetType === "issued" && (
+                  <p className="mt-3 break-all font-mono text-[11px] text-muted">
+                    Issuer {asset.issuer}
+                  </p>
+                )}
+              </label>
+            );
+          })}
+        </div>
+        {selectedAsset.assetType === "issued" && (
+          <p className="mt-3 rounded-lg border border-action/25 bg-action/10 p-4 text-sm leading-6">
+            The destination account must be ready to receive official RLUSD. The
+            issuer and amount will be frozen with every participant slot.
+          </p>
+        )}
+      </fieldset>
 
       <div className="mt-8 grid gap-5 sm:grid-cols-2">
         <Field
@@ -242,20 +334,20 @@ export function TestnetBillForm() {
         />
         <Field
           label="Total"
-          value={billDraft.totalXrp}
-          onChange={(value) => updateBill("totalXrp", value)}
+          value={billDraft.totalAmount}
+          onChange={(value) => updateBill("totalAmount", value)}
           placeholder="10"
           required
-          suffix="XRP"
+          suffix={selectedAsset.symbol}
           inputMode="decimal"
         />
         <Field
           label="Creator share"
-          value={billDraft.creatorShareXrp}
-          onChange={(value) => updateBill("creatorShareXrp", value)}
+          value={billDraft.creatorShareAmount}
+          onChange={(value) => updateBill("creatorShareAmount", value)}
           placeholder="2"
           required
-          suffix="XRP"
+          suffix={selectedAsset.symbol}
           inputMode="decimal"
         />
         <Field
@@ -329,13 +421,11 @@ export function TestnetBillForm() {
               />
               <Field
                 label="Assigned amount"
-                value={item.amountXrp}
-                onChange={(value) =>
-                  updateParticipant(item.id, "amountXrp", value)
-                }
+                value={item.amount}
+                onChange={(value) => updateParticipant(item.id, "amount", value)}
                 placeholder="4"
                 required
-                suffix="XRP"
+                suffix={selectedAsset.symbol}
                 inputMode="decimal"
               />
             </div>
@@ -343,7 +433,10 @@ export function TestnetBillForm() {
         ))}
       </div>
 
-      <AllocationStatus allocation={allocation} />
+      <AllocationStatus
+        allocation={allocation}
+        assetSymbol={selectedAsset.symbol}
+      />
 
       {error && (
         <p
@@ -374,19 +467,23 @@ export function TestnetBillForm() {
 
 function AllocationStatus({
   allocation,
+  assetSymbol,
 }: {
-  allocation: ReturnType<typeof calculateAllocationPreview>;
+  allocation: ReturnType<typeof calculateAssetAllocationPreview>;
+  assetSymbol: string;
 }) {
   const exact = allocation.status === "exact";
   const Icon = exact ? CheckCircle2 : CircleAlert;
   let message = "Enter the total, creator share, and every participant amount.";
-  if (allocation.status === "under" && allocation.differenceDrops !== null) {
-    message = `${formatDropsAsXrp(allocation.differenceDrops)} XRP remains to allocate.`;
+  if (allocation.status === "under" && allocation.differenceUnits !== null) {
+    message = `${formatAllocationUnits(allocation.differenceUnits, allocation.scale)} ${assetSymbol} remains to allocate.`;
   }
-  if (allocation.status === "over" && allocation.differenceDrops !== null) {
-    message = `${formatDropsAsXrp(-allocation.differenceDrops)} XRP is allocated above the bill total.`;
+  if (allocation.status === "over" && allocation.differenceUnits !== null) {
+    message = `${formatAllocationUnits(-allocation.differenceUnits, allocation.scale)} ${assetSymbol} is allocated above the bill total.`;
   }
-  if (exact) message = "Creator share and participant amounts match the bill total.";
+  if (exact) {
+    message = `Creator share and participant amounts match the ${assetSymbol} total.`;
+  }
 
   return (
     <div

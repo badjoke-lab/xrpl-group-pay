@@ -64,7 +64,7 @@ test("reviews a shared bill before freezing it", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Review before freezing" }),
   ).toBeVisible();
-  await expect(page.getByText("No XRP moves when the bill is created")).toBeVisible();
+  await expect(page.getByText("No funds move when the Bill is created")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Freeze bill and create payment links" }),
   ).toBeVisible();

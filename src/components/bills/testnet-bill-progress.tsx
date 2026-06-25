@@ -11,7 +11,6 @@ import {
   RefreshCw,
   ShieldCheck,
   UserRoundCog,
-  WalletCards,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -21,23 +20,21 @@ import {
   requestBillProgress,
 } from "@/features/bills/progress-client";
 import { useCapabilityToken } from "@/features/capabilities/use-capability-token";
+import { formatMoneyAmount } from "@/features/money/money";
 
 export type TestnetBillProgressProps = {
   capabilityToken?: string;
 };
 
-type ProgressViewState =
+type ViewState =
   | { kind: "loading" }
   | { kind: "loaded"; progress: BillProgress }
   | { kind: "error"; message: string };
 
 type SlotStatus = BillProgress["slots"][number]["status"];
 
-function dropsToXrp(drops: string) {
-  const padded = drops.padStart(7, "0");
-  const whole = padded.slice(0, -6);
-  const fraction = padded.slice(-6).replace(/0+$/, "");
-  return fraction ? `${whole}.${fraction}` : whole;
+function formatAmount(value: BillProgress["bill"]["totalAmount"]) {
+  return `${formatMoneyAmount(value)} ${value.code}`;
 }
 
 function shortValue(value: string, start = 9, end = 7) {
@@ -46,99 +43,69 @@ function shortValue(value: string, start = 9, end = 7) {
     : value;
 }
 
-function progressErrorMessage(error: unknown) {
+function errorMessage(error: unknown) {
   return error instanceof BillProgressRequestError
     ? error.message
     : "The bill progress could not be loaded.";
 }
 
-function statusPresentation(status: SlotStatus) {
+function statusView(status: SlotStatus) {
   if (status === "paid") {
-    return {
-      label: "Paid",
-      icon: CheckCircle2,
-      className: "bg-success/10 text-success",
-    };
+    return { label: "Paid", icon: CheckCircle2, className: "text-success" };
   }
   if (status === "needs_review" || status === "verification_failed") {
     return {
-      label:
-        status === "needs_review" ? "Needs review" : "Verification failed",
+      label: status === "needs_review" ? "Needs review" : "Verification failed",
       icon: CircleAlert,
-      className: "bg-danger/10 text-danger",
+      className: "text-danger",
     };
   }
   if (status === "submitted" || status === "validating") {
     return {
       label: status === "submitted" ? "Submitted" : "Validating",
       icon: LoaderCircle,
-      className: "bg-action/10 text-action",
+      className: "text-action",
     };
   }
   if (status === "payload_created" || status === "awaiting_signature") {
-    return {
-      label: "Awaiting signature",
-      icon: Clock3,
-      className: "bg-action/10 text-action",
-    };
+    return { label: "Awaiting signature", icon: Clock3, className: "text-action" };
   }
   if (status === "rejected") {
-    return {
-      label: "Rejected",
-      icon: CircleAlert,
-      className: "bg-muted/10 text-muted",
-    };
+    return { label: "Rejected", icon: CircleAlert, className: "text-muted" };
   }
   if (status === "expired") {
-    return {
-      label: "Request expired",
-      icon: Clock3,
-      className: "bg-muted/10 text-muted",
-    };
+    return { label: "Request expired", icon: Clock3, className: "text-muted" };
   }
-  return {
-    label: "Unpaid",
-    icon: Clock3,
-    className: "bg-muted/10 text-muted",
-  };
+  return { label: "Unpaid", icon: Clock3, className: "text-muted" };
 }
 
-export function TestnetBillProgress({
-  capabilityToken,
-}: TestnetBillProgressProps) {
+export function TestnetBillProgress({ capabilityToken }: TestnetBillProgressProps) {
   const { capability, resolved } = useCapabilityToken(capabilityToken);
 
-  if (!resolved) return <ProgressLoading />;
+  if (!resolved) return <Loading />;
   if (!capability) {
     return (
-      <ProgressError
+      <ErrorPanel
         title="Bill progress link unavailable"
         message="This link is incomplete or invalid. Ask the bill creator for a new progress link."
       />
     );
   }
 
-  return <BillProgressLoader key={capability} capability={capability} />;
+  return <Loader key={capability} capability={capability} />;
 }
 
-function BillProgressLoader({ capability }: { capability: string }) {
-  const [state, setState] = useState<ProgressViewState>({ kind: "loading" });
+function Loader({ capability }: { capability: string }) {
+  const [state, setState] = useState<ViewState>({ kind: "loading" });
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let active = true;
-
     requestBillProgress(capability).then(
-      (progress) => {
-        if (active) setState({ kind: "loaded", progress });
-      },
-      (error: unknown) => {
-        if (active) {
-          setState({ kind: "error", message: progressErrorMessage(error) });
-        }
-      },
+      (progress) => active && setState({ kind: "loaded", progress }),
+      (error: unknown) =>
+        active && setState({ kind: "error", message: errorMessage(error) }),
     );
-
     return () => {
       active = false;
     };
@@ -147,27 +114,22 @@ function BillProgressLoader({ capability }: { capability: string }) {
   async function refresh() {
     setRefreshing(true);
     try {
-      const progress = await requestBillProgress(capability);
-      setState({ kind: "loaded", progress });
+      setState({ kind: "loaded", progress: await requestBillProgress(capability) });
     } catch (error) {
-      setState({ kind: "error", message: progressErrorMessage(error) });
+      setState({ kind: "error", message: errorMessage(error) });
     } finally {
       setRefreshing(false);
     }
   }
 
-  if (state.kind === "loading") return <ProgressLoading />;
+  if (state.kind === "loading") return <Loading />;
   if (state.kind === "error") {
     return (
-      <ProgressError
+      <ErrorPanel
         title="Bill progress unavailable"
         message={state.message}
         action={
-          <Button
-            variant="secondary"
-            onClick={() => void refresh()}
-            disabled={refreshing}
-          >
+          <Button variant="secondary" onClick={() => void refresh()} disabled={refreshing}>
             {refreshing ? (
               <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
             ) : (
@@ -181,7 +143,7 @@ function BillProgressLoader({ capability }: { capability: string }) {
   }
 
   return (
-    <ProgressSnapshot
+    <Snapshot
       progress={state.progress}
       refreshing={refreshing}
       onRefresh={() => void refresh()}
@@ -189,7 +151,7 @@ function BillProgressLoader({ capability }: { capability: string }) {
   );
 }
 
-function ProgressSnapshot({
+function Snapshot({
   progress,
   refreshing,
   onRefresh,
@@ -198,15 +160,13 @@ function ProgressSnapshot({
   refreshing: boolean;
   onRefresh(): void;
 }) {
+  const isAdmin = progress.access === "admin";
   const completion =
     progress.summary.participantCount === 0
       ? 0
       : Math.round(
-          (progress.summary.paidCount / progress.summary.participantCount) *
-            100,
+          (progress.summary.paidCount / progress.summary.participantCount) * 100,
         );
-  const isSettled = progress.bill.status === "settled";
-  const isAdmin = progress.access === "admin";
 
   return (
     <div className="space-y-7">
@@ -217,6 +177,9 @@ function ProgressSnapshot({
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-pill bg-brand-subtle px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
                   Testnet
+                </span>
+                <span className="rounded-pill border border-border px-3 py-1 text-xs font-bold">
+                  {progress.bill.asset.symbol}
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-pill border border-border px-3 py-1 text-xs font-semibold text-muted">
                   {isAdmin ? (
@@ -231,16 +194,19 @@ function ProgressSnapshot({
                 {progress.bill.title}
               </h2>
               <p className="mt-3 max-w-2xl leading-7 text-muted">
-                {isSettled
-                  ? "Every participant payment has been verified on a validated XRP Ledger."
-                  : "Each slot updates independently only after its exact XRP Payment is verified."}
+                Each slot updates only after its exact {progress.bill.asset.symbol}
+                Payment is verified on a validated XRP Ledger.
               </p>
+              {progress.bill.asset.assetType === "issued" && (
+                <p
+                  className="mt-3 break-all font-mono text-xs text-muted"
+                  title={progress.bill.asset.issuer}
+                >
+                  Official issuer {progress.bill.asset.issuer}
+                </p>
+              )}
             </div>
-            <Button
-              variant="secondary"
-              onClick={onRefresh}
-              disabled={refreshing}
-            >
+            <Button variant="secondary" onClick={onRefresh} disabled={refreshing}>
               {refreshing ? (
                 <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
               ) : (
@@ -254,8 +220,7 @@ function ProgressSnapshot({
             <div className="mb-2 flex items-center justify-between text-sm">
               <span className="font-semibold">Settlement progress</span>
               <span className="font-semibold text-brand">
-                {progress.summary.paidCount}/{progress.summary.participantCount}{" "}
-                paid
+                {progress.summary.paidCount}/{progress.summary.participantCount} paid
               </span>
             </div>
             <div
@@ -275,19 +240,13 @@ function ProgressSnapshot({
         </div>
 
         <div className="grid border-t border-border sm:grid-cols-2 lg:grid-cols-4">
-          <SummaryCell
-            label="Bill total"
-            value={`${dropsToXrp(progress.bill.totalDrops)} XRP`}
-          />
-          <SummaryCell
+          <Summary label="Bill total" value={formatAmount(progress.bill.totalAmount)} />
+          <Summary
             label="Verified externally"
-            value={`${dropsToXrp(progress.summary.paidDrops)} XRP`}
+            value={formatAmount(progress.summary.paidAmount)}
           />
-          <SummaryCell
-            label="Pending slots"
-            value={String(progress.summary.pendingCount)}
-          />
-          <SummaryCell
+          <Summary label="Pending slots" value={String(progress.summary.pendingCount)} />
+          <Summary
             label="Needs review"
             value={String(progress.summary.reviewCount)}
             alert={progress.summary.reviewCount > 0}
@@ -295,42 +254,29 @@ function ProgressSnapshot({
         </div>
       </section>
 
-      {isSettled && (
+      {progress.bill.status === "settled" && (
         <section className="flex items-start gap-4 rounded-xl border border-success/25 bg-success/10 p-5 text-success sm:p-6">
-          <ShieldCheck
-            aria-hidden="true"
-            className="mt-0.5 size-7 shrink-0"
-          />
+          <ShieldCheck aria-hidden="true" className="mt-0.5 size-7 shrink-0" />
           <div>
-            <h3 className="font-heading text-xl font-semibold">
-              Settlement complete
-            </h3>
+            <h3 className="font-heading text-xl font-semibold">Settlement complete</h3>
             <p className="mt-1 leading-7">
-              The bill is settled because all externally payable slots have a
-              durable verified receipt.
+              All externally payable slots have a durable verified receipt.
             </p>
           </div>
         </section>
       )}
 
       <section className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8">
-        <div className="flex items-center gap-3">
-          <WalletCards aria-hidden="true" className="size-6 text-brand" />
-          <div>
-            <h3 className="font-heading text-2xl font-semibold">
-              Participant slots
-            </h3>
-            <p className="mt-1 text-sm text-muted">
-              {isAdmin
-                ? "Creator details are visible because this is the management capability."
-                : "Participant labels and expected wallet addresses are hidden in the read-only view."}
-            </p>
-          </div>
-        </div>
+        <h3 className="font-heading text-2xl font-semibold">Participant slots</h3>
+        <p className="mt-1 text-sm text-muted">
+          {isAdmin
+            ? "Creator details are visible because this is the management capability."
+            : "Participant labels and expected wallet addresses are hidden in the read-only view."}
+        </p>
 
         <div className="mt-6 space-y-4">
           {progress.slots.map((slot, index) => {
-            const presentation = statusPresentation(slot.status);
+            const presentation = statusView(slot.status);
             const StatusIcon = presentation.icon;
             return (
               <article
@@ -346,17 +292,14 @@ function ProgressSnapshot({
                       {slot.participantLabel || `Payment slot ${index + 1}`}
                     </h4>
                     {slot.expectedPayerAddress && (
-                      <p
-                        className="mt-1 font-mono text-xs text-muted"
-                        title={slot.expectedPayerAddress}
-                      >
+                      <p className="mt-1 font-mono text-xs text-muted">
                         Expected wallet {shortValue(slot.expectedPayerAddress)}
                       </p>
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-3 sm:justify-end">
                     <span className="font-heading text-xl font-semibold text-brand">
-                      {dropsToXrp(slot.expectedAmountDrops)} XRP
+                      {formatAmount(slot.expectedAmount)}
                     </span>
                     <span
                       className={`inline-flex items-center gap-1.5 rounded-pill px-3 py-1 text-xs font-bold ${presentation.className}`}
@@ -371,29 +314,15 @@ function ProgressSnapshot({
                 </div>
 
                 {slot.paidTransactionId && (
-                  <dl className="mt-4 grid gap-3 border-t border-border pt-4 text-sm sm:grid-cols-2">
-                    <div>
-                      <dt className="text-muted">Verified transaction</dt>
-                      <dd
-                        className="mt-1 font-mono font-semibold"
-                        title={slot.paidTransactionId}
-                      >
-                        {shortValue(slot.paidTransactionId, 12, 10)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted">Ledger index</dt>
-                      <dd className="mt-1 font-semibold">
-                        {slot.paidLedgerIndex ?? "Unavailable"}
-                      </dd>
-                    </div>
-                  </dl>
+                  <p className="mt-4 border-t border-border pt-4 font-mono text-xs text-muted">
+                    Verified transaction {shortValue(slot.paidTransactionId, 12, 10)}
+                  </p>
                 )}
 
                 {slot.proofToken && (
                   <a
                     href={`/testnet/proof#token=${slot.proofToken}`}
-                    className="mt-4 inline-flex items-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-brand transition hover:border-brand focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-focus/30"
+                    className="mt-4 inline-flex items-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-brand"
                   >
                     View public proof
                     <ExternalLink aria-hidden="true" className="size-4" />
@@ -401,10 +330,7 @@ function ProgressSnapshot({
                 )}
 
                 {isAdmin && slot.invoiceId && (
-                  <p
-                    className="mt-4 border-t border-border pt-4 font-mono text-xs text-muted"
-                    title={slot.invoiceId}
-                  >
+                  <p className="mt-4 font-mono text-xs text-muted">
                     InvoiceID {shortValue(slot.invoiceId, 12, 10)}
                   </p>
                 )}
@@ -417,7 +343,7 @@ function ProgressSnapshot({
   );
 }
 
-function SummaryCell({
+function Summary({
   label,
   value,
   alert = false,
@@ -431,30 +357,25 @@ function SummaryCell({
       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
         {label}
       </p>
-      <p
-        className={`mt-2 font-heading text-xl font-semibold ${alert ? "text-danger" : "text-foreground"}`}
-      >
+      <p className={`mt-2 font-heading text-xl font-semibold ${alert ? "text-danger" : ""}`}>
         {value}
       </p>
     </div>
   );
 }
 
-function ProgressLoading() {
+function Loading() {
   return (
     <div className="flex min-h-80 items-center justify-center rounded-xl border border-border bg-surface">
       <div className="text-center">
-        <LoaderCircle
-          aria-hidden="true"
-          className="mx-auto size-9 animate-spin text-brand"
-        />
+        <LoaderCircle aria-hidden="true" className="mx-auto size-9 animate-spin text-brand" />
         <p className="mt-4 font-semibold">Loading bill progress</p>
       </div>
     </div>
   );
 }
 
-function ProgressError({
+function ErrorPanel({
   title,
   message,
   action,
@@ -465,10 +386,7 @@ function ProgressError({
 }) {
   return (
     <section className="mx-auto max-w-xl rounded-xl border border-danger/25 bg-surface p-7 text-center shadow-sm sm:p-9">
-      <CircleAlert
-        aria-hidden="true"
-        className="mx-auto size-11 text-danger"
-      />
+      <CircleAlert aria-hidden="true" className="mx-auto size-11 text-danger" />
       <h2 className="mt-4 font-heading text-2xl font-semibold">{title}</h2>
       <p className="mt-3 leading-7 text-muted">{message}</p>
       {action && <div className="mt-6">{action}</div>}

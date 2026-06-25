@@ -1,4 +1,5 @@
 import { getXrpAssetDescriptor } from "@/features/assets/registry";
+import type { AssetDescriptor } from "@/features/assets/types";
 import {
   BILL_SETTLEMENT_CONTRACT_VERSION,
   PAYMENT_SLOT_CONTRACT_VERSION,
@@ -71,29 +72,43 @@ export const INSERT_ASSET_AWARE_SLOT = `
 `;
 
 export function billAssetWriteValues(
+  asset: AssetDescriptor,
   totalUnits: string,
   creatorShareUnits: string,
 ) {
   return [
     BILL_SETTLEMENT_CONTRACT_VERSION,
-    TESTNET_XRP_WRITE_ASSET.id,
-    TESTNET_XRP_WRITE_ASSET.assetType,
-    TESTNET_XRP_WRITE_ASSET.currency,
-    TESTNET_XRP_WRITE_ASSET.issuer,
-    TESTNET_XRP_WRITE_ASSET.precision,
+    asset.id,
+    asset.assetType,
+    asset.currency,
+    asset.issuer,
+    asset.precision,
     totalUnits,
     creatorShareUnits,
   ] as const;
 }
 
-export function slotAssetWriteValues(expectedUnits: string) {
+export function slotAssetWriteValues(
+  asset: AssetDescriptor,
+  expectedUnits: string,
+) {
   return [
     PAYMENT_SLOT_CONTRACT_VERSION,
-    TESTNET_XRP_WRITE_ASSET.id,
-    TESTNET_XRP_WRITE_ASSET.assetType,
-    TESTNET_XRP_WRITE_ASSET.currency,
-    TESTNET_XRP_WRITE_ASSET.issuer,
-    TESTNET_XRP_WRITE_ASSET.precision,
+    asset.id,
+    asset.assetType,
+    asset.currency,
+    asset.issuer,
+    asset.precision,
     expectedUnits,
   ] as const;
+}
+
+/**
+ * The original D1 tables require numeric values in their legacy `*_drops`
+ * columns. Until those compatibility columns are removed in a later migration,
+ * the canonical fixed-precision units are mirrored there for every six-decimal
+ * Testnet Asset. Application code must use the Asset-bound generic unit columns.
+ */
+export function legacyCompatibilityUnits(units: string) {
+  return units;
 }

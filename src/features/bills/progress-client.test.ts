@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { getXrpAssetDescriptor } from "@/features/assets/registry";
+
 import {
   BillProgressRequestError,
   requestBillProgress,
 } from "./progress-client";
 
 const TOKEN = "ab".repeat(32);
+const asset = getXrpAssetDescriptor("testnet");
 const progress = {
   access: "public",
   bill: {
@@ -14,6 +17,9 @@ const progress = {
     network: "testnet",
     destinationAddress: "rDestination",
     destinationTag: null,
+    asset,
+    totalAmount: { code: "XRP", units: "10000000", scale: 6 },
+    creatorShareAmount: { code: "XRP", units: "2000000", scale: 6 },
     totalDrops: "10000000",
     creatorShareDrops: "2000000",
     status: "open",
@@ -26,6 +32,8 @@ const progress = {
     paidCount: 0,
     pendingCount: 2,
     reviewCount: 0,
+    expectedExternalAmount: { code: "XRP", units: "8000000", scale: 6 },
+    paidAmount: { code: "XRP", units: "0", scale: 6 },
     expectedExternalDrops: "8000000",
     paidDrops: "0",
   },
@@ -40,7 +48,7 @@ function response(body: unknown, status: number) {
 }
 
 describe("requestBillProgress", () => {
-  it("returns a validated progress snapshot", async () => {
+  it("returns a validated Asset progress snapshot", async () => {
     const fetcher = vi.fn().mockResolvedValue(response(progress, 200));
 
     await expect(

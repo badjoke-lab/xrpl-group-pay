@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { getRlusdAssetDescriptor } from "@/features/assets/registry";
 import type {
   D1DatabaseLike,
   D1PreparedStatementLike,
@@ -11,6 +12,7 @@ import {
   BillDatabaseError,
   BillInputError,
   createPublishedBill,
+  prepareBillReview,
   type BillRandomSource,
 } from "./create-bill";
 
@@ -95,8 +97,31 @@ function input() {
   };
 }
 
+function rlusdInput() {
+  return {
+    title: "RLUSD Dinner",
+    destinationAddress: "rPEPPER7kfTD9w2To4CQk6UCfuHM9c6GDY",
+    destinationTag: 7,
+    settlementAssetId: "xrpl:testnet:rlusd" as const,
+    totalAmount: "10",
+    creatorShareAmount: "2",
+    participants: [
+      {
+        label: "A",
+        expectedPayerAddress: "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+        amount: "3",
+      },
+      {
+        label: "B",
+        expectedPayerAddress: "rN7n7otQDd6FczFgLdSqtcsAUxDkw6fzRH",
+        amount: "5",
+      },
+    ],
+  };
+}
+
 describe("createPublishedBill", () => {
-  it("stores one frozen bill and all slots in a single batch", async () => {
+  it("keeps the legacy XRP input compatible while returning Asset amounts", async () => {
     const database = new CaptureDatabase();
     const created = await createPublishedBill(
       database,
@@ -112,6 +137,9 @@ describe("createPublishedBill", () => {
 
     expect(created.bill).toMatchObject({
       publicId: uuids[1],
+      asset: { id: "xrpl:testnet:xrp", symbol: "XRP" },
+      totalAmount: { code: "XRP", units: "10000000", scale: 6 },
+      creatorShareAmount: { code: "XRP", units: "2000000", scale: 6 },
       totalDrops: "10000000",
       creatorShareDrops: "2000000",
       status: "open",
@@ -135,6 +163,58 @@ describe("createPublishedBill", () => {
     expect(database.statements[1].values).toContain(
       await hashCapabilityToken(tokens[2]),
     );
+  });
+
+  it("freezes official RLUSD identity and generic units for every slot", async () => {
+    const database = new CaptureDatabase();
+    const asset = getRlusdAssetDescriptor("testnet");
+    const created = await createPublishedBill(
+      database,
+      rlusdInput(),
+      new Date("2026-06-25T00:00:00.000Z"),
+      deterministicRandom(),
+    );
+
+    expect(created.bill).toMatchObject({
+      asset,
+      totalAmount: { code: "RLUSD", units: "10000000", scale: 6 },
+      creatorShareAmount: { code: "RLUSD", units: "2000000", scale: 6 },
+      totalDrops: null,
+      creatorShareDrops: null,
+    });
+    expect(created.slots).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          asset,
+          expectedAmount: { code: "RLUSD", units: "3000000", scale: 6 },
+          expectedAmountDrops: null,
+        }),
+      ]),
+    );
+
+    const billValues = database.statements[0].values;
+    expect(billValues).toContain(asset.id);
+    expect(billValues).toContain(asset.currency);
+    expect(billValues).toContain(asset.issuer);
+    const firstSlotValues = database.statements[1].values;
+    expect(firstSlotValues).toContain(asset.id);
+    expect(firstSlotValues).toContain("3000000");
+  });
+
+  it("returns an Asset-aware normalized review before persistence", () => {
+    const review = prepareBillReview(rlusdInput());
+    expect(review).toMatchObject({
+      asset: { id: "xrpl:testnet:rlusd", assetType: "issued" },
+      totalAmount: { code: "RLUSD", units: "10000000", scale: 6 },
+      totalDrops: null,
+      participants: [
+        expect.objectContaining({
+          expectedAmount: { code: "RLUSD", units: "3000000", scale: 6 },
+          expectedAmountDrops: null,
+        }),
+        expect.anything(),
+      ],
+    });
   });
 
   it("rejects allocations that do not equal the bill total", async () => {

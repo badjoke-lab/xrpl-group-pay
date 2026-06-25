@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { getXrpAssetDescriptor } from "@/features/assets/registry";
+
 import { BillInputError, prepareBillReview } from "./create-bill";
 
 const validInput = {
@@ -21,13 +23,19 @@ const validInput = {
   ],
 };
 
+const asset = getXrpAssetDescriptor("testnet");
+
 describe("prepareBillReview", () => {
-  it("normalizes the exact conditions that will later be frozen", () => {
+  it("normalizes the Asset conditions that will later be frozen", () => {
     expect(prepareBillReview(validInput)).toEqual({
       network: "testnet",
       title: "Dinner",
       destinationAddress: validInput.destinationAddress,
       destinationTag: 7,
+      asset,
+      totalAmount: { code: "XRP", units: "10000000", scale: 6 },
+      creatorShareAmount: { code: "XRP", units: "2000000", scale: 6 },
+      allocatedAmount: { code: "XRP", units: "10000000", scale: 6 },
       totalDrops: "10000000",
       creatorShareDrops: "2000000",
       allocatedDrops: "10000000",
@@ -36,12 +44,14 @@ describe("prepareBillReview", () => {
           participantLabel: "Alex",
           expectedPayerAddress:
             validInput.participants[0].expectedPayerAddress,
+          expectedAmount: { code: "XRP", units: "3000000", scale: 6 },
           expectedAmountDrops: "3000000",
         },
         {
           participantLabel: null,
           expectedPayerAddress:
             validInput.participants[1].expectedPayerAddress,
+          expectedAmount: { code: "XRP", units: "5000000", scale: 6 },
           expectedAmountDrops: "5000000",
         },
       ],

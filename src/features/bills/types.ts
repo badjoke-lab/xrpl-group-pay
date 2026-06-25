@@ -1,9 +1,20 @@
 import { z } from "zod";
 
-const amountXrpSchema = z
+import { assetDescriptorSchema } from "@/features/assets/types";
+import { moneyAmountSchema } from "@/features/money/types";
+
+export const testnetSettlementAssetIdSchema = z.enum([
+  "xrpl:testnet:xrp",
+  "xrpl:testnet:rlusd",
+]);
+
+const decimalAmountSchema = z
   .string()
   .trim()
-  .regex(/^\d+(?:\.\d{1,6})?$/, "Use an XRP amount with up to six decimals.");
+  .regex(
+    /^\d+(?:\.\d{1,6})?$/,
+    "Use an amount with up to six decimal places.",
+  );
 
 const destinationTagSchema = z.union([
   z.number().int().min(0).max(4_294_967_295),
@@ -12,30 +23,79 @@ const destinationTagSchema = z.union([
 
 const dropsSchema = z.string().regex(/^(?:0|[1-9]\d*)$/);
 const positiveDropsSchema = z.string().regex(/^[1-9]\d*$/);
+const participantInputSchema = z
+  .object({
+    label: z.string().trim().max(60).optional(),
+    expectedPayerAddress: z.string().trim().min(1),
+    amount: decimalAmountSchema,
+  })
+  .strict();
 
-export const createBillInputSchema = z
+const canonicalCreateBillInputSchema = z
   .object({
     title: z.string().trim().min(1).max(100),
     destinationAddress: z.string().trim().min(1),
     destinationTag: destinationTagSchema.optional(),
-    totalXrp: amountXrpSchema,
-    creatorShareXrp: amountXrpSchema,
+    settlementAssetId: testnetSettlementAssetIdSchema,
+    totalAmount: decimalAmountSchema,
+    creatorShareAmount: decimalAmountSchema,
+    participants: z.array(participantInputSchema).min(2).max(50),
+  })
+  .strict();
+
+const legacyXrpCreateBillInputSchema = z
+  .object({
+    title: z.string().trim().min(1).max(100),
+    destinationAddress: z.string().trim().min(1),
+    destinationTag: destinationTagSchema.optional(),
+    totalXrp: decimalAmountSchema,
+    creatorShareXrp: decimalAmountSchema,
     participants: z
       .array(
         z
           .object({
             label: z.string().trim().max(60).optional(),
             expectedPayerAddress: z.string().trim().min(1),
-            amountXrp: amountXrpSchema,
+            amountXrp: decimalAmountSchema,
           })
           .strict(),
       )
       .min(2)
       .max(50),
   })
-  .strict();
+  .strict()
+  .transform((input) => ({
+    title: input.title,
+    destinationAddress: input.destinationAddress,
+    ...(input.destinationTag === undefined
+      ? {}
+      : { destinationTag: input.destinationTag }),
+    settlementAssetId: "xrpl:testnet:xrp" as const,
+    totalAmount: input.totalXrp,
+    creatorShareAmount: input.creatorShareXrp,
+    participants: input.participants.map((participant) => ({
+      ...(participant.label === undefined ? {} : { label: participant.label }),
+      expectedPayerAddress: participant.expectedPayerAddress,
+      amount: participant.amountXrp,
+    })),
+  }));
 
-export type CreateBillInput = z.infer<typeof createBillInputSchema>;
+export const createBillInputSchema = z.union([
+  canonicalCreateBillInputSchema,
+  legacyXrpCreateBillInputSchema,
+]);
+
+export type CreateBillInput = z.input<typeof createBillInputSchema>;
+export type NormalizedCreateBillInput = z.output<typeof createBillInputSchema>;
+
+const reviewedParticipantSchema = z
+  .object({
+    participantLabel: z.string().max(60).nullable(),
+    expectedPayerAddress: z.string().min(1),
+    expectedAmount: moneyAmountSchema,
+    expectedAmountDrops: positiveDropsSchema.nullable(),
+  })
+  .strict();
 
 export const billReviewSchema = z
   .object({
@@ -43,18 +103,14 @@ export const billReviewSchema = z
     title: z.string().min(1).max(100),
     destinationAddress: z.string().min(1),
     destinationTag: z.number().int().min(0).max(4_294_967_295).nullable(),
-    totalDrops: positiveDropsSchema,
-    creatorShareDrops: dropsSchema,
-    allocatedDrops: positiveDropsSchema,
-    participants: z.array(
-      z
-        .object({
-          participantLabel: z.string().max(60).nullable(),
-          expectedPayerAddress: z.string().min(1),
-          expectedAmountDrops: positiveDropsSchema,
-        })
-        .strict(),
-    ),
+    asset: assetDescriptorSchema,
+    totalAmount: moneyAmountSchema,
+    creatorShareAmount: moneyAmountSchema,
+    allocatedAmount: moneyAmountSchema,
+    totalDrops: positiveDropsSchema.nullable(),
+    creatorShareDrops: dropsSchema.nullable(),
+    allocatedDrops: positiveDropsSchema.nullable(),
+    participants: z.array(reviewedParticipantSchema),
   })
   .strict();
 
@@ -69,8 +125,11 @@ export const createdBillSchema = z
         network: z.literal("testnet"),
         destinationAddress: z.string().min(1),
         destinationTag: z.number().int().min(0).max(4_294_967_295).nullable(),
-        totalDrops: dropsSchema,
-        creatorShareDrops: dropsSchema,
+        asset: assetDescriptorSchema,
+        totalAmount: moneyAmountSchema,
+        creatorShareAmount: moneyAmountSchema,
+        totalDrops: dropsSchema.nullable(),
+        creatorShareDrops: dropsSchema.nullable(),
         status: z.literal("open"),
         revision: z.literal(1),
         frozenAt: z.string().datetime(),
@@ -89,7 +148,9 @@ export const createdBillSchema = z
           publicId: z.string().uuid(),
           participantLabel: z.string().max(60).nullable(),
           expectedPayerAddress: z.string().min(1),
-          expectedAmountDrops: positiveDropsSchema,
+          asset: assetDescriptorSchema,
+          expectedAmount: moneyAmountSchema,
+          expectedAmountDrops: positiveDropsSchema.nullable(),
           invoiceId: z.string().regex(/^[A-F0-9]{64}$/),
           status: z.literal("unpaid"),
           paymentToken: z.string().regex(/^[a-f0-9]{64}$/),
