@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { xrplNetworkSchema } from "@/features/assets/types";
 import { recordedPaymentReceiptSchema } from "@/features/persistence/types";
 
 const transactionHashSchema = z.string().regex(/^[A-F0-9]{64}$/i);
@@ -40,7 +41,7 @@ export const verificationFailureReasonSchema = z.enum([
 
 export const ledgerVerificationProofSchema = z
   .object({
-    network: z.literal("testnet"),
+    network: xrplNetworkSchema,
     transactionId: transactionHashSchema,
     ledgerIndex: z.number().int().nonnegative(),
     sender: z.string().min(1),
@@ -50,10 +51,22 @@ export const ledgerVerificationProofSchema = z
     sourceTag: uint32Schema,
     destinationTag: uint32Schema.nullable(),
     invoiceId: transactionHashSchema,
-    idempotencyKey: z.string().regex(/^testnet:[A-F0-9]{64}$/i),
+    idempotencyKey: z
+      .string()
+      .regex(/^(?:testnet|mainnet):[A-F0-9]{64}$/i),
     verifiedAt: z.string().datetime(),
   })
-  .strict();
+  .strict()
+  .superRefine((proof, context) => {
+    const expectedKey = `${proof.network}:${proof.transactionId}`.toLowerCase();
+    if (proof.idempotencyKey.toLowerCase() !== expectedKey) {
+      context.addIssue({
+        code: "custom",
+        path: ["idempotencyKey"],
+        message: "Idempotency key must match the proof network and transaction.",
+      });
+    }
+  });
 
 const verifiedOutcomeSchema = z
   .object({
@@ -92,7 +105,30 @@ const recordedVerifiedOutcomeSchema = z
     proof: ledgerVerificationProofSchema,
     receipt: recordedPaymentReceiptSchema,
   })
-  .strict();
+  .strict()
+  .superRefine((outcome, context) => {
+    if (outcome.receipt.network !== outcome.proof.network) {
+      context.addIssue({
+        code: "custom",
+        path: ["receipt", "network"],
+        message: "Receipt and proof networks must match.",
+      });
+    }
+    if (outcome.receipt.transactionId !== outcome.proof.transactionId) {
+      context.addIssue({
+        code: "custom",
+        path: ["receipt", "transactionId"],
+        message: "Receipt and proof transactions must match.",
+      });
+    }
+    if (outcome.receipt.invoiceId !== outcome.proof.invoiceId) {
+      context.addIssue({
+        code: "custom",
+        path: ["receipt", "invoiceId"],
+        message: "Receipt and proof InvoiceIDs must match.",
+      });
+    }
+  });
 
 export const paymentVerificationApiOutcomeSchema = z.union([
   recordedVerifiedOutcomeSchema,
