@@ -1,11 +1,17 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import {
+  getRlusdAssetDescriptor,
+  getXrpAssetDescriptor,
+} from "@/features/assets/registry";
+
 import { TestnetPaymentForm } from "./testnet-payment-form";
 
 const PAYMENT_TOKEN = "a".repeat(64);
 const PAYLOAD_ID = "123e4567-e89b-12d3-a456-426614174000";
 const TXID = "A".repeat(64);
+const XRP = getXrpAssetDescriptor("testnet");
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -26,6 +32,8 @@ const details = {
   expectedPayerAddress: "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
   destinationAddress: "rPEPPER7kfTD9w2To4CQk6UCfuHM9c6GDY",
   destinationTag: null,
+  asset: XRP,
+  amount: { code: "XRP", units: "4000000", scale: 6 },
   amountDrops: "4000000",
   sourceTag: 123456,
   invoiceId: "B".repeat(64),
@@ -79,6 +87,25 @@ describe("TestnetPaymentForm", () => {
         body: JSON.stringify({ paymentToken: PAYMENT_TOKEN }),
       }),
     );
+  });
+
+  it("shows official RLUSD, issuer, and XRP fee notice before handoff", async () => {
+    const asset = getRlusdAssetDescriptor("testnet");
+    const rlusdDetails = {
+      ...details,
+      asset,
+      amount: { code: "RLUSD", units: "1250000", scale: 6 },
+      amountDrops: null,
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(rlusdDetails)));
+
+    render(<TestnetPaymentForm paymentToken={PAYMENT_TOKEN} />);
+    await screen.findByRole("heading", { name: details.billTitle });
+
+    expect(screen.getByText("1.25", { exact: true })).toBeVisible();
+    expect(screen.getByText("Official RLUSD on XRPL Testnet")).toBeVisible();
+    expect(screen.getByTitle(asset.issuer)).toBeVisible();
+    expect(screen.getByText(/network fee is paid separately in XRP/i)).toBeVisible();
   });
 
   it("requires final confirmation before creating the Sign Request", async () => {
