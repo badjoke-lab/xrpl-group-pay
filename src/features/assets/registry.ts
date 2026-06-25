@@ -1,7 +1,9 @@
+import { createRlusdAssetDescriptor, XRPL_RLUSD_ASSET_IDS } from "./rlusd";
 import {
   assetDescriptorSchema,
   type AssetDescriptor,
   type AssetType,
+  type IssuedAssetDescriptor,
   type NativeXrpAssetDescriptor,
   type XrplNetwork,
 } from "./types";
@@ -112,7 +114,15 @@ const XRP_ASSETS = [
   },
 ] as const;
 
-export const assetRegistry = new AssetRegistry(XRP_ASSETS);
+const RLUSD_ASSETS = [
+  createRlusdAssetDescriptor("testnet"),
+  createRlusdAssetDescriptor("mainnet"),
+] as const;
+
+export const assetRegistry = new AssetRegistry([
+  ...XRP_ASSETS,
+  ...RLUSD_ASSETS,
+]);
 
 export function getXrpAssetDescriptor(
   network: XrplNetwork,
@@ -120,4 +130,12 @@ export function getXrpAssetDescriptor(
   return assetRegistry.require(
     XRPL_XRP_ASSET_IDS[network],
   ) as NativeXrpAssetDescriptor;
+}
+
+export function getRlusdAssetDescriptor(
+  network: XrplNetwork,
+): IssuedAssetDescriptor {
+  return assetRegistry.require(
+    XRPL_RLUSD_ASSET_IDS[network],
+  ) as IssuedAssetDescriptor;
 }
