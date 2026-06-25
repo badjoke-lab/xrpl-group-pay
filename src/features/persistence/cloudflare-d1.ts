@@ -2,6 +2,8 @@ import "server-only";
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
+import { resolveDeploymentTarget } from "@/config/deployment-gate";
+
 import type { D1DatabaseLike } from "./d1-types";
 
 export class PaymentsDatabaseUnavailableError extends Error {
@@ -23,21 +25,57 @@ function isD1Database(value: unknown): value is D1DatabaseLike {
   );
 }
 
-export async function getPaymentsDatabase(): Promise<D1DatabaseLike> {
-  try {
-    const { env } = await getCloudflareContext({ async: true });
-    const database = (env as unknown as Record<string, unknown>).PAYMENTS_DB;
+function deploymentInput(
+  bindings: Record<string, unknown>,
+  processEnvironment: Record<string, string | undefined>,
+) {
+  const input = { ...processEnvironment };
+  for (const key of [
+    "APP_NETWORK",
+    "NEXT_PUBLIC_APP_NETWORK",
+    "ALLOW_MAINNET_RUNTIME",
+    "MAINNET_GATE_APPROVED",
+    "MAINNET_RELEASE_MODE",
+    "PAYMENTS_DATABASE_BINDING",
+  ]) {
+    if (typeof bindings[key] === "string") {
+      input[key] = bindings[key] as string;
+    }
+  }
+  return input;
+}
 
+export function getPaymentsDatabaseFromBindings(
+  bindings: Record<string, unknown>,
+  processEnvironment: Record<string, string | undefined> = process.env,
+): D1DatabaseLike {
+  try {
+    const target = resolveDeploymentTarget(
+      deploymentInput(bindings, processEnvironment),
+    );
+    const database = bindings[target.databaseBinding];
     if (!isD1Database(database)) {
       throw new PaymentsDatabaseUnavailableError();
     }
-
     return database;
   } catch (error) {
     if (error instanceof PaymentsDatabaseUnavailableError) {
       throw error;
     }
+    throw new PaymentsDatabaseUnavailableError();
+  }
+}
 
+export async function getPaymentsDatabase(): Promise<D1DatabaseLike> {
+  try {
+    const { env } = await getCloudflareContext({ async: true });
+    return getPaymentsDatabaseFromBindings(
+      env as unknown as Record<string, unknown>,
+    );
+  } catch (error) {
+    if (error instanceof PaymentsDatabaseUnavailableError) {
+      throw error;
+    }
     throw new PaymentsDatabaseUnavailableError();
   }
 }
