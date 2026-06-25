@@ -9,12 +9,17 @@ import {
 } from "@/features/wallet-providers/types";
 
 import type { StoredSlotPayload } from "./create-slot-payload";
-import { loadPaymentSlotByToken } from "./payment-slot";
+import {
+  loadPaymentSlotByToken,
+  requirePayableSlot,
+} from "./payment-slot";
 import { buildStoredSlotPaymentIntent } from "./slot-payment-request";
 
 export type PersistedPayloadDependencies = {
   sourceTag: number;
-  createHandoff(intent: ReturnType<typeof buildStoredSlotPaymentIntent>): Promise<WalletHandoff>;
+  createHandoff(
+    intent: ReturnType<typeof buildStoredSlotPaymentIntent>,
+  ): Promise<WalletHandoff>;
   now?: () => Date;
 };
 
@@ -42,7 +47,9 @@ export async function createPersistedSlotPayload(
   dependencies: PersistedPayloadDependencies,
 ): Promise<StoredSlotPayload> {
   const now = dependencies.now?.() ?? new Date();
-  const slot = await loadPaymentSlotByToken(database, capability);
+  const slot = requirePayableSlot(
+    await loadPaymentSlotByToken(database, capability),
+  );
 
   await requireNoActiveRequest(database, slot.slotId, now);
 
