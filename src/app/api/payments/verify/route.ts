@@ -17,7 +17,7 @@ import {
   getPaymentsDatabase,
   PaymentsDatabaseUnavailableError,
 } from "@/features/persistence/cloudflare-d1";
-import type { AssetPaymentVerificationApiOutcome } from "@/features/payment-verification/types";
+import type { AssetPaymentVerificationApiOutcome } from "@/features/payment-verification/asset-api-outcome";
 import { WalletProviderError } from "@/features/wallet-providers/types";
 import { XamanApiError, XamanClient } from "@/features/xaman/client";
 import { XamanStatusReader } from "@/features/xaman/status-reader";
