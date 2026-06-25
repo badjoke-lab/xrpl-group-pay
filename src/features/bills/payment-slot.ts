@@ -1,6 +1,8 @@
 import type { z } from "zod";
-import type { XrplNetwork } from "@/features/assets/types";
-import type { AssetDescriptor } from "@/features/assets/types";
+import type {
+  AssetDescriptor,
+  XrplNetwork,
+} from "@/features/assets/types";
 import type { MoneyAmount } from "@/features/money/types";
 import type { D1DatabaseLike } from "@/features/persistence/d1-types";
 import { PAYMENT_SLOT_CONTRACT_VERSION } from "@/features/persistence/asset-records";
