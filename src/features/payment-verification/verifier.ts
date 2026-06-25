@@ -24,6 +24,7 @@ export function verifyXrpPayment(
   transaction: XrplTxResult,
   now = new Date(),
 ): PaymentVerificationOutcome {
+  const network = expected.network ?? "testnet";
   const transactionId = expected.transactionId.toUpperCase();
 
   if (!transaction.validated) {
@@ -159,7 +160,7 @@ export function verifyXrpPayment(
   return {
     status: "verified",
     proof: {
-      network: expected.network,
+      network,
       transactionId,
       ledgerIndex: transaction.ledger_index,
       sender: expected.sender,
@@ -169,7 +170,7 @@ export function verifyXrpPayment(
       sourceTag: expected.sourceTag,
       destinationTag: expected.destinationTag,
       invoiceId: expected.invoiceId.toUpperCase(),
-      idempotencyKey: `${expected.network}:${transactionId}`,
+      idempotencyKey: `${network}:${transactionId}`,
       verifiedAt: now.toISOString(),
     },
   };
