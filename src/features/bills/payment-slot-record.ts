@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { xrplNetworkSchema } from "@/features/assets/types";
 import {
   assetDescriptorFromPersistedRow,
   moneyAmountFromPersistedUnits,
@@ -32,7 +33,7 @@ export const paymentSlotRecordSchema = z.object({
   bill_id: z.string().min(1),
   bill_public_id: z.string().uuid(),
   bill_title: z.string().min(1).max(100),
-  network: z.literal("testnet"),
+  network: xrplNetworkSchema,
   destination_address: z.string().min(1),
   destination_tag: z.number().int().min(0).max(4_294_967_295).nullable(),
   participant_label: z.string().max(60).nullable(),
