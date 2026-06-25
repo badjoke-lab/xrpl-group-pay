@@ -119,6 +119,7 @@ export const MARK_ISSUED_SLOT_PAID = `
 export const SELECT_ISSUED_SLOT_SETTLEMENT = `
   SELECT
     r.receipt_id,
+    r.network,
     r.transaction_id,
     r.invoice_id,
     r.asset_id,
