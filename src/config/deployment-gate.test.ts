@@ -11,6 +11,7 @@ describe("resolveDeploymentTarget", () => {
       network: "testnet",
       publicNetwork: "testnet",
       databaseBinding: "PAYMENTS_DB",
+      sourceTag: null,
       mainnetReleaseMode: "disabled",
       mainnetRuntimeAllowed: false,
       mainnetGateApproved: false,
@@ -73,24 +74,50 @@ describe("resolveDeploymentTarget", () => {
       },
       "PAYMENTS_DB_MAINNET",
     ],
-  ])("fails closed for incomplete Mainnet configuration", (input, message) => {
-    expect(() => resolveDeploymentTarget(input)).toThrow(message);
-  });
-
-  it("accepts Mainnet only with every explicit runtime gate and isolated D1 binding", () => {
-    expect(
-      resolveDeploymentTarget({
+    [
+      {
         APP_NETWORK: "mainnet",
         NEXT_PUBLIC_APP_NETWORK: "mainnet",
         ALLOW_MAINNET_RUNTIME: "true",
         MAINNET_GATE_APPROVED: "true",
         MAINNET_RELEASE_MODE: "internal",
         PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
+      },
+      "MAINNET_SOURCE_TAG_APPROVED=true",
+    ],
+    [
+      {
+        APP_NETWORK: "mainnet",
+        NEXT_PUBLIC_APP_NETWORK: "mainnet",
+        ALLOW_MAINNET_RUNTIME: "true",
+        MAINNET_GATE_APPROVED: "true",
+        MAINNET_RELEASE_MODE: "internal",
+        PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
+        MAINNET_SOURCE_TAG_APPROVED: "true",
+      },
+      "XRPL_MAINNET_SOURCE_TAG",
+    ],
+  ])("fails closed for incomplete Mainnet configuration", (input, message) => {
+    expect(() => resolveDeploymentTarget(input)).toThrow(message);
+  });
+
+  it("accepts Mainnet only with every runtime gate, Source Tag, and isolated D1 binding", () => {
+    expect(
+      resolveDeploymentTarget({
+        APP_NETWORK: "mainnet",
+        NEXT_PUBLIC_APP_NETWORK: "mainnet",
+        ALLOW_MAINNET_RUNTIME: "true",
+        MAINNET_GATE_APPROVED: "true",
+        MAINNET_SOURCE_TAG_APPROVED: "true",
+        MAINNET_RELEASE_MODE: "internal",
+        PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
+        XRPL_MAINNET_SOURCE_TAG: "123",
       }),
     ).toEqual({
       network: "mainnet",
       publicNetwork: "mainnet",
       databaseBinding: "PAYMENTS_DB_MAINNET",
+      sourceTag: 123,
       mainnetReleaseMode: "internal",
       mainnetRuntimeAllowed: true,
       mainnetGateApproved: true,
