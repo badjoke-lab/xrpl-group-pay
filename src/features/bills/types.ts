@@ -85,7 +85,8 @@ export const createBillInputSchema = z.union([
   legacyXrpCreateBillInputSchema,
 ]);
 
-export type CreateBillInput = z.output<typeof createBillInputSchema>;
+export type CreateBillInput = z.input<typeof createBillInputSchema>;
+export type NormalizedCreateBillInput = z.output<typeof createBillInputSchema>;
 
 const reviewedParticipantSchema = z
   .object({
