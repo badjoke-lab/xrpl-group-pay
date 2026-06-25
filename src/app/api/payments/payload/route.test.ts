@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { PaymentOperationsHaltedError } from "@/config/payment-operations";
 import {
   PaymentSlotNotFoundError,
   PaymentSlotStateError,
@@ -66,6 +67,25 @@ describe("POST /api/payments/payload", () => {
 
     expect(response.status).toBe(404);
     expect(deps.createPayload).not.toHaveBeenCalled();
+  });
+
+  it("returns a retryable operational halt without creating a handoff", async () => {
+    const deps = dependencies();
+    deps.createPayload.mockRejectedValue(
+      new PaymentOperationsHaltedError("create", "verify-only"),
+    );
+
+    const response = await handleCreateSlotPayloadRequest(request(), deps);
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("retry-after")).toBe("60");
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "PAYMENT_OPERATIONS_HALTED",
+        operation: "create",
+        mode: "verify-only",
+      },
+    });
   });
 
   it("maps unavailable slots, state conflicts, and Xaman failures", async () => {
