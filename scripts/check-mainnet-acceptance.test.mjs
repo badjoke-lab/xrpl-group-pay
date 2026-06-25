@@ -50,7 +50,9 @@ const safeBlockedWrangler = `{
         "MAINNET_OPERATIONS_MODE": "halted"
       },
       "d1_databases": [{
-        "database_id": "00000000-0000-0000-0000-000000000000"
+        "binding": "PAYMENTS_DB_MAINNET",
+        "database_id": "00000000-0000-0000-0000-000000000000",
+        "preview_database_id": "00000000-0000-0000-0000-000000000000"
       }]
     }
   }
