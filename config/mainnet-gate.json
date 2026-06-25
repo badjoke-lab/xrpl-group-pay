@@ -20,8 +20,8 @@
     },
     {
       "id": "mainnet-asset-registry",
-      "status": "pending",
-      "evidence": null
+      "status": "passed",
+      "evidence": "Exact XRP and RLUSD Mainnet identities are machine-validated and runtime access requires explicit Mainnet gate approval."
     },
     {
       "id": "recipient-readiness",
