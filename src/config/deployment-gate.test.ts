@@ -13,6 +13,7 @@ describe("resolveDeploymentTarget", () => {
       databaseBinding: "PAYMENTS_DB",
       sourceTag: null,
       mainnetReleaseMode: "disabled",
+      mainnetOperationsMode: "halted",
       mainnetRuntimeAllowed: false,
       mainnetGateApproved: false,
     });
@@ -101,6 +102,25 @@ describe("resolveDeploymentTarget", () => {
     expect(() => resolveDeploymentTarget(input)).toThrow(message);
   });
 
+  it("accepts a halted Mainnet deployment target for incident response", () => {
+    expect(
+      resolveDeploymentTarget({
+        APP_NETWORK: "mainnet",
+        NEXT_PUBLIC_APP_NETWORK: "mainnet",
+        ALLOW_MAINNET_RUNTIME: "true",
+        MAINNET_GATE_APPROVED: "true",
+        MAINNET_SOURCE_TAG_APPROVED: "true",
+        MAINNET_RELEASE_MODE: "internal",
+        MAINNET_OPERATIONS_MODE: "halted",
+        PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
+        XRPL_MAINNET_SOURCE_TAG: "123",
+      }),
+    ).toMatchObject({
+      network: "mainnet",
+      mainnetOperationsMode: "halted",
+    });
+  });
+
   it("accepts Mainnet only with every runtime gate, Source Tag, and isolated D1 binding", () => {
     expect(
       resolveDeploymentTarget({
@@ -110,6 +130,7 @@ describe("resolveDeploymentTarget", () => {
         MAINNET_GATE_APPROVED: "true",
         MAINNET_SOURCE_TAG_APPROVED: "true",
         MAINNET_RELEASE_MODE: "internal",
+        MAINNET_OPERATIONS_MODE: "enabled",
         PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
         XRPL_MAINNET_SOURCE_TAG: "123",
       }),
@@ -119,6 +140,7 @@ describe("resolveDeploymentTarget", () => {
       databaseBinding: "PAYMENTS_DB_MAINNET",
       sourceTag: 123,
       mainnetReleaseMode: "internal",
+      mainnetOperationsMode: "enabled",
       mainnetRuntimeAllowed: true,
       mainnetGateApproved: true,
     });

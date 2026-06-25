@@ -45,8 +45,8 @@
     },
     {
       "id": "operational-kill-switch",
-      "status": "pending",
-      "evidence": null
+      "status": "passed",
+      "evidence": "MAINNET_OPERATIONS_MODE defaults to halted, supports verify-only draining and full halt, guards handoff creation and verification before external services, and exposes a no-store public operations status."
     },
     {
       "id": "mainnet-acceptance-audit",

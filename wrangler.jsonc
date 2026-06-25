@@ -15,6 +15,7 @@
     "APP_NETWORK": "testnet",
     "NEXT_PUBLIC_APP_NETWORK": "testnet",
     "MAINNET_RELEASE_MODE": "disabled",
+    "MAINNET_OPERATIONS_MODE": "halted",
     "PAYMENTS_DATABASE_BINDING": "PAYMENTS_DB"
   },
   "d1_databases": [
@@ -33,6 +34,7 @@
         "APP_NETWORK": "testnet",
         "NEXT_PUBLIC_APP_NETWORK": "testnet",
         "MAINNET_RELEASE_MODE": "disabled",
+        "MAINNET_OPERATIONS_MODE": "halted",
         "PAYMENTS_DATABASE_BINDING": "PAYMENTS_DB"
       },
       "d1_databases": [
@@ -54,6 +56,7 @@
         "MAINNET_GATE_APPROVED": "false",
         "MAINNET_SOURCE_TAG_APPROVED": "false",
         "MAINNET_RELEASE_MODE": "disabled",
+        "MAINNET_OPERATIONS_MODE": "halted",
         "PAYMENTS_DATABASE_BINDING": "PAYMENTS_DB_MAINNET"
       },
       "d1_databases": [

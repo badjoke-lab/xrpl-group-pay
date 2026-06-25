@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const networkSchema = z.enum(["testnet", "mainnet"]);
 const releaseModeSchema = z.enum(["disabled", "internal", "limited", "public"]);
+const operationsModeSchema = z.enum(["halted", "verify-only", "enabled"]);
 const uint32TextSchema = z
   .string()
   .regex(/^\d+$/)
@@ -15,6 +16,7 @@ const rawBuildEnvSchema = z.object({
   MAINNET_GATE_APPROVED: z.enum(["true", "false"]).default("false"),
   MAINNET_SOURCE_TAG_APPROVED: z.enum(["true", "false"]).default("false"),
   MAINNET_RELEASE_MODE: releaseModeSchema.default("disabled"),
+  MAINNET_OPERATIONS_MODE: operationsModeSchema.optional(),
   PAYMENTS_DATABASE_BINDING: z.string().trim().min(1).optional(),
   XRPL_MAINNET_SOURCE_TAG: uint32TextSchema.optional(),
 });
@@ -49,6 +51,11 @@ export function parseBuildEnv(input) {
     if (parsed.MAINNET_RELEASE_MODE === "disabled") {
       throw new Error(
         "Mainnet builds are blocked while MAINNET_RELEASE_MODE=disabled.",
+      );
+    }
+    if (parsed.MAINNET_OPERATIONS_MODE === undefined) {
+      throw new Error(
+        "Mainnet builds require an explicit MAINNET_OPERATIONS_MODE.",
       );
     }
     if (parsed.PAYMENTS_DATABASE_BINDING !== "PAYMENTS_DB_MAINNET") {
@@ -87,6 +94,7 @@ export function parseBuildEnv(input) {
     mainnetSourceTagApproved:
       parsed.MAINNET_SOURCE_TAG_APPROVED === "true",
     mainnetReleaseMode: parsed.MAINNET_RELEASE_MODE,
+    mainnetOperationsMode: parsed.MAINNET_OPERATIONS_MODE ?? "halted",
     xrplSourceTag:
       appNetwork === "mainnet" && parsed.XRPL_MAINNET_SOURCE_TAG !== undefined
         ? Number(parsed.XRPL_MAINNET_SOURCE_TAG)
