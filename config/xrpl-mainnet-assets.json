@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "network": "mainnet",
+  "registry_version": "2026-06-25",
+  "state": "identity_verified",
+  "assets": [
+    {
+      "id": "xrpl:mainnet:xrp",
+      "payment_rail": "xrpl",
+      "asset_type": "native",
+      "symbol": "XRP",
+      "currency": "XRP",
+      "issuer": null,
+      "precision": 6,
+      "verification_strategy": "xrpl-xrp-v1",
+      "receipt_contract": "xrpl-xrp-payment-v1",
+      "official_source": "https://xrpl.org/docs/concepts/networks-and-servers/parallel-networks"
+    },
+    {
+      "id": "xrpl:mainnet:rlusd",
+      "payment_rail": "xrpl",
+      "asset_type": "issued",
+      "symbol": "RLUSD",
+      "currency": "524C555344000000000000000000000000000000",
+      "issuer": "rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De",
+      "precision": 6,
+      "verification_strategy": "xrpl-issued-asset-v1",
+      "receipt_contract": "xrpl-issued-payment-v1",
+      "official_source": "https://docs.ripple.com/products/stablecoin/overview/token-addresses"
+    }
+  ]
+}
