@@ -1,7 +1,7 @@
 import {
-  paymentVerificationApiOutcomeSchema,
-  type PaymentVerificationApiOutcome,
-} from "./types";
+  assetPaymentVerificationApiOutcomeSchema,
+  type AssetPaymentVerificationApiOutcome,
+} from "./asset-api-outcome";
 
 export class PaymentVerificationRequestError extends Error {
   constructor(message: string) {
@@ -10,7 +10,7 @@ export class PaymentVerificationRequestError extends Error {
   }
 }
 
-function unavailable(message?: unknown): PaymentVerificationApiOutcome {
+function unavailable(message?: unknown): AssetPaymentVerificationApiOutcome {
   return {
     status: "pending",
     reason: "VERIFICATION_UNAVAILABLE",
@@ -22,7 +22,7 @@ function unavailable(message?: unknown): PaymentVerificationApiOutcome {
   };
 }
 
-function expectedHttpStatus(outcome: PaymentVerificationApiOutcome) {
+function expectedHttpStatus(outcome: AssetPaymentVerificationApiOutcome) {
   if (outcome.status === "verified") return 200;
   if (outcome.status === "pending") return 202;
   return 422;
@@ -32,7 +32,7 @@ export async function requestPaymentVerification(
   paymentToken: string,
   payloadId: string,
   fetcher: typeof fetch = fetch,
-): Promise<PaymentVerificationApiOutcome> {
+): Promise<AssetPaymentVerificationApiOutcome> {
   let response: Response;
   try {
     response = await fetcher("/api/payments/verify", {
@@ -46,7 +46,7 @@ export async function requestPaymentVerification(
   }
 
   const body: unknown = await response.json().catch(() => null);
-  const parsed = paymentVerificationApiOutcomeSchema.safeParse(body);
+  const parsed = assetPaymentVerificationApiOutcomeSchema.safeParse(body);
   if (parsed.success && response.status === expectedHttpStatus(parsed.data)) {
     return parsed.data;
   }
