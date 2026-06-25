@@ -33,16 +33,13 @@ export const INSERT_SLOT_RECEIPT = `
     amount_units = excluded.amount_units,
     delivered_amount_units = excluded.delivered_amount_units,
     verified_payment_digest = excluded.verified_payment_digest
-  WHERE verified_payment_receipts.invoice_id = excluded.invoice_id
+  WHERE verified_payment_receipts.verified_payment_digest IS NULL
+    AND verified_payment_receipts.invoice_id = excluded.invoice_id
     AND verified_payment_receipts.sender = excluded.sender
     AND verified_payment_receipts.destination = excluded.destination
     AND verified_payment_receipts.amount_drops = excluded.amount_drops
     AND verified_payment_receipts.delivered_amount_drops = excluded.delivered_amount_drops
     AND verified_payment_receipts.proof_digest = excluded.proof_digest
-    AND (
-      verified_payment_receipts.verified_payment_digest IS NULL
-      OR verified_payment_receipts.verified_payment_digest = excluded.verified_payment_digest
-    )
 `;
 
 export const SELECT_SLOT_SETTLEMENT = `
