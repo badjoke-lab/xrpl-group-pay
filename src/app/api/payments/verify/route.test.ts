@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { getRlusdAssetDescriptor } from "@/features/assets/registry";
 import { PaymentSlotNotFoundError } from "@/features/bills/payment-slot";
 import {
   PaymentSlotSettlementConflictError,
   PaymentSlotSettlementDatabaseError,
 } from "@/features/bills/settle-slot";
-import type { PaymentVerificationApiOutcome } from "@/features/payment-verification/types";
+import type { AssetPaymentVerificationApiOutcome } from "@/features/payment-verification/asset-api-outcome";
 
 import {
   handleVerificationRequest,
@@ -17,8 +18,9 @@ const PAYMENT_TOKEN = "a".repeat(64);
 const PAYLOAD_ID = "123e4567-e89b-12d3-a456-426614174000";
 const TXID = "A".repeat(64);
 const INVOICE_ID = "B".repeat(64);
+const RLUSD = getRlusdAssetDescriptor("testnet");
 
-const verifiedOutcome: PaymentVerificationApiOutcome = {
+const verifiedOutcome: AssetPaymentVerificationApiOutcome = {
   status: "verified",
   proof: {
     network: "testnet",
@@ -45,6 +47,38 @@ const verifiedOutcome: PaymentVerificationApiOutcome = {
   },
 };
 
+const issuedVerifiedOutcome: AssetPaymentVerificationApiOutcome = {
+  status: "verified",
+  payment: {
+    contractVersion: "xrpl-group-pay:verified-payment:v1",
+    receiptContract: RLUSD.receiptContract,
+    network: "testnet",
+    transactionId: TXID,
+    ledgerIndex: 12345,
+    sender: "rSender",
+    destination: "rDestination",
+    asset: RLUSD,
+    requestedAmount: { code: "RLUSD", units: "1250000", scale: 6 },
+    deliveredAmount: { code: "RLUSD", units: "1250000", scale: 6 },
+    sourceTag: 123456,
+    destinationTag: null,
+    invoiceId: INVOICE_ID,
+    idempotencyKey: `testnet:${TXID}`,
+    verifiedAt: "2026-06-25T01:02:03.000Z",
+  },
+  receipt: {
+    receiptId: `testnet:${TXID}`,
+    status: "recorded",
+    network: "testnet",
+    transactionId: TXID,
+    invoiceId: INVOICE_ID,
+    assetId: RLUSD.id,
+    recordedAt: "2026-06-25T01:02:04.000Z",
+    verifiedPaymentDigest: "D".repeat(64),
+    legacyProofDigest: null,
+  },
+};
+
 function request(
   body: unknown = { paymentToken: PAYMENT_TOKEN, payloadId: PAYLOAD_ID },
 ) {
@@ -56,7 +90,7 @@ function request(
 }
 
 function dependencies(
-  outcome: PaymentVerificationApiOutcome,
+  outcome: AssetPaymentVerificationApiOutcome,
 ): VerificationRouteDependencies & {
   verifyAndRecord: ReturnType<typeof vi.fn>;
 } {
@@ -125,7 +159,7 @@ describe("POST /api/payments/verify", () => {
     expect(oversizedDeclaredLength.status).toBe(413);
   });
 
-  it("returns verified only after slot settlement is durable", async () => {
+  it("returns the unchanged XRP response only after durable settlement", async () => {
     const deps = dependencies(verifiedOutcome);
     const response = await handleVerificationRequest(request(), deps);
 
@@ -137,6 +171,14 @@ describe("POST /api/payments/verify", () => {
     );
   });
 
+  it("returns a canonical issued-payment response after generic settlement", async () => {
+    const deps = dependencies(issuedVerifiedOutcome);
+    const response = await handleVerificationRequest(request(), deps);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(issuedVerifiedOutcome);
+  });
+
   it.each([
     {
       outcome: {
@@ -144,7 +186,7 @@ describe("POST /api/payments/verify", () => {
         reason: "TRANSACTION_NOT_VALIDATED",
         transactionId: TXID,
         message: "Pending",
-      } satisfies PaymentVerificationApiOutcome,
+      } satisfies AssetPaymentVerificationApiOutcome,
       status: 202,
     },
     {
@@ -153,7 +195,7 @@ describe("POST /api/payments/verify", () => {
         reason: "AMOUNT_MISMATCH",
         transactionId: TXID,
         message: "Mismatch",
-      } satisfies PaymentVerificationApiOutcome,
+      } satisfies AssetPaymentVerificationApiOutcome,
       status: 422,
     },
   ])("returns a $outcome.status outcome without settlement", async ({ outcome, status }) => {

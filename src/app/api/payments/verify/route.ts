@@ -11,14 +11,13 @@ import {
 import {
   PaymentSlotSettlementConflictError,
   PaymentSlotSettlementDatabaseError,
-  settleVerifiedPaymentSlot,
 } from "@/features/bills/settle-slot";
-import { verifyStoredSlotPayment } from "@/features/bills/stored-slot-verification";
+import { verifyAndSettleStoredSlotPayment } from "@/features/bills/verify-and-settle-slot";
 import {
   getPaymentsDatabase,
   PaymentsDatabaseUnavailableError,
 } from "@/features/persistence/cloudflare-d1";
-import type { PaymentVerificationApiOutcome } from "@/features/payment-verification/types";
+import type { AssetPaymentVerificationApiOutcome } from "@/features/payment-verification/asset-api-outcome";
 import { WalletProviderError } from "@/features/wallet-providers/types";
 import { XamanApiError, XamanClient } from "@/features/xaman/client";
 import { XamanStatusReader } from "@/features/xaman/status-reader";
@@ -40,7 +39,7 @@ export type VerificationRouteDependencies = {
   verifyAndRecord(
     paymentToken: string,
     payloadId: string,
-  ): Promise<PaymentVerificationApiOutcome>;
+  ): Promise<AssetPaymentVerificationApiOutcome>;
 };
 
 const defaultDependencies: VerificationRouteDependencies = {
@@ -51,23 +50,15 @@ const defaultDependencies: VerificationRouteDependencies = {
     const providerStatus = new XamanStatusReader(xaman);
     const xrpl = new XrplTestnetClient();
     const slot = await loadPaymentSlotByToken(database, paymentToken);
-    const outcome = await verifyStoredSlotPayment(slot, payloadId, {
-      readProviderStatus: (id) => providerStatus.readStatus(id),
-      getXrplTransaction: (transactionId) =>
-        xrpl.getTransaction(transactionId),
-      sourceTag: environment.XRPL_SOURCE_TAG,
+
+    return verifyAndSettleStoredSlotPayment(database, slot, payloadId, {
+      verification: {
+        readProviderStatus: (id) => providerStatus.readStatus(id),
+        getXrplTransaction: (transactionId) =>
+          xrpl.getTransaction(transactionId),
+        sourceTag: environment.XRPL_SOURCE_TAG,
+      },
     });
-
-    if (outcome.status !== "verified") {
-      return outcome;
-    }
-
-    const settlement = await settleVerifiedPaymentSlot(
-      database,
-      slot,
-      outcome.proof,
-    );
-    return { ...outcome, receipt: settlement.receipt };
   },
 };
 

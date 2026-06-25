@@ -1,4 +1,5 @@
-import { dispatchPaymentVerification } from "@/features/payment-verification/strategy";
+import type { AssetVerificationOutcome } from "@/features/payment-verification/asset-outcome";
+import { dispatchAssetPaymentVerification } from "@/features/payment-verification/strategy";
 import type { PaymentVerificationOutcome } from "@/features/payment-verification/types";
 import type { ProviderRequestStatus } from "@/features/wallet-providers/status-reader";
 import { XrplTransactionPendingError } from "@/features/xrpl/client";
@@ -14,9 +15,14 @@ export type StoredSlotVerificationDependencies = {
   now?: () => Date;
 };
 
+type PreliminaryOutcome = Extract<
+  AssetVerificationOutcome,
+  { status: "pending" | "failed" }
+>;
+
 function providerOutcome(
   request: ProviderRequestStatus,
-): PaymentVerificationOutcome | null {
+): PreliminaryOutcome | null {
   if (
     request.status === "created" ||
     request.status === "available" ||
@@ -56,11 +62,11 @@ function providerOutcome(
   return null;
 }
 
-export async function verifyStoredSlotPayment(
+export async function verifyStoredSlotAssetPayment(
   slot: ResolvedPaymentSlot,
   requestId: string,
   dependencies: StoredSlotVerificationDependencies,
-): Promise<PaymentVerificationOutcome> {
+): Promise<AssetVerificationOutcome> {
   const now = dependencies.now?.() ?? new Date();
   const request = await dependencies.readProviderStatus(requestId);
   const preliminary = providerOutcome(request);
@@ -75,7 +81,12 @@ export async function verifyStoredSlotPayment(
 
   try {
     const transaction = await dependencies.getXrplTransaction(transactionId);
-    return dispatchPaymentVerification(intent, transactionId, transaction, now);
+    return dispatchAssetPaymentVerification(
+      intent,
+      transactionId,
+      transaction,
+      now,
+    );
   } catch (error) {
     if (error instanceof XrplTransactionPendingError) {
       return {
@@ -88,4 +99,26 @@ export async function verifyStoredSlotPayment(
     }
     throw error;
   }
+}
+
+export async function verifyStoredSlotPayment(
+  slot: ResolvedPaymentSlot,
+  requestId: string,
+  dependencies: StoredSlotVerificationDependencies,
+): Promise<PaymentVerificationOutcome> {
+  const outcome = await verifyStoredSlotAssetPayment(
+    slot,
+    requestId,
+    dependencies,
+  );
+  if (outcome.status !== "verified") return outcome;
+  if (outcome.legacyProof !== null) {
+    return { status: "verified", proof: outcome.legacyProof };
+  }
+  return {
+    status: "failed",
+    reason: "UNSUPPORTED_VERIFICATION_STRATEGY",
+    transactionId: outcome.payment.transactionId,
+    message: "The verified Asset is not enabled on the legacy XRP verifier.",
+  };
 }

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { getRlusdAssetDescriptor } from "@/features/assets/registry";
+
 import {
   PaymentVerificationRequestError,
   requestPaymentVerification,
@@ -7,6 +9,8 @@ import {
 
 const PAYMENT_TOKEN = "a".repeat(64);
 const PAYLOAD_ID = "123e4567-e89b-12d3-a456-426614174000";
+const TXID = "A".repeat(64);
+const INVOICE_ID = "B".repeat(64);
 
 function response(body: unknown, status: number) {
   return new Response(JSON.stringify(body), {
@@ -25,7 +29,7 @@ describe("requestPaymentVerification", () => {
               status: "verified",
               proof: {
                 network: "testnet",
-                transactionId: "A".repeat(64),
+                transactionId: TXID,
                 ledgerIndex: 1,
                 sender: "rSender",
                 destination: "rDestination",
@@ -33,16 +37,16 @@ describe("requestPaymentVerification", () => {
                 deliveredAmountDrops: "1",
                 sourceTag: 1,
                 destinationTag: null,
-                invoiceId: "B".repeat(64),
-                idempotencyKey: `testnet:${"A".repeat(64)}`,
+                invoiceId: INVOICE_ID,
+                idempotencyKey: `testnet:${TXID}`,
                 verifiedAt: "2026-06-23T00:00:00.000Z",
               },
               receipt: {
-                receiptId: `testnet:${"A".repeat(64)}`,
+                receiptId: `testnet:${TXID}`,
                 status: "created",
                 network: "testnet",
-                transactionId: "A".repeat(64),
-                invoiceId: "B".repeat(64),
+                transactionId: TXID,
+                invoiceId: INVOICE_ID,
                 recordedAt: "2026-06-23T00:00:01.000Z",
                 proofDigest: "C".repeat(64),
               },
@@ -51,13 +55,13 @@ describe("requestPaymentVerification", () => {
             ? {
                 status: "pending",
                 reason: "TRANSACTION_NOT_FOUND",
-                transactionId: "A".repeat(64),
+                transactionId: TXID,
                 message: "Pending",
               }
             : {
                 status: "failed",
                 reason: "AMOUNT_MISMATCH",
-                transactionId: "A".repeat(64),
+                transactionId: TXID,
                 message: "Mismatch",
               };
       const fetcher = vi.fn().mockResolvedValue(response(outcome, status));
@@ -123,7 +127,7 @@ describe("requestPaymentVerification", () => {
         status: "verified",
         proof: {
           network: "testnet",
-          transactionId: "A".repeat(64),
+          transactionId: TXID,
           ledgerIndex: 1,
           sender: "rSender",
           destination: "rDestination",
@@ -131,8 +135,8 @@ describe("requestPaymentVerification", () => {
           deliveredAmountDrops: "1",
           sourceTag: 1,
           destinationTag: null,
-          invoiceId: "B".repeat(64),
-          idempotencyKey: `testnet:${"A".repeat(64)}`,
+          invoiceId: INVOICE_ID,
+          idempotencyKey: `testnet:${TXID}`,
           verifiedAt: "2026-06-23T00:00:00.000Z",
         },
       },
@@ -142,12 +146,49 @@ describe("requestPaymentVerification", () => {
       {
         status: "pending",
         reason: "TRANSACTION_NOT_FOUND",
-        transactionId: "A".repeat(64),
+        transactionId: TXID,
         message: "Pending",
       },
       200,
     ],
-  ])("rejects malformed or status-inconsistent responses", async (body, status) => {
+    [
+      (() => {
+        const asset = getRlusdAssetDescriptor("testnet");
+        return {
+          status: "verified",
+          payment: {
+            contractVersion: "xrpl-group-pay:verified-payment:v1",
+            receiptContract: asset.receiptContract,
+            network: "testnet",
+            transactionId: TXID,
+            ledgerIndex: 1,
+            sender: "rSender",
+            destination: "rDestination",
+            asset,
+            requestedAmount: { code: "RLUSD", units: "1250000", scale: 6 },
+            deliveredAmount: { code: "RLUSD", units: "1250000", scale: 6 },
+            sourceTag: 1,
+            destinationTag: null,
+            invoiceId: INVOICE_ID,
+            idempotencyKey: `testnet:${TXID}`,
+            verifiedAt: "2026-06-25T00:00:00.000Z",
+          },
+          receipt: {
+            receiptId: `testnet:${TXID}`,
+            status: "recorded",
+            network: "testnet",
+            transactionId: TXID,
+            invoiceId: INVOICE_ID,
+            assetId: asset.id,
+            recordedAt: "2026-06-25T00:00:01.000Z",
+            verifiedPaymentDigest: "D".repeat(64),
+            legacyProofDigest: null,
+          },
+        };
+      })(),
+      200,
+    ],
+  ])("rejects malformed, status-inconsistent, or not-yet-enabled UI responses", async (body, status) => {
     const fetcher = vi.fn().mockResolvedValue(response(body, status));
 
     await expect(

@@ -94,10 +94,11 @@ const recordedVerifiedOutcomeSchema = z
   })
   .strict();
 
-export const paymentVerificationApiOutcomeSchema = z.discriminatedUnion(
-  "status",
-  [recordedVerifiedOutcomeSchema, pendingOutcomeSchema, failedOutcomeSchema],
-);
+export const paymentVerificationApiOutcomeSchema = z.union([
+  recordedVerifiedOutcomeSchema,
+  pendingOutcomeSchema,
+  failedOutcomeSchema,
+]);
 
 export type VerificationPendingReason = z.infer<
   typeof verificationPendingReasonSchema
