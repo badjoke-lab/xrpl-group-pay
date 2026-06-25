@@ -1,51 +1,16 @@
-import { z } from "zod";
-
+import type { z } from "zod";
 import type { AssetDescriptor } from "@/features/assets/types";
 import type { MoneyAmount } from "@/features/money/types";
 import type { D1DatabaseLike } from "@/features/persistence/d1-types";
-import {
-  assetDescriptorFromPersistedRow,
-  moneyAmountFromPersistedUnits,
-  PAYMENT_SLOT_CONTRACT_VERSION,
-} from "@/features/persistence/asset-records";
-
+import { PAYMENT_SLOT_CONTRACT_VERSION } from "@/features/persistence/asset-records";
 import { hashCapabilityToken } from "./capabilities";
-
-const paymentSlotRowSchema = z.object({
-  slot_id: z.string().min(1),
-  slot_public_id: z.string().uuid(),
-  bill_id: z.string().min(1),
-  bill_public_id: z.string().uuid(),
-  bill_title: z.string().min(1).max(100),
-  network: z.literal("testnet"),
-  destination_address: z.string().min(1),
-  destination_tag: z.number().int().min(0).max(4_294_967_295).nullable(),
-  participant_label: z.string().max(60).nullable(),
-  expected_payer_address: z.string().min(1),
-  expected_amount_drops: z.string().regex(/^[1-9]\d*$/),
-  payment_contract_version: z.literal(PAYMENT_SLOT_CONTRACT_VERSION),
-  asset_id: z.string().min(1),
-  asset_type: z.enum(["native", "issued"]),
-  currency_code: z.string().min(1),
-  issuer: z.string().min(1).nullable(),
-  amount_scale: z.number().int().min(0).max(18),
-  expected_amount_units: z.string().regex(/^[1-9]\d*$/),
-  invoice_id: z.string().regex(/^[A-F0-9]{64}$/),
-  slot_status: z.enum([
-    "unpaid",
-    "payload_created",
-    "awaiting_signature",
-    "rejected",
-    "expired",
-    "submitted",
-    "validating",
-    "paid",
-    "verification_failed",
-    "needs_review",
-  ]),
-  bill_status: z.enum(["open", "partially_paid", "settled", "needs_review"]),
-  paid_tx_hash: z.string().nullable(),
-});
+import {
+  billStatusSchema,
+  normalizePaymentSlotRecord,
+  paymentSlotRecordSchema,
+  SELECT_PAYMENT_SLOT,
+  slotStatusSchema,
+} from "./payment-slot-record";
 
 export type ResolvedPaymentSlot = {
   slotId: string;
@@ -63,8 +28,8 @@ export type ResolvedPaymentSlot = {
   asset?: AssetDescriptor;
   expectedAmount?: MoneyAmount;
   invoiceId: string;
-  slotStatus: z.infer<typeof paymentSlotRowSchema>["slot_status"];
-  billStatus: z.infer<typeof paymentSlotRowSchema>["bill_status"];
+  slotStatus: z.infer<typeof slotStatusSchema>;
+  billStatus: z.infer<typeof billStatusSchema>;
   paidTransactionId: string | null;
 };
 
@@ -85,36 +50,6 @@ export class PaymentSlotStateError extends Error {
   }
 }
 
-const SELECT_SLOT = `
-  SELECT
-    ps.id AS slot_id,
-    ps.public_id AS slot_public_id,
-    ps.bill_id AS bill_id,
-    b.public_id AS bill_public_id,
-    b.title AS bill_title,
-    b.network AS network,
-    b.destination_address AS destination_address,
-    b.destination_tag AS destination_tag,
-    ps.participant_label AS participant_label,
-    ps.expected_payer_address AS expected_payer_address,
-    ps.expected_amount_drops AS expected_amount_drops,
-    ps.payment_contract_version AS payment_contract_version,
-    ps.asset_id AS asset_id,
-    ps.asset_type AS asset_type,
-    ps.currency_code AS currency_code,
-    ps.issuer AS issuer,
-    ps.amount_scale AS amount_scale,
-    ps.expected_amount_units AS expected_amount_units,
-    ps.invoice_id AS invoice_id,
-    ps.status AS slot_status,
-    b.status AS bill_status,
-    ps.paid_tx_hash AS paid_tx_hash
-  FROM payment_slots ps
-  INNER JOIN bills b ON b.id = ps.bill_id
-  WHERE ps.public_token_hash = ?1
-  LIMIT 1
-`;
-
 const payloadEligibleStatuses = new Set<ResolvedPaymentSlot["slotStatus"]>([
   "unpaid",
   "payload_created",
@@ -134,26 +69,10 @@ export async function loadPaymentSlotByToken(
   } catch {
     throw new PaymentSlotNotFoundError();
   }
-
-  const row = await database.prepare(SELECT_SLOT).bind(tokenHash).first();
-  const parsed = paymentSlotRowSchema.safeParse(row);
-  if (!parsed.success) {
-    throw new PaymentSlotNotFoundError();
-  }
-
-  const asset = assetDescriptorFromPersistedRow(parsed.data.network, {
-    asset_id: parsed.data.asset_id,
-    asset_type: parsed.data.asset_type,
-    currency_code: parsed.data.currency_code,
-    issuer: parsed.data.issuer,
-    amount_scale: parsed.data.amount_scale,
-  });
-  const expectedAmount = moneyAmountFromPersistedUnits(
-    asset.symbol,
-    parsed.data.expected_amount_units,
-    asset.precision,
-  );
-
+  const row = await database.prepare(SELECT_PAYMENT_SLOT).bind(tokenHash).first();
+  const parsed = paymentSlotRecordSchema.safeParse(row);
+  if (!parsed.success) throw new PaymentSlotNotFoundError();
+  const normalized = normalizePaymentSlotRecord(parsed.data);
   return {
     slotId: parsed.data.slot_id,
     slotPublicId: parsed.data.slot_public_id,
@@ -165,10 +84,10 @@ export async function loadPaymentSlotByToken(
     destinationTag: parsed.data.destination_tag,
     participantLabel: parsed.data.participant_label,
     expectedPayerAddress: parsed.data.expected_payer_address,
-    expectedAmountDrops: parsed.data.expected_amount_units,
+    expectedAmountDrops: normalized.amountUnits,
     paymentContractVersion: parsed.data.payment_contract_version,
-    asset,
-    expectedAmount,
+    asset: normalized.asset,
+    expectedAmount: normalized.expectedAmount,
     invoiceId: parsed.data.invoice_id,
     slotStatus: parsed.data.slot_status,
     billStatus: parsed.data.bill_status,
@@ -178,19 +97,10 @@ export async function loadPaymentSlotByToken(
 
 export function requirePayableSlot(slot: ResolvedPaymentSlot) {
   if (slot.slotStatus === "paid") {
-    throw new PaymentSlotStateError(
-      "SLOT_ALREADY_PAID",
-      "This payment slot is already paid.",
-    );
+    throw new PaymentSlotStateError("SLOT_ALREADY_PAID", "This payment slot is already paid.");
   }
-  if (
-    !["open", "partially_paid"].includes(slot.billStatus) ||
-    !payloadEligibleStatuses.has(slot.slotStatus)
-  ) {
-    throw new PaymentSlotStateError(
-      "BILL_NOT_PAYABLE",
-      "This payment slot is not accepting a new sign request.",
-    );
+  if (!["open", "partially_paid"].includes(slot.billStatus) || !payloadEligibleStatuses.has(slot.slotStatus)) {
+    throw new PaymentSlotStateError("BILL_NOT_PAYABLE", "This payment slot is not accepting a new sign request.");
   }
   return slot;
 }
