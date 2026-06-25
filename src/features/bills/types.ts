@@ -1,7 +1,11 @@
 import { z } from "zod";
 
 import { assetDescriptorSchema } from "@/features/assets/types";
-import { moneyAmountSchema } from "@/features/money/types";
+import {
+  moneyAmountSchema,
+  moneyScaleSchema,
+  moneyUnitsSchema,
+} from "@/features/money/types";
 
 export const testnetSettlementAssetIdSchema = z.enum([
   "xrpl:testnet:xrp",
@@ -23,13 +27,70 @@ const destinationTagSchema = z.union([
 
 const dropsSchema = z.string().regex(/^(?:0|[1-9]\d*)$/);
 const positiveDropsSchema = z.string().regex(/^[1-9]\d*$/);
+const participantIdSchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/);
+
 const participantInputSchema = z
   .object({
+    participantId: participantIdSchema.optional(),
     label: z.string().trim().max(60).optional(),
     expectedPayerAddress: z.string().trim().min(1),
-    amount: decimalAmountSchema,
+    amount: decimalAmountSchema.optional(),
   })
   .strict();
+
+const participantUnitsSchema = z
+  .object({
+    participantId: participantIdSchema,
+    units: moneyUnitsSchema,
+  })
+  .strict();
+
+const remainderAssignmentSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("creator") }).strict(),
+  z.object({ kind: z.literal("first_participant") }).strict(),
+  z
+    .object({
+      kind: z.literal("selected_participant"),
+      participantId: participantIdSchema,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("manual"),
+      increments: z.array(participantUnitsSchema).min(2).max(50),
+    })
+    .strict(),
+]);
+
+export const billAllocationInputSchema = z.discriminatedUnion("strategy", [
+  z.object({ strategy: z.literal("custom") }).strict(),
+  z
+    .object({
+      strategy: z.literal("equal"),
+      remainderAssignment: remainderAssignmentSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      strategy: z.literal("percentage"),
+      percentageScale: moneyScaleSchema,
+      percentages: z.array(participantUnitsSchema).min(2).max(50),
+      remainderAssignment: remainderAssignmentSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      strategy: z.literal("shares"),
+      shares: z.array(participantUnitsSchema).min(2).max(50),
+      remainderAssignment: remainderAssignmentSchema.optional(),
+    })
+    .strict(),
+]);
+
+export type BillAllocationInput = z.infer<typeof billAllocationInputSchema>;
 
 const canonicalCreateBillInputSchema = z
   .object({
@@ -39,6 +100,7 @@ const canonicalCreateBillInputSchema = z
     settlementAssetId: testnetSettlementAssetIdSchema,
     totalAmount: decimalAmountSchema,
     creatorShareAmount: decimalAmountSchema,
+    allocation: billAllocationInputSchema.optional(),
     participants: z.array(participantInputSchema).min(2).max(50),
   })
   .strict();
@@ -80,13 +142,27 @@ const legacyXrpCreateBillInputSchema = z
     })),
   }));
 
-export const createBillInputSchema = z.union([
-  canonicalCreateBillInputSchema,
-  legacyXrpCreateBillInputSchema,
-]);
+export type NormalizedCreateBillInput = {
+  title: string;
+  destinationAddress: string;
+  destinationTag?: string | number;
+  settlementAssetId: z.infer<typeof testnetSettlementAssetIdSchema>;
+  totalAmount: string;
+  creatorShareAmount: string;
+  allocation?: BillAllocationInput;
+  participants: Array<{
+    participantId?: string;
+    label?: string;
+    expectedPayerAddress: string;
+    amount?: string;
+  }>;
+};
+
+export const createBillInputSchema = z
+  .union([canonicalCreateBillInputSchema, legacyXrpCreateBillInputSchema])
+  .transform((input): NormalizedCreateBillInput => input);
 
 export type CreateBillInput = z.input<typeof createBillInputSchema>;
-export type NormalizedCreateBillInput = z.output<typeof createBillInputSchema>;
 
 const reviewedParticipantSchema = z
   .object({
