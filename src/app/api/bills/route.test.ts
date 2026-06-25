@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { BillDatabaseError, BillInputError } from "@/features/bills/create-bill";
-import type { CreatedBill } from "@/features/bills/types";
+import { CREATED_BILL_FIXTURE } from "@/test/fixtures/bill-review";
 
 import {
   handleCreateBillRequest,
@@ -25,44 +25,16 @@ const validInput = {
   ],
 };
 
-const created: CreatedBill = {
-  bill: {
-    publicId: "00000000-0000-4000-8000-000000000001",
-    title: "Dinner",
-    network: "testnet",
-    destinationAddress: validInput.destinationAddress,
-    destinationTag: null,
-    totalDrops: "3000000",
-    creatorShareDrops: "1000000",
-    status: "open",
-    revision: 1,
-    frozenAt: "2026-06-24T00:00:00.000Z",
-    createdAt: "2026-06-24T00:00:00.000Z",
-  },
-  capabilities: {
-    publicToken: "1".repeat(64),
-    adminToken: "2".repeat(64),
-  },
-  slots: [
-    {
-      publicId: "00000000-0000-4000-8000-000000000002",
-      participantLabel: null,
-      expectedPayerAddress: validInput.participants[0].expectedPayerAddress,
-      expectedAmountDrops: "1000000",
-      invoiceId: "A".repeat(64),
-      status: "unpaid",
-      paymentToken: "3".repeat(64),
-    },
-    {
-      publicId: "00000000-0000-4000-8000-000000000003",
-      participantLabel: null,
-      expectedPayerAddress: validInput.participants[1].expectedPayerAddress,
-      expectedAmountDrops: "1000000",
-      invoiceId: "B".repeat(64),
-      status: "unpaid",
-      paymentToken: "4".repeat(64),
-    },
-  ],
+const normalizedInput = {
+  title: validInput.title,
+  destinationAddress: validInput.destinationAddress,
+  settlementAssetId: "xrpl:testnet:xrp",
+  totalAmount: "3",
+  creatorShareAmount: "1",
+  participants: validInput.participants.map((participant) => ({
+    expectedPayerAddress: participant.expectedPayerAddress,
+    amount: "1",
+  })),
 };
 
 function request(body: unknown = validInput) {
@@ -76,18 +48,32 @@ function request(body: unknown = validInput) {
 function dependencies(): BillRouteDependencies & {
   createBill: ReturnType<typeof vi.fn>;
 } {
-  return { createBill: vi.fn().mockResolvedValue(created) };
+  return { createBill: vi.fn().mockResolvedValue(CREATED_BILL_FIXTURE) };
 }
 
 describe("POST /api/bills", () => {
-  it("creates a frozen bill and returns capabilities once", async () => {
+  it("normalizes legacy XRP input before creating a frozen Bill", async () => {
     const deps = dependencies();
     const response = await handleCreateBillRequest(request(), deps);
 
     expect(response.status).toBe(201);
     expect(response.headers.get("cache-control")).toContain("no-store");
-    await expect(response.json()).resolves.toEqual(created);
-    expect(deps.createBill).toHaveBeenCalledWith(validInput);
+    await expect(response.json()).resolves.toEqual(CREATED_BILL_FIXTURE);
+    expect(deps.createBill).toHaveBeenCalledWith(normalizedInput);
+  });
+
+  it("accepts the canonical RLUSD creation contract", async () => {
+    const deps = dependencies();
+    const input = {
+      ...normalizedInput,
+      settlementAssetId: "xrpl:testnet:rlusd",
+      totalAmount: "3.25",
+      creatorShareAmount: "1.25",
+    };
+    const response = await handleCreateBillRequest(request(input), deps);
+
+    expect(response.status).toBe(201);
+    expect(deps.createBill).toHaveBeenCalledWith(input);
   });
 
   it("rejects malformed, invalid, and oversized input before creation", async () => {
