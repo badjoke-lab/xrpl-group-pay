@@ -22,8 +22,9 @@ import { WalletProviderError } from "@/features/wallet-providers/types";
 import { XamanApiError, XamanClient } from "@/features/xaman/client";
 import { XamanStatusReader } from "@/features/xaman/status-reader";
 import {
+  createXrplTransactionClient,
   XrplNodeUnavailableError,
-  XrplTestnetClient,
+  XrplTransactionClientConfigurationError,
 } from "@/features/xrpl/client";
 
 export const dynamic = "force-dynamic";
@@ -46,10 +47,17 @@ const defaultDependencies: VerificationRouteDependencies = {
   async verifyAndRecord(paymentToken, payloadId) {
     const database = await getPaymentsDatabase();
     const environment = getXamanEnvironment();
+    const slot = await loadPaymentSlotByToken(database, paymentToken);
     const xaman = new XamanClient(environment);
     const providerStatus = new XamanStatusReader(xaman);
-    const xrpl = new XrplTestnetClient();
-    const slot = await loadPaymentSlotByToken(database, paymentToken);
+    const xrpl = createXrplTransactionClient(slot.network, {
+      deploymentNetwork: environment.APP_NETWORK,
+      mainnetAccess:
+        environment.APP_NETWORK === "mainnet" &&
+        environment.MAINNET_GATE_APPROVED === true
+          ? { network: "mainnet", mainnetGateApproved: true }
+          : undefined,
+    });
 
     return verifyAndSettleStoredSlotPayment(database, slot, payloadId, {
       verification: {
@@ -196,6 +204,17 @@ export async function handleVerificationRequest(
     if (error instanceof XamanConfigurationError) {
       return json(
         { error: { code: "XAMAN_NOT_CONFIGURED", message: error.message } },
+        503,
+      );
+    }
+    if (error instanceof XrplTransactionClientConfigurationError) {
+      return json(
+        {
+          error: {
+            code: "XRPL_VERIFICATION_NOT_CONFIGURED",
+            message: error.message,
+          },
+        },
         503,
       );
     }
