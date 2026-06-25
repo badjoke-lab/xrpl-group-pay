@@ -7,6 +7,9 @@ describe("parseBuildEnv", () => {
     expect(parseBuildEnv({})).toMatchObject({
       appNetwork: "testnet",
       allowMainnetBuild: false,
+      mainnetGateApproved: false,
+      mainnetReleaseMode: "disabled",
+      paymentsDatabaseBinding: "PAYMENTS_DB",
     });
   });
 
@@ -28,13 +31,23 @@ describe("parseBuildEnv", () => {
     ).toThrow(/Mainnet builds are blocked/);
   });
 
-  it("allows Mainnet only with an explicit approval flag", () => {
+  it("allows Mainnet only with every explicit approval and isolation control", () => {
     expect(
       parseBuildEnv({
         APP_NETWORK: "mainnet",
         NEXT_PUBLIC_APP_NETWORK: "mainnet",
+        NEXT_PUBLIC_APP_URL: "https://group-pay.example",
         ALLOW_MAINNET_BUILD: "true",
+        MAINNET_GATE_APPROVED: "true",
+        MAINNET_RELEASE_MODE: "internal",
+        PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
       }),
-    ).toMatchObject({ appNetwork: "mainnet", allowMainnetBuild: true });
+    ).toMatchObject({
+      appNetwork: "mainnet",
+      allowMainnetBuild: true,
+      mainnetGateApproved: true,
+      mainnetReleaseMode: "internal",
+      paymentsDatabaseBinding: "PAYMENTS_DB_MAINNET",
+    });
   });
 });
