@@ -4,6 +4,7 @@ import {
   RLUSD_CURRENCY_HEX,
   RLUSD_ISSUERS,
 } from "@/features/assets/rlusd";
+import type { XrplNetwork } from "@/features/assets/types";
 import { createRlusdPaymentIntent } from "@/features/payment-intents/rlusd";
 import { createXrpPaymentIntent } from "@/features/payment-intents/xrp";
 import type { XrplTxResult } from "@/features/xrpl/schemas";
@@ -22,10 +23,10 @@ import {
   dispatchPaymentVerification,
 } from "./strategy";
 
-function rlusdTransaction(): XrplTxResult {
+function rlusdTransaction(network: XrplNetwork = "testnet"): XrplTxResult {
   const issued = {
     currency: RLUSD_CURRENCY_HEX,
-    issuer: RLUSD_ISSUERS.testnet,
+    issuer: RLUSD_ISSUERS[network],
     value: "1.25",
   };
   return {
@@ -125,7 +126,7 @@ describe("verification dispatch", () => {
     });
   });
 
-  it("keeps Mainnet RLUSD blocked for the independent PR #55 verifier", () => {
+  it("routes official Mainnet RLUSD to a Mainnet-scoped payment", () => {
     const intent = createRlusdPaymentIntent({
       paymentSlotId: "slot-mainnet-rlusd",
       network: "mainnet",
@@ -138,10 +139,22 @@ describe("verification dispatch", () => {
     });
 
     expect(
-      dispatchAssetPaymentVerification(intent, TEST_TXID, rlusdTransaction()),
+      dispatchAssetPaymentVerification(
+        intent,
+        TEST_TXID,
+        rlusdTransaction("mainnet"),
+      ),
     ).toMatchObject({
-      status: "failed",
-      reason: "UNSUPPORTED_VERIFICATION_STRATEGY",
+      status: "verified",
+      legacyProof: null,
+      payment: {
+        network: "mainnet",
+        asset: {
+          id: "xrpl:mainnet:rlusd",
+          issuer: RLUSD_ISSUERS.mainnet,
+        },
+        idempotencyKey: `mainnet:${TEST_TXID}`,
+      },
     });
   });
 });
