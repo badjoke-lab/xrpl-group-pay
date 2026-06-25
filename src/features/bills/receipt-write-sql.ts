@@ -27,6 +27,10 @@ export const SELECT_SLOT_SETTLEMENT = `
     r.invoice_id,
     r.recorded_at,
     r.proof_digest,
+    v.verified_payment_digest,
+    v.asset_id,
+    v.amount_units,
+    v.delivered_amount_units,
     s.public_id AS slot_public_id,
     s.status AS slot_status,
     s.paid_tx_hash,
@@ -36,6 +40,7 @@ export const SELECT_SLOT_SETTLEMENT = `
   FROM payment_slots s
   JOIN bills b ON b.id = s.bill_id
   LEFT JOIN verified_payment_receipts r ON r.receipt_id = s.paid_receipt_id
+  LEFT JOIN verified_payment_records v ON v.receipt_id = r.receipt_id
   WHERE s.id = ?1
   LIMIT 1
 `;
