@@ -16,7 +16,7 @@
     {
       "id": "mainnet-source-tag",
       "status": "passed",
-      "evidence": "Mainnet build and runtime resolution require a dedicated XRPL_MAINNET_SOURCE_TAG plus explicit gate and Source Tag approvals, with no Testnet fallback."
+      "evidence": "Mainnet build and runtime resolution require the assigned XRPL_MAINNET_SOURCE_TAG plus explicit gate and Source Tag approvals, with no Testnet fallback."
     },
     {
       "id": "mainnet-asset-registry",
@@ -51,7 +51,7 @@
     {
       "id": "mainnet-acceptance-audit",
       "status": "failed",
-      "evidence": "The acceptance audit is complete but release remains blocked by unresolved production provisioning, configuration attestation, live Mainnet XRP and RLUSD evidence, and operational stop-drill findings in config/mainnet-acceptance.json."
+      "evidence": "The acceptance audit is complete and the release remains blocked by production-runtime-not-approved, production-provider-not-attested, live-xrp-acceptance-not-recorded, and live-rlusd-acceptance-not-recorded."
     }
   ]
 }
