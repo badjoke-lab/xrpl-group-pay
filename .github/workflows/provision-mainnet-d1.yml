@@ -1,0 +1,127 @@
+name: Provision Mainnet D1
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Inspect without changes, or provision both production and preview D1 databases
+        required: true
+        default: inspect
+        type: choice
+        options:
+          - inspect
+          - provision
+      confirmation:
+        description: Exact confirmation text documented in docs/d1-provisioning.md
+        required: true
+        type: string
+      location:
+        description: Cloudflare D1 primary-location hint for newly created databases
+        required: true
+        default: apac
+        type: choice
+        options:
+          - apac
+          - oc
+          - wnam
+          - enam
+          - weur
+          - eeur
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xrpl-group-pay-mainnet-d1-provisioning
+  cancel-in-progress: false
+
+jobs:
+  provision:
+    name: Mainnet D1 ${{ inputs.mode }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: mainnet-provisioning
+
+    steps:
+      - name: Require default-branch dispatch
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$GITHUB_REF_NAME" != "$DEFAULT_BRANCH" ]; then
+            echo "Mainnet D1 provisioning must be dispatched from the default branch." >&2
+            exit 1
+          fi
+
+      - name: Check out default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify blocked Mainnet release state
+        run: |
+          pnpm check:mainnet-evidence
+          pnpm check:mainnet-acceptance
+
+      - name: Inspect or provision isolated Mainnet D1 databases
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.MAINNET_D1_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.MAINNET_D1_ACCOUNT_ID }}
+          PROVISION_MODE: ${{ inputs.mode }}
+          PROVISION_CONFIRMATION: ${{ inputs.confirmation }}
+          D1_LOCATION: ${{ inputs.location }}
+        run: |
+          node scripts/provision-mainnet-d1.mjs \
+            --mode "$PROVISION_MODE" \
+            --confirmation "$PROVISION_CONFIRMATION" \
+            --location "$D1_LOCATION" \
+            --output "$RUNNER_TEMP/mainnet-d1-provisioning-report.json" \
+            --config-output "$RUNNER_TEMP/wrangler.mainnet-provisioned.jsonc"
+
+      - name: Publish public-safe provisioning summary
+        if: success()
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, appendFile } from "node:fs/promises";
+          const report = JSON.parse(
+            await readFile(process.env.RUNNER_TEMP + "/mainnet-d1-provisioning-report.json", "utf8"),
+          );
+          const lines = [
+            "## Mainnet D1 provisioning",
+            "",
+            `- Mode: \`${report.mode}\``,
+            `- State: \`${report.state}\``,
+            `- Source migrations: \`${report.migrations.source_count}\``,
+            `- Production applied: \`${report.migrations.production_applied_count ?? "not inspected"}\``,
+            `- Preview applied: \`${report.migrations.preview_applied_count ?? "not inspected"}\``,
+            `- Safe Mainnet defaults preserved: \`${report.safe_defaults_preserved}\``,
+            "",
+            report.evidence_patch
+              ? "The report contains a candidate production-d1-provisioning evidence patch. It does not update the repository automatically."
+              : "No acceptance evidence was generated. Mainnet remains blocked.",
+          ];
+          await appendFile(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+          NODE
+
+      - name: Upload public-safe provisioning report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mainnet-d1-provisioning-${{ inputs.mode }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/mainnet-d1-provisioning-report.json
+          if-no-files-found: error
+          retention-days: 7
