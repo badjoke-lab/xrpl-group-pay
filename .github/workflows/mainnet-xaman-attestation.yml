@@ -1,0 +1,76 @@
+name: Mainnet Xaman Attestation
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type ATTEST XRPL GROUP PAY XAMAN MAINNET
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xrpl-group-pay-mainnet-xaman-attestation
+  cancel-in-progress: false
+
+jobs:
+  attest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: mainnet-xaman-attestation
+    steps:
+      - name: Require default branch and confirmation
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          test "$GITHUB_REF_NAME" = "$DEFAULT_BRANCH"
+          test "$CONFIRMATION" = "ATTEST XRPL GROUP PAY XAMAN MAINNET"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Verify current release stage
+        run: |
+          pnpm check:mainnet-release-plan
+          pnpm check:mainnet-evidence
+          pnpm check:mainnet-acceptance
+
+      - name: Run off-ledger provider attestation
+        env:
+          PROVIDER_A: ${{ secrets.MAINNET_XAMAN_API_KEY }}
+          PROVIDER_B: ${{ secrets.MAINNET_XAMAN_API_SECRET }}
+          MAINNET_XAMAN_CALLBACK_URL: ${{ secrets.MAINNET_XAMAN_CALLBACK_URL }}
+          MAINNET_XAMAN_ATTESTATION_CONFIRMATION: ${{ inputs.confirmation }}
+          MAINNET_XAMAN_ATTESTATION_REPORT_PATH: ${{ runner.temp }}/mainnet-xaman-attestation-report.json
+        run: |
+          node --input-type=module <<'NODE'
+          import { executeMainnetXamanAttestation } from "./scripts/attest-mainnet-xaman.mjs";
+          import { xamanAuthHeaders } from "./scripts/mainnet-xaman-attestation-http.mjs";
+          await executeMainnetXamanAttestation({
+            headers: xamanAuthHeaders(process.env.PROVIDER_A, process.env.PROVIDER_B),
+          });
+          NODE
+
+      - name: Upload public-safe report
+        uses: actions/upload-artifact@v4
+        with:
+          name: mainnet-xaman-attestation-${{ github.run_id }}
+          path: ${{ runner.temp }}/mainnet-xaman-attestation-report.json
+          if-no-files-found: error
+          retention-days: 7
