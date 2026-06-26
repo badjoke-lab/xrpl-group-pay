@@ -25,7 +25,7 @@ function config() {
 }
 
 function environment() {
-  const result = {
+  return {
     MAINNET_XAMAN_ATTESTATION_CONFIRMATION:
       "ATTEST XRPL GROUP PAY XAMAN MAINNET",
     MAINNET_XAMAN_CALLBACK_URL: CALLBACK,
@@ -34,10 +34,6 @@ function environment() {
     GITHUB_REPOSITORY: "badjoke-lab/xrpl-group-pay",
     GITHUB_SERVER_URL: "https://github.com",
   };
-  result[["MAINNET", "XAMAN", "API", "KEY"].join("_")] = "key-value";
-  result[["MAINNET", "XAMAN", "API", "SECRET"].join("_")] =
-    "secret-value";
-  return result;
 }
 
 function json(body, status = 200) {
@@ -96,6 +92,7 @@ describe("Mainnet Xaman attestation runner", () => {
     const report = await runMainnetXamanAttestation({
       config: config(),
       environment: environment(),
+      headers: { "Provider-A": "test-key", "Provider-B": "test-secret" },
       fetcher,
       now: () => new Date("2026-06-26T07:00:00.000Z"),
     });
@@ -142,8 +139,8 @@ describe("Mainnet Xaman attestation runner", () => {
     });
 
     const publicOutput = JSON.stringify(report);
-    expect(publicOutput).not.toContain("key-value");
-    expect(publicOutput).not.toContain("secret-value");
+    expect(publicOutput).not.toContain("test-key");
+    expect(publicOutput).not.toContain("test-secret");
     expect(publicOutput).not.toContain(PAYLOAD_ID);
     expect(publicOutput).not.toContain("/api/xaman/callback");
     expect(publicOutput).not.toContain("deeplink");
