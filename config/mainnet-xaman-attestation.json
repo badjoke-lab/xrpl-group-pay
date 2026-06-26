@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "network": "mainnet",
+  "api_base_url": "https://xumm.app/api/v1/platform",
+  "github_environment": "mainnet-xaman-attestation",
+  "confirmation": "ATTEST XRPL GROUP PAY XAMAN MAINNET",
+  "payload": {
+    "transaction_type": "SignIn",
+    "force_network": "MAINNET",
+    "submit": false,
+    "expire_minutes": 1,
+    "instruction": "XRPL Group Pay Mainnet provider attestation. This SignIn request cannot submit an XRPL transaction."
+  }
+}
