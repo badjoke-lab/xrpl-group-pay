@@ -1,5 +1,11 @@
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it, vi } from "vitest";
 
+import { executeMainnetXamanAttestation } from "./attest-mainnet-xaman.mjs";
+import { xamanAuthHeaders } from "./mainnet-xaman-attestation-http.mjs";
 import { runMainnetXamanAttestation } from "./mainnet-xaman-attestation-runner.mjs";
 
 const API_BASE = "https://xumm.app/api/v1/platform";
@@ -29,6 +35,8 @@ function environment() {
     MAINNET_XAMAN_ATTESTATION_CONFIRMATION:
       "ATTEST XRPL GROUP PAY XAMAN MAINNET",
     MAINNET_XAMAN_CALLBACK_URL: CALLBACK,
+    MAINNET_XAMAN_API_KEY: "key-value",
+    MAINNET_XAMAN_API_SECRET: "secret-value",
     GITHUB_SHA: SHA,
     GITHUB_RUN_ID: "28250000000",
     GITHUB_REPOSITORY: "badjoke-lab/xrpl-group-pay",
@@ -86,13 +94,22 @@ function successfulFetcher() {
     );
 }
 
+function expectAuthenticatedRequests(fetcher) {
+  for (const [, init] of fetcher.mock.calls) {
+    expect(init.headers).toMatchObject({
+      "X-API-Key": "key-value",
+      "X-API-Secret": "secret-value",
+    });
+  }
+}
+
 describe("Mainnet Xaman attestation runner", () => {
   it("creates and cancels a Mainnet-forced off-ledger SignIn", async () => {
     const fetcher = successfulFetcher();
     const report = await runMainnetXamanAttestation({
       config: config(),
       environment: environment(),
-      headers: { "Provider-A": "test-key", "Provider-B": "test-secret" },
+      headers: xamanAuthHeaders("key-value", "secret-value"),
       fetcher,
       now: () => new Date("2026-06-26T07:00:00.000Z"),
     });
@@ -112,6 +129,7 @@ describe("Mainnet Xaman attestation runner", () => {
       `${API_BASE}/payload/${PAYLOAD_ID}`,
       `${API_BASE}/payload/${PAYLOAD_ID}`,
     ]);
+    expectAuthenticatedRequests(fetcher);
 
     const createRequest = JSON.parse(fetcher.mock.calls[1][1].body);
     expect(createRequest).toMatchObject({
@@ -139,11 +157,31 @@ describe("Mainnet Xaman attestation runner", () => {
     });
 
     const publicOutput = JSON.stringify(report);
-    expect(publicOutput).not.toContain("test-key");
-    expect(publicOutput).not.toContain("test-secret");
+    expect(publicOutput).not.toContain("key-value");
+    expect(publicOutput).not.toContain("secret-value");
     expect(publicOutput).not.toContain(PAYLOAD_ID);
     expect(publicOutput).not.toContain("/api/xaman/callback");
     expect(publicOutput).not.toContain("deeplink");
     expect(publicOutput).not.toContain("websocket");
+  });
+
+  it("loads protected credentials and writes the workflow artifact", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "xrpl-group-pay-xaman-"));
+    const outputPath = join(directory, "attestation.json");
+    const fetcher = successfulFetcher();
+
+    try {
+      const report = await executeMainnetXamanAttestation({
+        environment: environment(),
+        outputPath,
+        fetcher,
+        now: () => new Date("2026-06-26T07:00:00.000Z"),
+      });
+
+      expectAuthenticatedRequests(fetcher);
+      expect(JSON.parse(await readFile(outputPath, "utf8"))).toEqual(report);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });
