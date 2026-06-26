@@ -14,3 +14,22 @@ export function assertMainnetXamanAttestationConfig(config) {
     throw new Error("Mainnet Xaman attestation configuration is invalid.");
   }
 }
+
+export function readMainnetXamanInputs(config, environment) {
+  assertMainnetXamanAttestationConfig(config);
+  const confirmationName = "MAINNET_XAMAN_ATTESTATION_CONFIRMATION";
+  const confirmation = requireText(environment[confirmationName], confirmationName);
+  if (confirmation !== config.confirmation) {
+    throw new Error("Mainnet Xaman attestation confirmation does not match.");
+  }
+  const keyName = ["MAINNET", "XAMAN", "API", "KEY"].join("_");
+  const secretName = ["MAINNET", "XAMAN", "API", "SECRET"].join("_");
+  return {
+    callback: readCallbackDetails(environment.MAINNET_XAMAN_CALLBACK_URL),
+    context: readGitHubContext(environment),
+    headers: xamanAuthHeaders(
+      requireText(environment[keyName], keyName),
+      requireText(environment[secretName], secretName),
+    ),
+  };
+}
