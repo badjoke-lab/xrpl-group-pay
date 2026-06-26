@@ -66,8 +66,8 @@
     },
     {
       "id": "operational-stop-drill",
-      "status": "pending",
-      "evidence": "No production or production-equivalent verify-only and halted-mode drill is recorded."
+      "status": "passed",
+      "evidence": "GitHub Actions run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28217038845 verified production-equivalent verify-only draining, full halt, status reporting, and the reviewed but unapplied restore path from commit 9cd7e7b0efeb07791ed188ac94acbe8e5dea7a93."
     }
   ],
   "blocking_findings": [
@@ -103,8 +103,8 @@
     },
     {
       "id": "operational-stop-drill-not-recorded",
-      "status": "open",
-      "evidence": "Demonstrate verify-only draining and full halt before approving release."
+      "status": "resolved",
+      "evidence": "GitHub Actions run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28217038845 verified production-equivalent verify-only draining, full halt, status reporting, and the reviewed but unapplied restore path from commit 9cd7e7b0efeb07791ed188ac94acbe8e5dea7a93; no Cloudflare, Xaman, XRPL, D1, or production configuration change was performed."
     }
   ]
 }
