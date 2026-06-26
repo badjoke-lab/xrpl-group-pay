@@ -90,7 +90,11 @@ jobs:
             --confirmation "$PROVISION_CONFIRMATION" \
             --location "$D1_LOCATION" \
             --output "$RUNNER_TEMP/mainnet-d1-provisioning-report.json" \
-            --config-output "$RUNNER_TEMP/wrangler.mainnet-provisioned.jsonc"
+            --config-output "$GITHUB_WORKSPACE/wrangler.mainnet-provisioned.jsonc"
+
+      - name: Remove temporary Mainnet Wrangler configuration
+        if: always()
+        run: rm -f "$GITHUB_WORKSPACE/wrangler.mainnet-provisioned.jsonc"
 
       - name: Publish public-safe provisioning summary
         if: success()
