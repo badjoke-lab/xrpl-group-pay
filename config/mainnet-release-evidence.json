@@ -41,11 +41,11 @@
     },
     {
       "id": "assigned-mainnet-source-tag",
-      "status": "pending",
-      "recorded_at": null,
-      "source_tag": null,
-      "assignment_reference": null,
-      "no_testnet_fallback": false
+      "status": "accepted",
+      "recorded_at": "2026-06-26T04:51:19.000Z",
+      "source_tag": 2171267705,
+      "assignment_reference": "config/mainnet-source-tag.json",
+      "no_testnet_fallback": true
     },
     {
       "id": "live-mainnet-xrp-acceptance",
