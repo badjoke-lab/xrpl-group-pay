@@ -133,23 +133,62 @@ The workflow intentionally does not:
 
 Those changes require a separate reviewed pull request using the successful artifact.
 
-## 8. Acceptance update procedure
+## 8. Evidence import
+
+Download the JSON artifact from a successful `provision` run and create a branch from the exact commit recorded in the report. Then run:
+
+```bash
+pnpm import:mainnet-d1-evidence -- \
+  --report /path/to/mainnet-d1-provisioning-report.json \
+  --workflow-run-url https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/<run-id>
+```
+
+The importer validates all of the following before writing anything:
+
+- the report is a completed `provision` report, not an `inspect` report;
+- the report commit equals the current branch HEAD, unless an explicit expected SHA is supplied;
+- the workflow URL is an exact XRPL Group Pay GitHub Actions run URL;
+- production and preview use the protected names and distinct non-placeholder IDs;
+- migration filenames are unique and all counts agree;
+- production and preview schema checks passed;
+- the candidate evidence patch exactly matches the report;
+- committed Mainnet runtime and operations remain disabled and halted;
+- existing Wrangler IDs are placeholders or an exact idempotent replay;
+- existing accepted evidence, when present, exactly matches the report;
+- the D1 acceptance control and finding are in a consistent pending/open or passed/resolved pair.
+
+A successful import updates only:
+
+- the `PAYMENTS_DB_MAINNET` production and preview IDs in `wrangler.jsonc`;
+- the `production-d1-provisioning` record in `config/mainnet-release-evidence.json`;
+- the matching acceptance control and blocking finding in `config/mainnet-acceptance.json`.
+
+It does not change the overall `release_decision`, enable Mainnet runtime, approve a Source Tag, alter another finding, deploy the Worker, or contact Cloudflare.
+
+After import, run:
+
+```bash
+pnpm check:mainnet-evidence
+pnpm check:mainnet-acceptance
+pnpm validate
+```
+
+## 9. Acceptance update procedure
 
 After a verified provision run:
 
 1. review the workflow logs and artifact;
 2. confirm the run used the expected default-branch commit;
-3. place the production and preview IDs in the Mainnet Wrangler binding;
-4. copy the candidate D1 evidence fields into `config/mainnet-release-evidence.json`;
-5. set `production-d1-provisioning` to `passed` in `config/mainnet-acceptance.json`;
-6. set `production-d1-not-provisioned` to `resolved`;
-7. leave every unrelated Mainnet finding unchanged;
-8. run the full CI suite;
-9. merge only after review.
+3. create a branch from that exact commit;
+4. run the evidence importer with the downloaded report and canonical workflow run URL;
+5. inspect the three generated file changes;
+6. confirm every unrelated Mainnet record is unchanged;
+7. run the full CI suite;
+8. merge only after review.
 
 Completing D1 provisioning alone does not approve Mainnet release.
 
-## 9. Forward migration policy
+## 10. Forward migration policy
 
 - migrations are versioned and append-only after release;
 - schema changes move forward rather than editing applied migration files;
@@ -159,7 +198,7 @@ Completing D1 provisioning alone does not approve Mainnet release.
 - network, Asset, issuer, and Receipt Contract constraints are checked;
 - a migration is tested from both an empty database and the current production-shaped schema.
 
-## 10. Mainnet release checks
+## 11. Mainnet release checks
 
 1. Confirm the binding targets only the Mainnet database.
 2. Confirm Mainnet XRPL endpoints and Asset Registry values.
@@ -170,10 +209,12 @@ Completing D1 provisioning alone does not approve Mainnet release.
 7. Verify asset-specific limits and Source Tag.
 8. Verify emergency disable behavior does not alter stored receipts.
 
-## 11. Recovery
+## 12. Recovery
 
 Application deployment may be disabled or rolled back independently of immutable migration history. A corrective migration is preferred over rewriting an applied migration.
 
 A failed provisioning run does not authorize deletion of a database. Inspect the existing protected names and the workflow log before retrying. The provisioner is designed to reuse an exact protected-name database and create only the missing member of the production/preview pair.
+
+If an import fails, do not edit the generated evidence manually to bypass the check. Resolve the report, commit, workflow URL, existing-ID, or acceptance-state mismatch and rerun the importer from a clean branch.
 
 Durable receipts and accepted ledger facts are not deleted merely to make a failed deployment appear successful.
