@@ -1,0 +1,120 @@
+name: Mainnet Operational Stop Drill
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/mainnet-operational-stop-drill.yml
+      - tests/mainnet-operational-stop-drill.test.ts
+      - scripts/mainnet-operational-stop-drill-report.mjs
+      - scripts/mainnet-operational-stop-drill-report.test.mjs
+      - src/config/payment-operations.ts
+      - src/app/api/payments/payload/route.ts
+      - src/app/api/payments/verify/route.ts
+      - src/app/api/status/payments/route.ts
+      - wrangler.jsonc
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type RUN XRPL GROUP PAY MAINNET STOP DRILL
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xrpl-group-pay-mainnet-operational-stop-drill
+  cancel-in-progress: false
+
+jobs:
+  drill:
+    name: Production-equivalent stop drill
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Require default branch
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$GITHUB_REF_NAME" != "$DEFAULT_BRANCH" ]; then
+            echo "The Mainnet operational stop drill must run from the default branch." >&2
+            exit 1
+          fi
+
+      - name: Require manual confirmation
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          DRILL_CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          if [ "$DRILL_CONFIRMATION" != "RUN XRPL GROUP PAY MAINNET STOP DRILL" ]; then
+            echo "Confirmation text does not match the operational stop drill." >&2
+            exit 1
+          fi
+
+      - name: Check out default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify blocked Mainnet release state
+        run: |
+          pnpm check:mainnet-evidence
+          pnpm check:mainnet-acceptance
+
+      - name: Run production-equivalent stop drill
+        env:
+          OPERATIONAL_STOP_DRILL_REPORT_PATH: ${{ runner.temp }}/mainnet-operational-stop-drill-report.json
+        run: pnpm exec vitest run tests/mainnet-operational-stop-drill.test.ts --reporter=verbose
+
+      - name: Publish public-safe drill summary
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, appendFile } from "node:fs/promises";
+          const report = JSON.parse(
+            await readFile(
+              process.env.RUNNER_TEMP + "/mainnet-operational-stop-drill-report.json",
+              "utf8",
+            ),
+          );
+          const lines = [
+            "## Mainnet operational stop drill",
+            "",
+            `- Environment: \`${report.environment}\``,
+            `- State: \`${report.state}\``,
+            `- Source commit: \`${report.git_sha}\``,
+            `- Verify-only creation blocked: \`${report.checks.verify_only_creation_blocked}\``,
+            `- Verify-only settlement allowed: \`${report.checks.verify_only_submitted_payment_settled}\``,
+            `- Halted creation blocked: \`${report.checks.halted_creation_blocked}\``,
+            `- Halted verification blocked: \`${report.checks.halted_verification_blocked}\``,
+            `- Committed Mainnet mode unchanged: \`${report.committed_mainnet_mode}\``,
+            "",
+            "The report contains a candidate operational-stop-drill evidence patch. It does not update the repository automatically.",
+          ];
+          await appendFile(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+          NODE
+
+      - name: Upload public-safe drill report
+        uses: actions/upload-artifact@v4
+        with:
+          name: mainnet-operational-stop-drill-${{ github.run_id }}
+          path: ${{ runner.temp }}/mainnet-operational-stop-drill-report.json
+          if-no-files-found: error
+          retention-days: 7
