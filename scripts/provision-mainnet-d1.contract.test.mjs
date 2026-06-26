@@ -73,7 +73,7 @@ describe("repository Mainnet D1 provisioning contract", () => {
     expect(policy.required_tables).toContain("verified_payment_records");
   });
 
-  it("keeps the remote workflow manual, serialized, read-only, and non-deploying", async () => {
+  it("keeps the remote workflow manual, serialized, read-only, non-deploying, and migration-rooted", async () => {
     const workflow = await readRepositoryFile(
       ".github/workflows/provision-mainnet-d1.yml",
     );
@@ -86,6 +86,15 @@ describe("repository Mainnet D1 provisioning contract", () => {
     expect(workflow).toContain("environment: mainnet-provisioning");
     expect(workflow).toContain("secrets.MAINNET_D1_API_TOKEN");
     expect(workflow).toContain("secrets.MAINNET_D1_ACCOUNT_ID");
+    expect(workflow).toContain(
+      '--config-output "$GITHUB_WORKSPACE/wrangler.mainnet-provisioned.jsonc"',
+    );
+    expect(workflow).not.toContain(
+      '--config-output "$RUNNER_TEMP/wrangler.mainnet-provisioned.jsonc"',
+    );
+    expect(workflow).toContain(
+      'rm -f "$GITHUB_WORKSPACE/wrangler.mainnet-provisioned.jsonc"',
+    );
     expect(workflow).not.toContain("wrangler deploy");
     expect(workflow).not.toContain("opennextjs-cloudflare deploy");
     expect(workflow).not.toContain("contents: write");
