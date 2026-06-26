@@ -74,10 +74,17 @@ describe("Mainnet Xaman attestation compatibility", () => {
     ).not.toThrow();
     expect(result.acceptance.release_decision).toBe("blocked");
     expect(
-      result.acceptance.blocking_findings.filter(
-        (finding) => finding.status === "open",
-      ),
-    ).toHaveLength(5);
+      result.acceptance.blocking_findings
+        .filter((finding) => finding.status === "open")
+        .map((finding) => finding.id)
+        .sort(),
+    ).toEqual(
+      [
+        "live-rlusd-acceptance-not-recorded",
+        "live-xrp-acceptance-not-recorded",
+        "production-runtime-not-approved",
+      ].sort(),
+    );
     expect(
       result.acceptance.blocking_findings.find(
         (finding) => finding.id === "production-runtime-not-approved",
