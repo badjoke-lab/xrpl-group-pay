@@ -2,5 +2,94 @@
   "schema_version": 1,
   "network": "mainnet",
   "state": "blocked",
-  "current_stage": "provider-attestation"
+  "review_status": "prepared",
+  "release_decision": "blocked",
+  "current_stage": "provider-attestation",
+  "accepted_foundations": [
+    "production-d1-provisioning",
+    "assigned-mainnet-source-tag",
+    "operational-stop-drill"
+  ],
+  "remaining_evidence": [
+    "production-provider-attestation",
+    "production-release-configuration",
+    "live-mainnet-xrp-acceptance",
+    "live-mainnet-rlusd-acceptance"
+  ],
+  "stages": [
+    {
+      "id": "foundations",
+      "position": 1,
+      "status": "complete",
+      "requires": [
+        "production-d1-provisioning",
+        "assigned-mainnet-source-tag",
+        "operational-stop-drill"
+      ]
+    },
+    {
+      "id": "provider-attestation",
+      "position": 2,
+      "status": "blocked",
+      "requires": [
+        "production-provider-attestation"
+      ]
+    },
+    {
+      "id": "halted-deployment-review",
+      "position": 3,
+      "status": "pending",
+      "requires": [
+        "production-release-configuration"
+      ]
+    },
+    {
+      "id": "live-xrp-acceptance",
+      "position": 4,
+      "status": "pending",
+      "requires": [
+        "live-mainnet-xrp-acceptance"
+      ]
+    },
+    {
+      "id": "live-rlusd-acceptance",
+      "position": 5,
+      "status": "pending",
+      "requires": [
+        "live-mainnet-rlusd-acceptance"
+      ]
+    },
+    {
+      "id": "final-release-audit",
+      "position": 6,
+      "status": "pending",
+      "requires": [
+        "production-d1-provisioning",
+        "production-provider-attestation",
+        "production-release-configuration",
+        "assigned-mainnet-source-tag",
+        "live-mainnet-xrp-acceptance",
+        "live-mainnet-rlusd-acceptance",
+        "operational-stop-drill"
+      ]
+    }
+  ],
+  "staged_target": {
+    "committed": false,
+    "public_url_required": true,
+    "app_network": "mainnet",
+    "public_network": "mainnet",
+    "database_binding": "PAYMENTS_DB_MAINNET",
+    "source_tag": 2171267705,
+    "initial_release_mode": "internal",
+    "initial_operations_mode": "halted"
+  },
+  "safe_reset": {
+    "allow_mainnet_build": false,
+    "allow_mainnet_runtime": false,
+    "gate_approved": false,
+    "source_tag_approved": false,
+    "release_mode": "disabled",
+    "operations_mode": "halted"
+  }
 }
