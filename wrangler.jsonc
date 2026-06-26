@@ -63,8 +63,8 @@
         {
           "binding": "PAYMENTS_DB_MAINNET",
           "database_name": "xrpl-group-pay-mainnet",
-          "database_id": "00000000-0000-0000-0000-000000000000",
-          "preview_database_id": "00000000-0000-0000-0000-000000000000",
+          "database_id": "d2c580e7-8039-40e1-baa6-5461e0a54cad",
+          "preview_database_id": "da6590b3-cf0a-4584-80a3-a36749ae523f",
           "migrations_dir": "migrations"
         }
       ]
