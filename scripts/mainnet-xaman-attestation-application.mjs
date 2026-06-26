@@ -1,5 +1,4 @@
 import { readCallbackDetails, readGitHubContext, requireText } from "./mainnet-xaman-attestation-context.mjs";
-import { xamanAuthHeaders } from "./mainnet-xaman-attestation-http.mjs";
 
 export function assertMainnetXamanAttestationConfig(config) {
   if (
