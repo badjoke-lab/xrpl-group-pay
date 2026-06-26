@@ -51,8 +51,8 @@
     },
     {
       "id": "assigned-mainnet-source-tag",
-      "status": "pending",
-      "evidence": "No approved assigned XRPL Mainnet Source Tag is recorded for the production deployment."
+      "status": "passed",
+      "evidence": "config/mainnet-source-tag.json deterministically assigns Source Tag 2171267705, CI run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28217773530 verified the derivation and Testnet isolation, and runtime approval remains false."
     },
     {
       "id": "live-mainnet-xrp-acceptance",
@@ -79,7 +79,7 @@
     {
       "id": "production-runtime-not-approved",
       "status": "open",
-      "evidence": "Complete release configuration review before enabling Mainnet build, runtime, gate approval, release mode, or payment operations."
+      "evidence": "Complete release configuration review before enabling Mainnet build, runtime, gate approval, Source Tag approval, release mode, or payment operations."
     },
     {
       "id": "production-provider-not-attested",
@@ -88,8 +88,8 @@
     },
     {
       "id": "mainnet-source-tag-not-assigned",
-      "status": "open",
-      "evidence": "Record and approve the assigned Mainnet Source Tag without Testnet fallback."
+      "status": "resolved",
+      "evidence": "config/mainnet-source-tag.json assigns Source Tag 2171267705 using a reproducible SHA-256 derivation; CI run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28217773530 verified the committed Mainnet value and no Testnet fallback. Runtime Source Tag approval remains part of the open production release configuration finding."
     },
     {
       "id": "live-xrp-acceptance-not-recorded",
