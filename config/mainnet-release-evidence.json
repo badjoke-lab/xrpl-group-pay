@@ -5,14 +5,14 @@
   "records": [
     {
       "id": "production-d1-provisioning",
-      "status": "pending",
-      "recorded_at": null,
+      "status": "accepted",
+      "recorded_at": "2026-06-26T03:14:41.122Z",
       "database_name": "xrpl-group-pay-mainnet",
-      "database_id": null,
-      "preview_database_id": null,
-      "migration_count": null,
-      "migrations_applied": false,
-      "receipt_schema_checked": false
+      "database_id": "d2c580e7-8039-40e1-baa6-5461e0a54cad",
+      "preview_database_id": "da6590b3-cf0a-4584-80a3-a36749ae523f",
+      "migration_count": 12,
+      "migrations_applied": true,
+      "receipt_schema_checked": true
     },
     {
       "id": "production-release-configuration",
