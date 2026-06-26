@@ -2,13 +2,77 @@ name: Provision Mainnet D1
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Inspect without changes, or provision both production and preview D1 databases
+        required: true
+        default: inspect
+        type: choice
+        options:
+          - inspect
+          - provision
+      confirmation:
+        description: Exact confirmation text documented in docs/d1-provisioning.md
+        required: true
+        type: string
+      location:
+        description: Cloudflare D1 primary-location hint for newly created databases
+        required: true
+        default: apac
+        type: choice
+        options:
+          - apac
+          - oc
+          - wnam
+          - enam
+          - weur
+          - eeur
 
 permissions:
   contents: read
 
+concurrency:
+  group: xrpl-group-pay-mainnet-d1-provisioning
+  cancel-in-progress: false
+
 jobs:
-  inspect:
+  provision:
+    name: Mainnet D1 ${{ inputs.mode }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: mainnet-provisioning
+
     steps:
-      - uses: actions/checkout@v4
-      - run: node scripts/provision-mainnet-d1.mjs --help
+      - name: Require default-branch dispatch
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$GITHUB_REF_NAME" != "$DEFAULT_BRANCH" ]; then
+            echo "Mainnet D1 provisioning must be dispatched from the default branch." >&2
+            exit 1
+          fi
+
+      - name: Check out default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify blocked Mainnet release state
+        run: |
+          pnpm check:mainnet-evidence
+          pnpm check:mainnet-acceptance
