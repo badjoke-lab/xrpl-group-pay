@@ -18,6 +18,7 @@ export async function executeMainnetXamanAttestation(options = {}) {
   const report = await runMainnetXamanAttestation({
     config,
     environment: options.environment ?? process.env,
+    headers: options.headers,
     fetcher: options.fetcher ?? fetch,
     now: options.now,
   });
@@ -28,19 +29,4 @@ export async function executeMainnetXamanAttestation(options = {}) {
     `${JSON.stringify(report, null, 2)}\n`,
   );
   return report;
-}
-
-if (import.meta.url === `file://${process.argv[1]}`) {
-  executeMainnetXamanAttestation()
-    .then(() => {
-      console.log(
-        "Mainnet Xaman provider attestation verified; public-safe report written.",
-      );
-    })
-    .catch((error) => {
-      console.error(
-        `Mainnet Xaman provider attestation failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      process.exit(1);
-    });
 }
