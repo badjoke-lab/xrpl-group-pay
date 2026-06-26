@@ -54,6 +54,7 @@
         "NEXT_PUBLIC_APP_NETWORK": "mainnet",
         "ALLOW_MAINNET_RUNTIME": "false",
         "MAINNET_GATE_APPROVED": "false",
+        "XRPL_MAINNET_SOURCE_TAG": "2171267705",
         "MAINNET_SOURCE_TAG_APPROVED": "false",
         "MAINNET_RELEASE_MODE": "disabled",
         "MAINNET_OPERATIONS_MODE": "halted",

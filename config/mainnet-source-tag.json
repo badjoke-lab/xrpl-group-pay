@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "network": "mainnet",
+  "assignment_status": "assigned",
+  "approval_status": "pending",
+  "assigned_at": "2026-06-26",
+  "namespace": "xrpl-group-pay|badjoke-lab/xrpl-group-pay|mainnet|source-tag|v1",
+  "algorithm": "sha256-first-u32-be-set-high-bit",
+  "digest": "816aea79da2edec33a1872295d5e9f631f1e33e9aca3cb46c7152736470f9ab0",
+  "source_tag": 2171267705,
+  "source_tag_hex": "0x816AEA79",
+  "reserved_range": {
+    "minimum": 2147483648,
+    "maximum": 4294967295
+  },
+  "no_testnet_fallback": true,
+  "assignment_reference": "config/mainnet-source-tag.json"
+}
