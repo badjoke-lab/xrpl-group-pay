@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "pnpm check:env && pnpm check:mainnet-assets && pnpm check:mainnet-source-tag && pnpm check:mainnet-gate && pnpm check:mainnet-evidence && pnpm check:mainnet-acceptance && next build",
+    "build": "pnpm check:env && pnpm check:mainnet-assets && pnpm check:mainnet-source-tag && pnpm check:mainnet-release-plan && pnpm check:mainnet-gate && pnpm check:mainnet-evidence && pnpm check:mainnet-acceptance && next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
@@ -17,6 +17,7 @@
     "check:env": "node scripts/check-env.mjs",
     "check:mainnet-assets": "node scripts/check-mainnet-assets.mjs",
     "check:mainnet-source-tag": "node scripts/check-mainnet-source-tag.mjs",
+    "check:mainnet-release-plan": "node scripts/check-mainnet-release-plan.mjs",
     "check:mainnet-gate": "node scripts/check-mainnet-gate.mjs",
     "check:mainnet-evidence": "node scripts/check-mainnet-release-evidence.mjs",
     "check:mainnet-acceptance": "node scripts/check-mainnet-acceptance.mjs",
@@ -29,10 +30,10 @@
     "build:worker": "opennextjs-cloudflare build",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "deploy:mainnet": "pnpm check:mainnet-assets && pnpm check:mainnet-source-tag && node scripts/check-mainnet-release-evidence.mjs --require-complete && node scripts/check-mainnet-acceptance.mjs --require-ready && node scripts/check-mainnet-gate.mjs --require-mainnet && opennextjs-cloudflare build && opennextjs-cloudflare deploy --env mainnet",
+    "deploy:mainnet": "pnpm check:mainnet-assets && pnpm check:mainnet-source-tag && pnpm check:mainnet-release-plan && node scripts/check-mainnet-release-evidence.mjs --require-complete && node scripts/check-mainnet-acceptance.mjs --require-ready && node scripts/check-mainnet-gate.mjs --require-mainnet && opennextjs-cloudflare build && opennextjs-cloudflare deploy --env mainnet",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "validate": "pnpm db:migrate:local && pnpm db:check:local && pnpm check:mainnet-assets && pnpm check:mainnet-source-tag && pnpm check:mainnet-gate && pnpm check:mainnet-evidence && pnpm check:mainnet-acceptance && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "validate": "pnpm db:migrate:local && pnpm db:check:local && pnpm check:mainnet-assets && pnpm check:mainnet-source-tag && pnpm check:mainnet-release-plan && pnpm check:mainnet-gate && pnpm check:mainnet-evidence && pnpm check:mainnet-acceptance && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "dependencies": {
     "clsx": "2.1.1",
