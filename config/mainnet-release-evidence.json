@@ -80,16 +80,16 @@
     },
     {
       "id": "operational-stop-drill",
-      "status": "pending",
-      "recorded_at": null,
+      "status": "accepted",
+      "recorded_at": "2026-06-26T04:31:21.000Z",
       "environment": "production-equivalent",
-      "verify_only_creation_blocked": false,
-      "verify_only_submitted_payment_settled": false,
-      "verify_only_status_checked": false,
-      "halted_creation_blocked": false,
-      "halted_verification_blocked": false,
-      "halted_status_checked": false,
-      "restore_change_reviewed": false
+      "verify_only_creation_blocked": true,
+      "verify_only_submitted_payment_settled": true,
+      "verify_only_status_checked": true,
+      "halted_creation_blocked": true,
+      "halted_verification_blocked": true,
+      "halted_status_checked": true,
+      "restore_change_reviewed": true
     }
   ]
 }
