@@ -36,8 +36,8 @@
     },
     {
       "id": "production-d1-provisioning",
-      "status": "pending",
-      "evidence": "The committed Mainnet D1 database and preview identifiers remain placeholders in wrangler.jsonc."
+      "status": "passed",
+      "evidence": "GitHub Actions run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28214774332 verified 12 migrations on isolated production and preview D1 databases from commit 526ed55e8571a40fe62c38817f8147820514cdc2."
     },
     {
       "id": "production-release-configuration",
@@ -73,8 +73,8 @@
   "blocking_findings": [
     {
       "id": "production-d1-not-provisioned",
-      "status": "open",
-      "evidence": "Replace the Mainnet D1 placeholder identifiers and apply all migrations to the isolated production database."
+      "status": "resolved",
+      "evidence": "GitHub Actions run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28214774332 verified 12 migrations on isolated production and preview D1 databases from commit 526ed55e8571a40fe62c38817f8147820514cdc2; the committed PAYMENTS_DB_MAINNET IDs now match the verified report."
     },
     {
       "id": "production-runtime-not-approved",
