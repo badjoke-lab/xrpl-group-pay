@@ -16,6 +16,7 @@
   "inspect_confirmation": "INSPECT xrpl-group-pay-mainnet",
   "provision_confirmation": "PROVISION xrpl-group-pay-mainnet AND xrpl-group-pay-mainnet-preview",
   "required_tables": [
+    "_cf_KV",
     "bills",
     "payment_slots",
     "wallet_handoffs",
