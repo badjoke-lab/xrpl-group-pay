@@ -1,0 +1,112 @@
+name: Attest Mainnet Xaman Provider
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type ATTEST XRPL GROUP PAY XAMAN MAINNET
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xrpl-group-pay-mainnet-xaman-attestation
+  cancel-in-progress: false
+
+jobs:
+  attest:
+    name: Verify production Xaman provider
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: mainnet-xaman-attestation
+
+    steps:
+      - name: Require default branch
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$GITHUB_REF_NAME" != "$DEFAULT_BRANCH" ]; then
+            echo "The provider attestation must run from the default branch." >&2
+            exit 1
+          fi
+
+      - name: Require exact confirmation
+        env:
+          ATTESTATION_CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          if [ "$ATTESTATION_CONFIRMATION" != "ATTEST XRPL GROUP PAY XAMAN MAINNET" ]; then
+            echo "Confirmation text does not match the provider attestation." >&2
+            exit 1
+          fi
+
+      - name: Check out default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify current release stage
+        run: |
+          pnpm check:mainnet-release-plan
+          pnpm check:mainnet-evidence
+          pnpm check:mainnet-acceptance
+
+      - name: Run off-ledger provider attestation
+        env:
+          MAINNET_XAMAN_API_KEY: ${{ secrets.MAINNET_XAMAN_API_KEY }}
+          MAINNET_XAMAN_API_SECRET: ${{ secrets.MAINNET_XAMAN_API_SECRET }}
+          MAINNET_XAMAN_CALLBACK_URL: ${{ secrets.MAINNET_XAMAN_CALLBACK_URL }}
+          MAINNET_XAMAN_ATTESTATION_CONFIRMATION: ${{ inputs.confirmation }}
+          MAINNET_XAMAN_ATTESTATION_REPORT_PATH: ${{ runner.temp }}/mainnet-xaman-attestation-report.json
+        run: node scripts/attest-mainnet-xaman.mjs
+
+      - name: Publish public-safe summary
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, appendFile } from "node:fs/promises";
+          const report = JSON.parse(
+            await readFile(
+              process.env.RUNNER_TEMP + "/mainnet-xaman-attestation-report.json",
+              "utf8",
+            ),
+          );
+          const lines = [
+            "## Mainnet Xaman provider attestation",
+            "",
+            `- State: \`${report.state}\``,
+            `- Source commit: \`${report.git_sha}\``,
+            `- Callback origin: \`${report.callback_origin}\``,
+            `- Application enabled: \`${report.checks.application_enabled}\``,
+            `- Mainnet-forced SignIn checked: \`${report.checks.forced_mainnet_request_checked}\``,
+            `- Status lookup checked: \`${report.checks.status_lookup_checked}\``,
+            `- Safe cancellation checked: \`${report.checks.cancellation_checked}\``,
+            `- Ledger submission possible: \`${report.checks.ledger_submission_possible}\``,
+            "",
+            "The artifact contains a candidate provider evidence patch and does not update the repository automatically.",
+          ];
+          await appendFile(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+          NODE
+
+      - name: Upload public-safe attestation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: mainnet-xaman-attestation-${{ github.run_id }}
+          path: ${{ runner.temp }}/mainnet-xaman-attestation-report.json
+          if-no-files-found: error
+          retention-days: 7
