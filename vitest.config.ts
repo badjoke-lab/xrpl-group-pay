@@ -17,7 +17,7 @@ export default defineConfig({
     include: [
       "src/**/*.test.{ts,tsx}",
       "tests/**/*.test.{ts,tsx}",
-      "scripts/mainnet-xaman-attestation-*.test.mjs",
+      "scripts/mainnet-*.test.mjs",
     ],
   },
 });
