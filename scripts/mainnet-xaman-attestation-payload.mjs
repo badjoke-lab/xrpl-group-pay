@@ -2,7 +2,6 @@ import { buildMainnetSignInAttestation } from "./mainnet-xaman-attestation-core.
 import {
   assertCancellationResult,
   assertSafeSignInStatus,
-  assertSafelyCancelled,
   readCreatedPayloadId,
   requestXamanJson,
 } from "./mainnet-xaman-attestation-http.mjs";
@@ -56,13 +55,6 @@ export async function probeMainnetXamanPayload({
     assertCancellationResult(cancellation);
     cancellationCompleted = true;
 
-    const finalStatus = await requestXamanJson(
-      fetcher,
-      `${baseUrl}/payload/${encodeURIComponent(payloadId)}`,
-      { method: "GET", headers },
-      "Xaman cancelled status lookup",
-    );
-    assertSafelyCancelled(finalStatus);
     return payloadId;
   } catch (error) {
     if (payloadId && !cancellationCompleted) {
