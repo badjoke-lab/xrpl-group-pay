@@ -81,12 +81,22 @@ export async function runMainnetHaltedDeployment({
       { mode: 0o600 },
     );
 
+    // The normal package build intentionally enforces the final Mainnet gate
+    // and must remain blocked at this stage. Build Next.js directly after the
+    // workflow's halted-stage checks, then ask OpenNext to transform that
+    // existing output without invoking the package build again.
+    runCommand(
+      "pnpm",
+      ["exec", "next", "build"],
+      childEnvironment,
+    );
     runCommand(
       "pnpm",
       [
         "exec",
         "opennextjs-cloudflare",
         "build",
+        "--skipNextBuild",
         `--config=${configPath}`,
         "--env=mainnet",
       ],
