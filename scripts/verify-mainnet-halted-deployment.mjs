@@ -10,7 +10,10 @@ import {
 } from "./mainnet-xaman-attestation-context.mjs";
 
 const ORIGIN = "https://xgp.badjoke-lab.com";
+const CUSTOM_DOMAIN = "xgp.badjoke-lab.com";
 const WORKER_NAME = "xrpl-group-pay-mainnet";
+const DATABASE_BINDING = "PAYMENTS_DB_MAINNET";
+const SOURCE_TAG = "2171267705";
 const CONFIRMATION = "DEPLOY XRPL GROUP PAY MAINNET HALTED";
 
 const reportSchema = z
@@ -43,6 +46,54 @@ const reportSchema = z
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function parseJsonc(source) {
+  return JSON.parse(
+    source
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1"),
+  );
+}
+
+export function assertHaltedMainnetRuntimeConfiguration(source) {
+  const wrangler = parseJsonc(source);
+  const mainnet = wrangler?.env?.mainnet;
+  const vars = mainnet?.vars;
+  const database = mainnet?.d1_databases?.find(
+    (candidate) => candidate.binding === DATABASE_BINDING,
+  );
+  const route = mainnet?.routes?.find(
+    (candidate) =>
+      candidate.pattern === CUSTOM_DOMAIN && candidate.custom_domain === true,
+  );
+
+  if (
+    mainnet?.name !== WORKER_NAME ||
+    vars?.APP_NETWORK !== "mainnet" ||
+    vars?.NEXT_PUBLIC_APP_NETWORK !== "mainnet" ||
+    vars?.NEXT_PUBLIC_APP_URL !== ORIGIN ||
+    vars?.ALLOW_MAINNET_RUNTIME !== "true" ||
+    vars?.MAINNET_GATE_APPROVED !== "true" ||
+    vars?.MAINNET_SOURCE_TAG_APPROVED !== "true" ||
+    vars?.XRPL_MAINNET_SOURCE_TAG !== SOURCE_TAG ||
+    vars?.MAINNET_RELEASE_MODE !== "internal" ||
+    vars?.MAINNET_OPERATIONS_MODE !== "halted" ||
+    vars?.PAYMENTS_DATABASE_BINDING !== DATABASE_BINDING ||
+    !database ||
+    !route ||
+    mainnet?.workers_dev !== false
+  ) {
+    throw new Error("The staged Mainnet runtime configuration is invalid.");
+  }
+
+  return {
+    workerName: mainnet.name,
+    publicOrigin: vars.NEXT_PUBLIC_APP_URL,
+    databaseBinding: database.binding,
+    releaseMode: vars.MAINNET_RELEASE_MODE,
+    operationsMode: vars.MAINNET_OPERATIONS_MODE,
+  };
 }
 
 async function request(fetcher, url, init = {}) {
@@ -81,7 +132,9 @@ export async function verifyMainnetHaltedDeployment({
       "MAINNET_HALTED_WRANGLER_PATH",
     ),
   );
-  const configurationDigest = sha256(await readFile(configPath, "utf8"));
+  const configurationSource = await readFile(configPath, "utf8");
+  assertHaltedMainnetRuntimeConfiguration(configurationSource);
+  const configurationDigest = sha256(configurationSource);
 
   const home = await request(fetcher, `${ORIGIN}/`);
   if (!home.ok) {
