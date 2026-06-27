@@ -1,12 +1,32 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { requestXamanJson } from "./mainnet-xaman-attestation-http.mjs";
+import {
+  assertSafeSignInStatus,
+  requestXamanJson,
+} from "./mainnet-xaman-attestation-http.mjs";
 
 function json(body, status) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function unresolved(response) {
+  return {
+    meta: {
+      submit: false,
+      resolved: false,
+      signed: false,
+      cancelled: false,
+      expired: false,
+    },
+    payload: {
+      tx_type: "SignIn",
+      request_json: { TransactionType: "SignIn" },
+    },
+    response,
+  };
 }
 
 describe("Mainnet Xaman HTTP diagnostics", () => {
@@ -49,5 +69,25 @@ describe("Mainnet Xaman HTTP diagnostics", () => {
     ).rejects.toThrow(
       "Xaman SignIn creation was rejected by Xaman with status 400.",
     );
+  });
+});
+
+describe("Mainnet Xaman SignIn status validation", () => {
+  it("accepts null and empty response placeholders on an unresolved SignIn", () => {
+    expect(() =>
+      assertSafeSignInStatus(
+        unresolved({ txid: "", hex: "   ", account: null }),
+        "initial",
+      ),
+    ).not.toThrow();
+  });
+
+  it("rejects actual ledger submission values", () => {
+    expect(() =>
+      assertSafeSignInStatus(
+        unresolved({ txid: "A".repeat(64), hex: "", account: "" }),
+        "initial",
+      ),
+    ).toThrow("Xaman initial status contains ledger submission data.");
   });
 });
