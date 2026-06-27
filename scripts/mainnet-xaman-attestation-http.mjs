@@ -80,20 +80,17 @@ export function readCreatedPayloadId(created) {
 }
 
 function hasLedgerValue(value) {
-  if (value == null) return false;
+  if (value == null || value === false) return false;
   if (typeof value === "string") return value.trim().length > 0;
   return true;
 }
 
-export function assertSafeSignInStatus(body, phase) {
+function assertSignInIdentityAndNoLedgerData(body, phase) {
   const meta = body?.meta;
   const payload = body?.payload;
   const response = body?.response ?? {};
   if (!meta || typeof meta !== "object") {
     throw new Error(`Xaman ${phase} status is missing metadata.`);
-  }
-  if (meta.submit !== false || meta.resolved !== false || meta.signed !== false) {
-    throw new Error(`Xaman ${phase} status is not a safe unresolved SignIn.`);
   }
   const transactionType =
     payload?.request_json?.TransactionType ?? payload?.tx_type;
@@ -110,9 +107,33 @@ export function assertSafeSignInStatus(body, phase) {
   return meta;
 }
 
+export function assertSafeSignInStatus(body, phase) {
+  const meta = assertSignInIdentityAndNoLedgerData(body, phase);
+  if (meta.submit !== false || meta.resolved !== false || meta.signed !== false) {
+    throw new Error(`Xaman ${phase} status is not a safe unresolved SignIn.`);
+  }
+  return meta;
+}
+
+export function assertCancellationResult(body) {
+  const cancelled = body?.result?.cancelled;
+  const reason = body?.result?.reason;
+  if (
+    cancelled !== true ||
+    !["OK", "ALREADY_CANCELLED", "ALREADY_EXPIRED"].includes(reason)
+  ) {
+    throw new Error("Xaman did not confirm payload cancellation.");
+  }
+}
+
 export function assertSafelyCancelled(body) {
-  const meta = assertSafeSignInStatus(body, "cancelled");
-  if (meta.cancelled !== true || meta.expired !== true) {
+  const meta = assertSignInIdentityAndNoLedgerData(body, "cancelled");
+  if (
+    meta.submit !== false ||
+    meta.signed !== false ||
+    meta.cancelled !== true ||
+    meta.expired !== true
+  ) {
     throw new Error("Xaman payload was not safely cancelled and expired.");
   }
 }
