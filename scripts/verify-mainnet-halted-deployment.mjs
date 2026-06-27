@@ -16,6 +16,23 @@ const DATABASE_BINDING = "PAYMENTS_DB_MAINNET";
 const SOURCE_TAG = "2171267705";
 const CONFIRMATION = "DEPLOY XRPL GROUP PAY MAINNET HALTED";
 
+const evidencePatchSchema = z
+  .object({
+    id: z.literal("production-release-configuration"),
+    status: z.literal("accepted"),
+    recorded_at: z.string().datetime({ offset: false }),
+    public_url: z.literal(ORIGIN),
+    app_network: z.literal("mainnet"),
+    public_network: z.literal("mainnet"),
+    database_binding: z.literal(DATABASE_BINDING),
+    runtime_allowed: z.literal(true),
+    gate_approved: z.literal(true),
+    source_tag_approved: z.literal(true),
+    release_mode: z.literal("internal"),
+    operations_mode: z.literal("halted"),
+  })
+  .strict();
+
 const reportSchema = z
   .object({
     schema_version: z.literal(1),
@@ -41,6 +58,7 @@ const reportSchema = z
         sensitive_values_excluded: z.literal(true),
       })
       .strict(),
+    evidence_patch: evidencePatchSchema,
   })
   .strict();
 
@@ -109,6 +127,9 @@ export function validateMainnetHaltedDeploymentReport(raw, expectedGitSha) {
   if (report.git_sha !== expectedGitSha) {
     throw new Error("The halted deployment report commit does not match.");
   }
+  if (report.generated_at !== report.evidence_patch.recorded_at) {
+    throw new Error("The halted deployment evidence timestamp does not match.");
+  }
   return report;
 }
 
@@ -175,11 +196,12 @@ export async function verifyMainnetHaltedDeployment({
     throw new Error("The production callback route did not reject unsigned input.");
   }
 
+  const generatedAt = now().toISOString();
   return validateMainnetHaltedDeploymentReport(
     {
       schema_version: 1,
       network: "mainnet",
-      generated_at: now().toISOString(),
+      generated_at: generatedAt,
       git_sha: context.gitSha,
       state: "verified",
       workflow_run_url: context.workflowRunUrl,
@@ -197,6 +219,20 @@ export async function verifyMainnetHaltedDeployment({
         callback_route_checked: true,
         callback_verification_ready: true,
         sensitive_values_excluded: true,
+      },
+      evidence_patch: {
+        id: "production-release-configuration",
+        status: "accepted",
+        recorded_at: generatedAt,
+        public_url: ORIGIN,
+        app_network: "mainnet",
+        public_network: "mainnet",
+        database_binding: DATABASE_BINDING,
+        runtime_allowed: true,
+        gate_approved: true,
+        source_tag_approved: true,
+        release_mode: "internal",
+        operations_mode: "halted",
       },
     },
     context.gitSha,
