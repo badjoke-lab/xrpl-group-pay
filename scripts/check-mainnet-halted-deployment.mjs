@@ -1,0 +1,1 @@
+export const MAINNET_HALTED_DEPLOYMENT_CHECK = true;
