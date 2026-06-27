@@ -6,16 +6,15 @@ import {
   requestXamanJson,
 } from "./mainnet-xaman-attestation-http.mjs";
 
-function buildSafeRequest(runId, instruction) {
-  const request = buildMainnetSignInAttestation(
-    `xrpl-group-pay-mainnet-attestation-${runId}`,
-    instruction,
-  );
+function buildSafeRequest() {
+  const request = buildMainnetSignInAttestation();
+  const keys = Object.keys(request).sort();
+  const optionKeys = Object.keys(request.options ?? {}).sort();
   if (
-    request.txjson.TransactionType !== "SignIn" ||
-    request.options.force_network !== "MAINNET" ||
-    request.options.submit !== false ||
-    request.options.expire !== 5
+    request.txjson?.TransactionType !== "SignIn" ||
+    request.options?.force_network !== "MAINNET" ||
+    keys.join(",") !== "options,txjson" ||
+    optionKeys.join(",") !== "force_network"
   ) {
     throw new Error("The Mainnet Xaman SignIn request is unsafe.");
   }
@@ -25,11 +24,9 @@ function buildSafeRequest(runId, instruction) {
 export async function probeMainnetXamanPayload({
   baseUrl,
   headers,
-  runId,
-  instruction,
   fetcher,
 }) {
-  const request = buildSafeRequest(runId, instruction);
+  const request = buildSafeRequest();
   let payloadId = null;
   let cancellationCompleted = false;
   try {

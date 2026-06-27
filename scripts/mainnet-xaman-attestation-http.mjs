@@ -15,15 +15,17 @@ export function xamanAuthHeaders(apiKey, apiSecret) {
 function publicXamanErrorDetail(body) {
   if (!body || typeof body !== "object") return "";
   const error = body.error;
-  const candidates = [
+  const rawCandidates = [
     typeof error === "object" && error ? error.code : null,
+    typeof error === "object" && error ? error.reference : null,
     typeof error === "object" && error ? error.message : null,
     typeof error === "string" ? error : null,
-    typeof body.message === "string" ? body.message : null,
+    body.message,
   ];
-  const detail = candidates
-    .filter((value) => typeof value === "string" && value.trim())
-    .map((value) => value.trim())
+  const detail = rawCandidates
+    .filter((value) => typeof value === "string" || typeof value === "number")
+    .map((value) => String(value).trim())
+    .filter(Boolean)
     .join(": ")
     .slice(0, 240)
     .replace(UUID_IN_TEXT, "[redacted-id]")

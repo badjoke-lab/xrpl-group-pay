@@ -7,8 +7,6 @@
   "payload": {
     "transaction_type": "SignIn",
     "force_network": "MAINNET",
-    "submit": false,
-    "expire_minutes": 5,
-    "instruction": "XRPL Group Pay Mainnet provider attestation. This SignIn request cannot submit an XRPL transaction."
+    "request_shape": "minimal"
   }
 }
