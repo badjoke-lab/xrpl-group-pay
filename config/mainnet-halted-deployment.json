@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "network": "mainnet",
+  "stage": "halted-deployment-review",
+  "confirmation": "DEPLOY XRPL GROUP PAY MAINNET HALTED",
+  "worker_name": "xrpl-group-pay-mainnet",
+  "public_origin": "https://xgp.badjoke-lab.com",
+  "custom_domain": "xgp.badjoke-lab.com",
+  "callback_path": "/api/xaman/callback",
+  "database_binding": "PAYMENTS_DB_MAINNET",
+  "source_tag": 2171267705,
+  "runtime_allowed": true,
+  "gate_approved": true,
+  "source_tag_approved": true,
+  "release_mode": "internal",
+  "operations_mode": "halted"
+}
