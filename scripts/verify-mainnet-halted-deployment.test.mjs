@@ -129,8 +129,18 @@ describe("halted Mainnet deployment verification", () => {
           callback_verification_ready: true,
           sensitive_values_excluded: true,
         },
+        evidence_patch: {
+          id: "production-release-configuration",
+          status: "accepted",
+          public_url: "https://xgp.badjoke-lab.com",
+          database_binding: "PAYMENTS_DB_MAINNET",
+          runtime_allowed: true,
+          gate_approved: true,
+          source_tag_approved: true,
+          release_mode: "internal",
+          operations_mode: "halted",
+        },
       });
-      expect(report).not.toHaveProperty("evidence_patch");
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
