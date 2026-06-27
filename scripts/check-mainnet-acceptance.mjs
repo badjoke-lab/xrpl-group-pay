@@ -182,6 +182,12 @@ export function assertMainnetAcceptanceMatchesGate(acceptance, gate) {
   }
 }
 
+function findRequired(items, id, context) {
+  const item = items.find((candidate) => candidate.id === id);
+  if (!item) throw new Error(`${context} is missing ${id}.`);
+  return item;
+}
+
 export function assertBlockedReleaseEvidence(acceptance, wranglerSource) {
   if (acceptance.release_decision !== "blocked") return;
 
@@ -192,17 +198,58 @@ export function assertBlockedReleaseEvidence(acceptance, wranglerSource) {
     throw new Error("Wrangler must define an explicit Mainnet environment.");
   }
 
-  const requiredSafeDefaults = {
-    ALLOW_MAINNET_RUNTIME: "false",
-    MAINNET_GATE_APPROVED: "false",
-    MAINNET_SOURCE_TAG_APPROVED: "false",
-    MAINNET_RELEASE_MODE: "disabled",
-    MAINNET_OPERATIONS_MODE: "halted",
-  };
-  for (const [name, expected] of Object.entries(requiredSafeDefaults)) {
+  const releaseControl = findRequired(
+    acceptance.controls,
+    "production-release-configuration",
+    "Mainnet acceptance controls",
+  );
+  const releaseFinding = findRequired(
+    acceptance.blocking_findings,
+    "production-runtime-not-approved",
+    "Mainnet acceptance findings",
+  );
+  const deploymentPending =
+    releaseControl.status === "pending" && releaseFinding.status === "open";
+  const deploymentAccepted =
+    releaseControl.status === "passed" && releaseFinding.status === "resolved";
+  if (!deploymentPending && !deploymentAccepted) {
+    throw new Error(
+      "Blocked Mainnet acceptance contains an inconsistent release configuration state.",
+    );
+  }
+
+  const requiredValues = deploymentAccepted
+    ? {
+        ALLOW_MAINNET_RUNTIME: "true",
+        MAINNET_GATE_APPROVED: "true",
+        MAINNET_SOURCE_TAG_APPROVED: "true",
+        MAINNET_RELEASE_MODE: "internal",
+        MAINNET_OPERATIONS_MODE: "halted",
+      }
+    : {
+        ALLOW_MAINNET_RUNTIME: "false",
+        MAINNET_GATE_APPROVED: "false",
+        MAINNET_SOURCE_TAG_APPROVED: "false",
+        MAINNET_RELEASE_MODE: "disabled",
+        MAINNET_OPERATIONS_MODE: "halted",
+      };
+
+  for (const [name, expected] of Object.entries(requiredValues)) {
     if (variables[name] !== expected) {
       throw new Error(
         `Blocked Mainnet acceptance requires ${name}=${expected} in the committed Mainnet environment.`,
+      );
+    }
+  }
+
+  if (deploymentAccepted) {
+    const customDomain = mainnet.routes?.some(
+      (route) =>
+        route.pattern === "xgp.badjoke-lab.com" && route.custom_domain === true,
+    );
+    if (!customDomain || mainnet.workers_dev !== false) {
+      throw new Error(
+        "Accepted halted deployment requires the reviewed custom domain target.",
       );
     }
   }
@@ -215,11 +262,15 @@ export function assertBlockedReleaseEvidence(acceptance, wranglerSource) {
   }
 
   const placeholder = "00000000-0000-0000-0000-000000000000";
-  const d1Control = acceptance.controls.find(
-    (control) => control.id === "production-d1-provisioning",
+  const d1Control = findRequired(
+    acceptance.controls,
+    "production-d1-provisioning",
+    "Mainnet acceptance controls",
   );
-  const d1Finding = acceptance.blocking_findings.find(
-    (finding) => finding.id === "production-d1-not-provisioned",
+  const d1Finding = findRequired(
+    acceptance.blocking_findings,
+    "production-d1-not-provisioned",
+    "Mainnet acceptance findings",
   );
   const d1StillBlocked =
     d1Control.status !== "passed" || d1Finding.status === "open";

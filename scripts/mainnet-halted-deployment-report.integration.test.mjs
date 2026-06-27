@@ -3,10 +3,12 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { assertBlockedReleaseEvidence } from "./check-mainnet-acceptance.mjs";
 import {
   assertEvidenceMatchesAcceptance,
   assertEvidenceMatchesConfiguration,
 } from "./check-mainnet-release-evidence.mjs";
+import { assertMainnetReleasePlan } from "./check-mainnet-release-plan.mjs";
 import { assertProductionTarget } from "./check-production-target.mjs";
 import { applyMainnetHaltedDeploymentReport } from "./mainnet-halted-deployment-report.mjs";
 
@@ -73,6 +75,8 @@ async function repositoryState() {
     productionTarget,
     assetRegistry,
     routeSource,
+    gate,
+    sourceTag,
   ] = await Promise.all([
     readFile(resolve(root, "config/mainnet-release-evidence.json"), "utf8").then(
       JSON.parse,
@@ -91,6 +95,12 @@ async function repositoryState() {
       JSON.parse,
     ),
     readFile(resolve(root, "src/app/api/xaman/callback/route.ts"), "utf8"),
+    readFile(resolve(root, "config/mainnet-gate.json"), "utf8").then(
+      JSON.parse,
+    ),
+    readFile(resolve(root, "config/mainnet-source-tag.json"), "utf8").then(
+      JSON.parse,
+    ),
   ]);
 
   return {
@@ -101,6 +111,8 @@ async function repositoryState() {
     productionTarget,
     assetRegistry,
     routeSource,
+    gate,
+    sourceTag,
   };
 }
 
@@ -112,6 +124,7 @@ describe("halted Mainnet deployment report import", () => {
       expectedGitSha: SHA,
       ...state,
     });
+    const wranglerSource = JSON.stringify(result.wrangler);
 
     expect(() =>
       assertEvidenceMatchesAcceptance(result.evidence, result.acceptance),
@@ -119,9 +132,22 @@ describe("halted Mainnet deployment report import", () => {
     expect(() =>
       assertEvidenceMatchesConfiguration(
         result.evidence,
-        JSON.stringify(result.wrangler),
+        wranglerSource,
         state.assetRegistry,
       ),
+    ).not.toThrow();
+    expect(() =>
+      assertBlockedReleaseEvidence(result.acceptance, wranglerSource),
+    ).not.toThrow();
+    expect(() =>
+      assertMainnetReleasePlan({
+        plan: result.releasePlan,
+        evidence: result.evidence,
+        acceptance: result.acceptance,
+        gate: state.gate,
+        wranglerSource,
+        sourceTag: state.sourceTag,
+      }),
     ).not.toThrow();
     expect(() =>
       assertProductionTarget({
@@ -159,7 +185,7 @@ describe("halted Mainnet deployment report import", () => {
 
   it("rejects a report containing protected deployment fields", async () => {
     const state = await repositoryState();
-    await expect(() =>
+    expect(() =>
       applyMainnetHaltedDeploymentReport({
         report: { ...report(), cloudflare_api_token: "not-public" },
         expectedGitSha: SHA,
