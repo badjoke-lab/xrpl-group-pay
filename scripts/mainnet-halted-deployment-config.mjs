@@ -118,6 +118,11 @@ export function buildHaltedMainnetWrangler({
     throw new Error("The halted deployment requires isolated Mainnet D1 bindings.");
   }
 
+  // The generated file is only for the Mainnet environment. Remove the
+  // top-level Testnet D1 binding so Wrangler cannot expose it to this build or
+  // emit a misleading non-inheritance warning.
+  delete source.d1_databases;
+
   mainnet.vars = {
     ...vars,
     APP_NETWORK: "mainnet",
