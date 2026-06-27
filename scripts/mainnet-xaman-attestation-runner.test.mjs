@@ -23,9 +23,7 @@ function config() {
     payload: {
       transaction_type: "SignIn",
       force_network: "MAINNET",
-      submit: false,
-      expire_minutes: 5,
-      instruction: "Provider attestation",
+      request_shape: "minimal",
     },
   };
 }
@@ -104,7 +102,7 @@ function expectAuthenticatedRequests(fetcher) {
 }
 
 describe("Mainnet Xaman attestation runner", () => {
-  it("creates and cancels a Mainnet-forced off-ledger SignIn", async () => {
+  it("creates and cancels a minimal Mainnet-forced off-ledger SignIn", async () => {
     const fetcher = successfulFetcher();
     const report = await runMainnetXamanAttestation({
       config: config(),
@@ -132,9 +130,9 @@ describe("Mainnet Xaman attestation runner", () => {
     expectAuthenticatedRequests(fetcher);
 
     const createRequest = JSON.parse(fetcher.mock.calls[1][1].body);
-    expect(createRequest).toMatchObject({
+    expect(createRequest).toEqual({
       txjson: { TransactionType: "SignIn" },
-      options: { submit: false, expire: 5, force_network: "MAINNET" },
+      options: { force_network: "MAINNET" },
     });
     expect(createRequest.txjson.TransactionType).not.toBe("Payment");
 
