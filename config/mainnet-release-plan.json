@@ -4,14 +4,13 @@
   "state": "blocked",
   "review_status": "prepared",
   "release_decision": "blocked",
-  "current_stage": "provider-attestation",
+  "current_stage": "halted-deployment-review",
   "accepted_foundations": [
     "production-d1-provisioning",
     "assigned-mainnet-source-tag",
     "operational-stop-drill"
   ],
   "remaining_evidence": [
-    "production-provider-attestation",
     "production-release-configuration",
     "live-mainnet-xrp-acceptance",
     "live-mainnet-rlusd-acceptance"
@@ -30,7 +29,7 @@
     {
       "id": "provider-attestation",
       "position": 2,
-      "status": "blocked",
+      "status": "complete",
       "requires": [
         "production-provider-attestation"
       ]
@@ -38,7 +37,7 @@
     {
       "id": "halted-deployment-review",
       "position": 3,
-      "status": "pending",
+      "status": "blocked",
       "requires": [
         "production-release-configuration"
       ]
