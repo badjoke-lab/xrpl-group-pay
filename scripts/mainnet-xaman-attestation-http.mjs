@@ -79,6 +79,12 @@ export function readCreatedPayloadId(created) {
   return payloadId;
 }
 
+function hasLedgerValue(value) {
+  if (value == null) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  return true;
+}
+
 export function assertSafeSignInStatus(body, phase) {
   const meta = body?.meta;
   const payload = body?.payload;
@@ -94,7 +100,11 @@ export function assertSafeSignInStatus(body, phase) {
   if (transactionType !== "SignIn") {
     throw new Error(`Xaman ${phase} status is not a SignIn payload.`);
   }
-  if (response.txid != null || response.hex != null || response.account != null) {
+  if (
+    hasLedgerValue(response.txid) ||
+    hasLedgerValue(response.hex) ||
+    hasLedgerValue(response.account)
+  ) {
     throw new Error(`Xaman ${phase} status contains ledger submission data.`);
   }
   return meta;
