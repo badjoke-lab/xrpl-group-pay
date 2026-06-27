@@ -118,15 +118,10 @@ export function assertSafeSignInStatus(body, phase) {
 export function assertCancellationResult(body) {
   const cancelled = body?.result?.cancelled;
   const reason = body?.result?.reason;
-  const meta = body?.meta;
   if (
     cancelled !== true ||
-    !["OK", "ALREADY_CANCELLED", "ALREADY_EXPIRED"].includes(reason) ||
-    !meta ||
-    typeof meta !== "object" ||
-    meta.signed !== false ||
-    meta.cancelled !== true
+    !["OK", "ALREADY_CANCELLED", "ALREADY_EXPIRED"].includes(reason)
   ) {
-    throw new Error("Xaman did not confirm a safe payload cancellation.");
+    throw new Error("Xaman did not confirm payload cancellation.");
   }
 }
