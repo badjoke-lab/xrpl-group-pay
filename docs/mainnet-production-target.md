@@ -12,17 +12,18 @@ The Xaman application callback target is:
 https://xgp.badjoke-lab.com/api/xaman/callback
 ```
 
-These values are committed before DNS or Worker routing is connected so application code, Xaman configuration, GitHub attestation, and Cloudflare deployment can converge on one reviewed target.
+These values were committed before DNS or Worker routing was connected so application code, Xaman configuration, provider attestation, and Cloudflare deployment converge on one reviewed target.
 
 ## Current state
 
-The production target is prepared but not deployed.
+The production target and Xaman application are prepared, but the Worker is not deployed.
 
 - Cloudflare custom-domain routing is not connected.
-- Mainnet runtime access remains disabled.
+- Mainnet runtime access remains disabled in the committed configuration.
 - Mainnet payment operations remain halted.
-- The Xaman callback URL is not yet configured in the Xaman Developer Console.
-- The GitHub Environment does not yet contain `MAINNET_XAMAN_CALLBACK_URL`.
+- The exact callback URL is configured in the Xaman application.
+- Production Xaman provider attestation is accepted.
+- The current release stage is `halted-deployment-review`.
 
 The committed Mainnet configuration keeps:
 
@@ -51,17 +52,18 @@ The route:
 
 A callback is a notification trigger, not payment proof. Payment completion remains dependent on the independent validated-ledger verifier.
 
-## Deployment sequence
+## Halted deployment sequence
 
-After this preparation is merged, the reviewed sequence is:
+The reviewed sequence from the current stage is:
 
-1. configure the Mainnet Worker runtime secrets `XAMAN_API_KEY` and `XAMAN_API_SECRET` outside the repository;
-2. build and deploy the Mainnet Worker while release mode remains `disabled` and operations remain `halted`;
-3. connect `xgp.badjoke-lab.com` to the deployed Worker in Cloudflare;
-4. confirm the public origin and callback route are reachable over HTTPS;
-5. configure the exact callback URL in the Xaman Developer Console;
-6. add the same URL to the protected GitHub Environment as `MAINNET_XAMAN_CALLBACK_URL`;
-7. run the guarded Mainnet Xaman provider attestation;
-8. import the public-safe attestation result in a separate reviewed pull request.
+1. generate the ephemeral Mainnet configuration from `config/mainnet-halted-deployment.json`;
+2. build the Mainnet Worker with release mode `internal` and operations mode `halted`;
+3. configure the Worker runtime values outside the repository;
+4. deploy the Worker and connect `xgp.badjoke-lab.com` as its custom domain;
+5. confirm the public origin and operations status endpoint are reachable over HTTPS;
+6. confirm both payment creation and verification remain disabled;
+7. confirm the callback route rejects unsigned input through its configured verification path;
+8. upload a public-safe deployment report;
+9. import the report in a separate reviewed pull request.
 
-Connecting the domain or deploying the halted Worker does not by itself approve Mainnet payments. Release configuration, live XRP acceptance, live RLUSD acceptance, and the final release audit remain separate controls.
+Deploying the halted Worker does not approve Mainnet payments. Live XRP acceptance, live RLUSD acceptance, and the final release audit remain separate controls.
