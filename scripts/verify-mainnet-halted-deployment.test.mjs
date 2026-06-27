@@ -88,16 +88,11 @@ describe("halted Mainnet deployment verification", () => {
           operations_halted: true,
           payment_creation_blocked: true,
           payment_verification_blocked: true,
-          callback_secret_configured: true,
-          secrets_committed: false,
-        },
-        evidence_patch: {
-          id: "production-release-configuration",
-          status: "accepted",
-          release_mode: "internal",
-          operations_mode: "halted",
+          callback_verification_ready: true,
+          sensitive_values_excluded: true,
         },
       });
+      expect(report).not.toHaveProperty("evidence_patch");
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
