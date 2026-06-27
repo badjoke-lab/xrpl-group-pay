@@ -1,5 +1,6 @@
 import { buildMainnetSignInAttestation } from "./mainnet-xaman-attestation-core.mjs";
 import {
+  assertCancellationResult,
   assertSafeSignInStatus,
   assertSafelyCancelled,
   readCreatedPayloadId,
@@ -46,12 +47,13 @@ export async function probeMainnetXamanPayload({
     );
     assertSafeSignInStatus(initialStatus, "initial");
 
-    await requestXamanJson(
+    const cancellation = await requestXamanJson(
       fetcher,
       `${baseUrl}/payload/${encodeURIComponent(payloadId)}`,
       { method: "DELETE", headers },
       "Xaman cancellation",
     );
+    assertCancellationResult(cancellation);
     cancellationCompleted = true;
 
     const finalStatus = await requestXamanJson(
