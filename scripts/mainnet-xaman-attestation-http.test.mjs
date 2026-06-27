@@ -92,18 +92,25 @@ describe("Mainnet Xaman SignIn status validation", () => {
     ).toThrow("Xaman initial status contains ledger submission data.");
   });
 
-  it("validates the authoritative Xaman cancellation response", () => {
+  it("accepts the authoritative cancellation result without relying on immediately refreshed metadata", () => {
     expect(() =>
       assertCancellationResult({
         result: { cancelled: true, reason: "OK" },
-        meta: { signed: false, cancelled: true, expired: false },
       }),
     ).not.toThrow();
     expect(() =>
       assertCancellationResult({
-        result: { cancelled: false, reason: "ALREADY_OPENED" },
+        result: { cancelled: true, reason: "ALREADY_CANCELLED" },
         meta: { signed: false, cancelled: false, expired: false },
       }),
-    ).toThrow("Xaman did not confirm a safe payload cancellation.");
+    ).not.toThrow();
+  });
+
+  it("rejects a cancellation result that did not cancel the payload", () => {
+    expect(() =>
+      assertCancellationResult({
+        result: { cancelled: false, reason: "ALREADY_OPENED" },
+      }),
+    ).toThrow("Xaman did not confirm payload cancellation.");
   });
 });
