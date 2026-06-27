@@ -81,15 +81,10 @@ export async function runMainnetHaltedDeployment({
       { mode: 0o600 },
     );
 
-    // The normal package build intentionally enforces the final Mainnet gate
-    // and must remain blocked at this stage. Build Next.js directly after the
-    // workflow's halted-stage checks, then ask OpenNext to transform that
-    // existing output without invoking the package build again.
-    runCommand(
-      "pnpm",
-      ["exec", "next", "build"],
-      childEnvironment,
-    );
+    console.log("[halted-mainnet] Building Next.js output.");
+    runCommand("pnpm", ["exec", "next", "build"], childEnvironment);
+
+    console.log("[halted-mainnet] Transforming the existing build for Cloudflare.");
     runCommand(
       "pnpm",
       [
@@ -102,6 +97,8 @@ export async function runMainnetHaltedDeployment({
       ],
       childEnvironment,
     );
+
+    console.log("[halted-mainnet] Deploying the internal halted Worker.");
     runCommand(
       "pnpm",
       [
@@ -110,12 +107,12 @@ export async function runMainnetHaltedDeployment({
         "deploy",
         `--config=${configPath}`,
         "--env=mainnet",
-        "--",
         `--secrets-file=${secretsPath}`,
       ],
       childEnvironment,
     );
 
+    console.log("[halted-mainnet] Verifying the public halted target.");
     let lastError;
     for (let attempt = 1; attempt <= 30; attempt += 1) {
       try {
