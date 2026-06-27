@@ -49,6 +49,51 @@ function report() {
   };
 }
 
+function pendingProviderState(evidence, acceptance) {
+  const pendingEvidence = structuredClone(evidence);
+  const pendingAcceptance = structuredClone(acceptance);
+
+  Object.assign(
+    pendingEvidence.records.find(
+      (record) => record.id === "production-provider-attestation",
+    ),
+    {
+      status: "pending",
+      recorded_at: null,
+      attestation_reference: null,
+      credentials_configured: false,
+      forced_mainnet_request_checked: false,
+      callback_behavior_checked: false,
+      status_lookup_checked: false,
+      secrets_committed: false,
+    },
+  );
+
+  Object.assign(
+    pendingAcceptance.controls.find(
+      (control) => control.id === "production-provider-attestation",
+    ),
+    {
+      status: "pending",
+      evidence:
+        "No repository-safe attestation records that production Xaman credentials and callback behavior have been validated.",
+    },
+  );
+
+  Object.assign(
+    pendingAcceptance.blocking_findings.find(
+      (finding) => finding.id === "production-provider-not-attested",
+    ),
+    {
+      status: "open",
+      evidence:
+        "Record a non-secret attestation for production Xaman credentials, forced Mainnet requests, and callback/status behavior.",
+    },
+  );
+
+  return { pendingEvidence, pendingAcceptance };
+}
+
 describe("Mainnet Xaman attestation compatibility", () => {
   it("produces documents accepted by the existing evidence mapping", async () => {
     const [evidenceSource, acceptanceSource] = await Promise.all([
@@ -62,11 +107,15 @@ describe("Mainnet Xaman attestation compatibility", () => {
       ),
     ]);
     const originalAcceptance = JSON.parse(acceptanceSource);
+    const { pendingEvidence, pendingAcceptance } = pendingProviderState(
+      JSON.parse(evidenceSource),
+      originalAcceptance,
+    );
     const result = applyMainnetXamanAttestationReport({
       report: report(),
       expectedGitSha: SHA,
-      evidence: JSON.parse(evidenceSource),
-      acceptance: originalAcceptance,
+      evidence: pendingEvidence,
+      acceptance: pendingAcceptance,
     });
 
     expect(() =>

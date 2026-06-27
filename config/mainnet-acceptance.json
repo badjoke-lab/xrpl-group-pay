@@ -46,8 +46,8 @@
     },
     {
       "id": "production-provider-attestation",
-      "status": "pending",
-      "evidence": "No repository-safe attestation records that production Xaman credentials and callback behavior have been validated."
+      "status": "passed",
+      "evidence": "GitHub Actions run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28288044877 verified production Xaman credentials, Mainnet-forced SignIn creation, configured callback behavior, status lookup, and safe cancellation from commit a3c7a70ac0da7f1604c3ea1a576c747cec226839."
     },
     {
       "id": "assigned-mainnet-source-tag",
@@ -83,8 +83,8 @@
     },
     {
       "id": "production-provider-not-attested",
-      "status": "open",
-      "evidence": "Record a non-secret attestation for production Xaman credentials, forced Mainnet requests, and callback/status behavior."
+      "status": "resolved",
+      "evidence": "GitHub Actions run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28288044877 verified production Xaman credentials, Mainnet-forced SignIn creation, configured callback behavior, status lookup, and safe cancellation from commit a3c7a70ac0da7f1604c3ea1a576c747cec226839; no credential, QR, deeplink, callback path, or payload UUID was committed."
     },
     {
       "id": "mainnet-source-tag-not-assigned",

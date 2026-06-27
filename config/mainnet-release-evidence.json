@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "network": "mainnet",
-  "updated_at": "2026-06-26",
+  "updated_at": "2026-06-27",
   "records": [
     {
       "id": "production-d1-provisioning",
@@ -30,13 +30,13 @@
     },
     {
       "id": "production-provider-attestation",
-      "status": "pending",
-      "recorded_at": null,
-      "attestation_reference": null,
-      "credentials_configured": false,
-      "forced_mainnet_request_checked": false,
-      "callback_behavior_checked": false,
-      "status_lookup_checked": false,
+      "status": "accepted",
+      "recorded_at": "2026-06-27T11:37:37.489Z",
+      "attestation_reference": "https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28288044877",
+      "credentials_configured": true,
+      "forced_mainnet_request_checked": true,
+      "callback_behavior_checked": true,
+      "status_lookup_checked": true,
       "secrets_committed": false
     },
     {
