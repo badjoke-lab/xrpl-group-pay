@@ -94,6 +94,7 @@ function updateReleasePlan(plan, evidence) {
 
   plan.current_stage = currentStage;
   plan.remaining_evidence = remaining;
+  plan.staged_target.committed = true;
   plan.stages.forEach((stage, index) => {
     stage.status =
       index < currentIndex
@@ -104,12 +105,74 @@ function updateReleasePlan(plan, evidence) {
   });
 }
 
+function updateWrangler(wrangler, patch) {
+  const mainnet = wrangler?.env?.mainnet;
+  if (!mainnet?.vars) {
+    throw new Error("Wrangler Mainnet configuration is missing.");
+  }
+  const vars = mainnet.vars;
+  const pending =
+    vars.ALLOW_MAINNET_RUNTIME === "false" &&
+    vars.MAINNET_GATE_APPROVED === "false" &&
+    vars.MAINNET_SOURCE_TAG_APPROVED === "false" &&
+    vars.MAINNET_RELEASE_MODE === "disabled" &&
+    vars.MAINNET_OPERATIONS_MODE === "halted";
+  const replay =
+    vars.ALLOW_MAINNET_RUNTIME === "true" &&
+    vars.MAINNET_GATE_APPROVED === "true" &&
+    vars.MAINNET_SOURCE_TAG_APPROVED === "true" &&
+    vars.MAINNET_RELEASE_MODE === "internal" &&
+    vars.MAINNET_OPERATIONS_MODE === "halted";
+  if (!pending && !replay) {
+    throw new Error("Committed Mainnet configuration is not import-compatible.");
+  }
+
+  Object.assign(vars, {
+    APP_NETWORK: patch.app_network,
+    NEXT_PUBLIC_APP_NETWORK: patch.public_network,
+    NEXT_PUBLIC_APP_URL: patch.public_url,
+    ALLOW_MAINNET_RUNTIME: String(patch.runtime_allowed),
+    MAINNET_GATE_APPROVED: String(patch.gate_approved),
+    MAINNET_SOURCE_TAG_APPROVED: String(patch.source_tag_approved),
+    MAINNET_RELEASE_MODE: patch.release_mode,
+    MAINNET_OPERATIONS_MODE: patch.operations_mode,
+    PAYMENTS_DATABASE_BINDING: patch.database_binding,
+  });
+  mainnet.routes = [
+    { pattern: "xgp.badjoke-lab.com", custom_domain: true },
+  ];
+  mainnet.workers_dev = false;
+}
+
+function updateProductionTarget(target, patch) {
+  const pending =
+    target?.domain_connection === "pending" &&
+    target?.deployment === "not_deployed" &&
+    target?.release_mode === "disabled" &&
+    target?.operations_mode === "halted";
+  const replay =
+    target?.domain_connection === "connected" &&
+    target?.deployment === "deployed" &&
+    target?.release_mode === "internal" &&
+    target?.operations_mode === "halted";
+  if (!pending && !replay) {
+    throw new Error("Production target state is not import-compatible.");
+  }
+
+  target.domain_connection = "connected";
+  target.deployment = "deployed";
+  target.release_mode = patch.release_mode;
+  target.operations_mode = patch.operations_mode;
+}
+
 export function applyMainnetHaltedDeploymentReport({
   report: rawReport,
   expectedGitSha,
   evidence: rawEvidence,
   acceptance: rawAcceptance,
   releasePlan: rawReleasePlan,
+  wrangler: rawWrangler,
+  productionTarget: rawProductionTarget,
 }) {
   assertNoSensitiveKeys(rawReport);
   const report = validateMainnetHaltedDeploymentReport(
@@ -120,6 +183,8 @@ export function applyMainnetHaltedDeploymentReport({
   const evidence = structuredClone(rawEvidence);
   const acceptance = structuredClone(rawAcceptance);
   const releasePlan = structuredClone(rawReleasePlan);
+  const wrangler = structuredClone(rawWrangler);
+  const productionTarget = structuredClone(rawProductionTarget);
 
   if (
     acceptance.release_decision !== "blocked" ||
@@ -178,6 +243,15 @@ export function applyMainnetHaltedDeploymentReport({
   finding.status = "resolved";
   finding.evidence = `${summary}; the deployment remained internal and operationally halted, and no live XRP or RLUSD payment was performed.`;
 
+  updateWrangler(wrangler, patch);
+  updateProductionTarget(productionTarget, patch);
   updateReleasePlan(releasePlan, evidence);
-  return { evidence, acceptance, releasePlan };
+
+  return {
+    evidence,
+    acceptance,
+    releasePlan,
+    wrangler,
+    productionTarget,
+  };
 }
