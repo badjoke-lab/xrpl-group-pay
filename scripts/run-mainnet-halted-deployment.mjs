@@ -98,12 +98,12 @@ export async function runMainnetHaltedDeployment({
       childEnvironment,
     );
 
-    console.log("[halted-mainnet] Deploying the internal halted Worker.");
+    console.log("[halted-mainnet] Deploying the internal halted Worker with Wrangler.");
     runCommand(
       "pnpm",
       [
         "exec",
-        "opennextjs-cloudflare",
+        "wrangler",
         "deploy",
         `--config=${configPath}`,
         "--env=mainnet",
