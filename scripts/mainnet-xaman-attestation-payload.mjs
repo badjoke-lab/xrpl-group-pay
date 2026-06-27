@@ -15,7 +15,7 @@ function buildSafeRequest(runId, instruction) {
     request.txjson.TransactionType !== "SignIn" ||
     request.options.force_network !== "MAINNET" ||
     request.options.submit !== false ||
-    request.options.expire !== 1
+    request.options.expire !== 5
   ) {
     throw new Error("The Mainnet Xaman SignIn request is unsafe.");
   }
