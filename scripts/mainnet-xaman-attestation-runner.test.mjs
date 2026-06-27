@@ -49,7 +49,7 @@ function json(body, status = 200) {
   });
 }
 
-function unresolved(extra = {}) {
+function unresolved(extra = {}, response = { txid: null, hex: null, account: null }) {
   return {
     meta: {
       exists: true,
@@ -65,7 +65,7 @@ function unresolved(extra = {}) {
       tx_type: "SignIn",
       request_json: { TransactionType: "SignIn" },
     },
-    response: { txid: null, hex: null, account: null },
+    response,
   };
 }
 
@@ -85,10 +85,19 @@ function successfulFetcher() {
       }),
     )
     .mockResolvedValueOnce(json({ uuid: PAYLOAD_ID }))
-    .mockResolvedValueOnce(json(unresolved()))
-    .mockResolvedValueOnce(json({ cancelled: true }))
     .mockResolvedValueOnce(
-      json(unresolved({ cancelled: true, expired: true })),
+      json(unresolved({}, { txid: "", hex: false, account: null })),
+    )
+    .mockResolvedValueOnce(
+      json({ result: { cancelled: true, reason: "OK" } }),
+    )
+    .mockResolvedValueOnce(
+      json(
+        unresolved(
+          { resolved: true, cancelled: true, expired: true },
+          { txid: false, hex: "", account: null },
+        ),
+      ),
     );
 }
 
