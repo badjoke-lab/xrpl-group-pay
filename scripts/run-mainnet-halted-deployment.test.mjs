@@ -23,7 +23,7 @@ function environment() {
 }
 
 describe("halted Mainnet deployment runner", () => {
-  it("builds Next.js without the final gate, deploys, verifies, and cleans up", async () => {
+  it("passes Wrangler deployment options directly to OpenNext", async () => {
     const runCommand = vi.fn();
     const prepareConfig = vi.fn().mockResolvedValue(undefined);
     const writeSecretFile = vi.fn().mockResolvedValue(undefined);
@@ -71,9 +71,9 @@ describe("halted Mainnet deployment runner", () => {
       "deploy",
       "--config=/workspace/wrangler.mainnet-halted.jsonc",
       "--env=mainnet",
-      "--",
       "--secrets-file=/runner-temp/mainnet-worker-secrets.json",
     ]);
+    expect(runCommand.mock.calls[2][1]).not.toContain("--");
     expect(verify).toHaveBeenCalledWith({
       environment: expect.objectContaining({
         MAINNET_RELEASE_MODE: "internal",
