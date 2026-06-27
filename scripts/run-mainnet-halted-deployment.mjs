@@ -33,6 +33,10 @@ export async function runMainnetHaltedDeployment({
   environment = process.env,
   runCommand = run,
   verify = executeMainnetHaltedDeploymentVerification,
+  prepareConfig = writeHaltedMainnetWrangler,
+  writeSecretFile = writeFile,
+  removeFile = unlink,
+  wait = delay,
 } = {}) {
   if (environment.GITHUB_ACTIONS !== "true") {
     throw new Error("The halted Mainnet deployment may run only in GitHub Actions.");
@@ -63,11 +67,12 @@ export async function runMainnetHaltedDeployment({
     MAINNET_OPERATIONS_MODE: "halted",
     PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
     XRPL_MAINNET_SOURCE_TAG: "2171267705",
+    MAINNET_HALTED_WRANGLER_PATH: configPath,
   };
 
   try {
-    await writeHaltedMainnetWrangler({ outputPath: configPath });
-    await writeFile(
+    await prepareConfig({ outputPath: configPath });
+    await writeSecretFile(
       secretsPath,
       JSON.stringify({
         XAMAN_API_KEY: xamanApiKey,
@@ -107,14 +112,14 @@ export async function runMainnetHaltedDeployment({
         return await verify({ environment: childEnvironment });
       } catch (error) {
         lastError = error;
-        if (attempt < 30) await delay(10_000);
+        if (attempt < 30) await wait(10_000);
       }
     }
     throw lastError;
   } finally {
     await Promise.all([
-      unlink(configPath).catch(() => undefined),
-      unlink(secretsPath).catch(() => undefined),
+      removeFile(configPath).catch(() => undefined),
+      removeFile(secretsPath).catch(() => undefined),
     ]);
   }
 }
