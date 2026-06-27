@@ -27,6 +27,13 @@ function sourceConfig() {
   return {
     name: "xrpl-group-pay",
     main: ".open-next/worker.js",
+    d1_databases: [
+      {
+        binding: "PAYMENTS_DB",
+        database_id: "33333333-3333-4333-8333-333333333333",
+        preview_database_id: "44444444-4444-4444-8444-444444444444",
+      },
+    ],
     env: {
       mainnet: {
         name: "xrpl-group-pay-mainnet",
@@ -76,8 +83,13 @@ describe("halted Mainnet deployment configuration", () => {
     expect(assertHaltedDeploymentContract(contract)).toEqual(contract);
   });
 
-  it("generates an internal target with halted operations", () => {
+  it("generates an isolated internal target with halted operations", () => {
     const generated = buildHaltedMainnetWrangler(input());
+    expect(generated.d1_databases).toBeUndefined();
+    expect(generated.env.mainnet.d1_databases).toHaveLength(1);
+    expect(generated.env.mainnet.d1_databases[0].binding).toBe(
+      "PAYMENTS_DB_MAINNET",
+    );
     expect(generated.env.mainnet.vars).toMatchObject({
       ALLOW_MAINNET_RUNTIME: "true",
       MAINNET_GATE_APPROVED: "true",
@@ -94,6 +106,7 @@ describe("halted Mainnet deployment configuration", () => {
   it("leaves the source configuration unchanged", () => {
     const source = sourceConfig();
     buildHaltedMainnetWrangler({ ...input(), wrangler: source });
+    expect(source.d1_databases[0].binding).toBe("PAYMENTS_DB");
     expect(source.env.mainnet.vars.ALLOW_MAINNET_RUNTIME).toBe("false");
     expect(source.env.mainnet.routes).toBeUndefined();
   });

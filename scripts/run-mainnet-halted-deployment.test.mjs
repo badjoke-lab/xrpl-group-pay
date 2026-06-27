@@ -23,7 +23,7 @@ function environment() {
 }
 
 describe("halted Mainnet deployment runner", () => {
-  it("builds, deploys, verifies, and removes temporary protected files", async () => {
+  it("builds Next.js without the final gate, deploys, verifies, and cleans up", async () => {
     const runCommand = vi.fn();
     const prepareConfig = vi.fn().mockResolvedValue(undefined);
     const writeSecretFile = vi.fn().mockResolvedValue(undefined);
@@ -51,15 +51,21 @@ describe("halted Mainnet deployment runner", () => {
       }),
       { mode: 0o600 },
     );
-    expect(runCommand).toHaveBeenCalledTimes(2);
+    expect(runCommand).toHaveBeenCalledTimes(3);
     expect(runCommand.mock.calls[0][1]).toEqual([
+      "exec",
+      "next",
+      "build",
+    ]);
+    expect(runCommand.mock.calls[1][1]).toEqual([
       "exec",
       "opennextjs-cloudflare",
       "build",
+      "--skipNextBuild",
       "--config=/workspace/wrangler.mainnet-halted.jsonc",
       "--env=mainnet",
     ]);
-    expect(runCommand.mock.calls[1][1]).toEqual([
+    expect(runCommand.mock.calls[2][1]).toEqual([
       "exec",
       "opennextjs-cloudflare",
       "deploy",
@@ -84,7 +90,7 @@ describe("halted Mainnet deployment runner", () => {
     );
   });
 
-  it("retries public verification without redeploying", async () => {
+  it("retries public verification without rebuilding or redeploying", async () => {
     const verify = vi
       .fn()
       .mockRejectedValueOnce(new Error("not ready"))
@@ -102,7 +108,7 @@ describe("halted Mainnet deployment runner", () => {
       wait,
     });
 
-    expect(runCommand).toHaveBeenCalledTimes(2);
+    expect(runCommand).toHaveBeenCalledTimes(3);
     expect(verify).toHaveBeenCalledTimes(2);
     expect(wait).toHaveBeenCalledWith(10_000);
   });
