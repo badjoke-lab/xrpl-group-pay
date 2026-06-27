@@ -91,6 +91,60 @@ export function deriveMainnetReleaseStage(records) {
   return "final-release-audit";
 }
 
+function assertCommittedMainnetTarget({
+  wrangler,
+  releaseConfigurationAccepted,
+  sourceTag,
+}) {
+  const mainnet = wrangler?.env?.mainnet;
+  const vars = mainnet?.vars;
+  if (!vars) throw new Error("Wrangler Mainnet variables are missing.");
+
+  const expected = releaseConfigurationAccepted
+    ? {
+        ALLOW_MAINNET_RUNTIME: "true",
+        MAINNET_GATE_APPROVED: "true",
+        MAINNET_SOURCE_TAG_APPROVED: "true",
+        MAINNET_RELEASE_MODE: "internal",
+        MAINNET_OPERATIONS_MODE: "halted",
+        PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
+      }
+    : {
+        ALLOW_MAINNET_RUNTIME: "false",
+        MAINNET_GATE_APPROVED: "false",
+        MAINNET_SOURCE_TAG_APPROVED: "false",
+        MAINNET_RELEASE_MODE: "disabled",
+        MAINNET_OPERATIONS_MODE: "halted",
+        PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
+      };
+
+  for (const [name, value] of Object.entries(expected)) {
+    if (vars[name] !== value) {
+      throw new Error(`Prepared release plan requires ${name}=${value}.`);
+    }
+  }
+
+  if (vars.ALLOW_MAINNET_BUILD && vars.ALLOW_MAINNET_BUILD !== "false") {
+    throw new Error("Prepared release plan requires Mainnet build access closed.");
+  }
+
+  if (Number(vars.XRPL_MAINNET_SOURCE_TAG) !== sourceTag.source_tag) {
+    throw new Error("Mainnet release plan Source Tag is inconsistent.");
+  }
+
+  if (releaseConfigurationAccepted) {
+    const customDomain = mainnet.routes?.some(
+      (route) =>
+        route.pattern === "xgp.badjoke-lab.com" && route.custom_domain === true,
+    );
+    if (!customDomain || mainnet.workers_dev !== false) {
+      throw new Error(
+        "Accepted release configuration requires the reviewed custom domain target.",
+      );
+    }
+  }
+}
+
 export function assertMainnetReleasePlan({
   plan,
   evidence,
@@ -190,39 +244,27 @@ export function assertMainnetReleasePlan({
     }
   }
 
+  const releaseConfigurationAccepted =
+    evidenceById.get("production-release-configuration").status === "accepted";
   const wrangler = parseJsonc(wranglerSource);
-  const vars = wrangler?.env?.mainnet?.vars;
-  if (!vars) throw new Error("Wrangler Mainnet variables are missing.");
-  const closedValues = {
-    ALLOW_MAINNET_RUNTIME: "false",
-    MAINNET_GATE_APPROVED: "false",
-    MAINNET_SOURCE_TAG_APPROVED: "false",
-    MAINNET_RELEASE_MODE: "disabled",
-    MAINNET_OPERATIONS_MODE: "halted",
-    PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
-  };
-  for (const [name, value] of Object.entries(closedValues)) {
-    if (vars[name] !== value) {
-      throw new Error(`Prepared release plan requires ${name}=${value}.`);
-    }
-  }
-  if (vars.ALLOW_MAINNET_BUILD && vars.ALLOW_MAINNET_BUILD !== "false") {
-    throw new Error("Prepared release plan requires Mainnet build access closed.");
-  }
-  if (
-    Number(vars.XRPL_MAINNET_SOURCE_TAG) !== sourceTag.source_tag ||
-    plan.staged_target?.source_tag !== sourceTag.source_tag
-  ) {
+  assertCommittedMainnetTarget({
+    wrangler,
+    releaseConfigurationAccepted,
+    sourceTag,
+  });
+
+  if (plan.staged_target?.source_tag !== sourceTag.source_tag) {
     throw new Error("Mainnet release plan Source Tag is inconsistent.");
   }
   if (
-    plan.staged_target?.committed !== false ||
+    plan.staged_target?.committed !== releaseConfigurationAccepted ||
     plan.staged_target?.public_url_required !== true ||
     plan.staged_target?.initial_release_mode !== "internal" ||
     plan.staged_target?.initial_operations_mode !== "halted"
   ) {
     throw new Error("Mainnet staged target is unsafe.");
   }
+
   const reset = plan.safe_reset;
   if (
     reset?.allow_mainnet_build !== false ||
