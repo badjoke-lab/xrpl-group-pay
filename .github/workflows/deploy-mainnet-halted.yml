@@ -1,0 +1,76 @@
+name: Deploy Mainnet Halted
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type DEPLOY XRPL GROUP PAY MAINNET HALTED
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xrpl-group-pay-mainnet-halted-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy and verify halted Mainnet target
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: mainnet-halted-deployment
+      url: https://xgp.badjoke-lab.com
+    steps:
+      - name: Require default branch
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          test "$GITHUB_REF_NAME" = "$DEFAULT_BRANCH"
+
+      - name: Check out default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify halted deployment stage
+        run: |
+          pnpm check:production-target
+          pnpm check:mainnet-release-plan
+          pnpm check:mainnet-evidence
+          pnpm check:mainnet-acceptance
+
+      - name: Deploy and verify halted target
+        env:
+          MAINNET_HALTED_DEPLOYMENT_CONFIRMATION: ${{ inputs.confirmation }}
+          MAINNET_HALTED_DEPLOYMENT_REPORT_PATH: ${{ runner.temp }}/mainnet-halted-deployment-report.json
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          MAINNET_XAMAN_API_KEY: ${{ secrets.MAINNET_XAMAN_API_KEY }}
+          MAINNET_XAMAN_API_SECRET: ${{ secrets.MAINNET_XAMAN_API_SECRET }}
+        run: node scripts/run-mainnet-halted-deployment.mjs
+
+      - name: Upload public-safe deployment report
+        uses: actions/upload-artifact@v4
+        with:
+          name: mainnet-halted-deployment-${{ github.run_id }}
+          path: ${{ runner.temp }}/mainnet-halted-deployment-report.json
+          if-no-files-found: error
+          retention-days: 7
