@@ -52,6 +52,7 @@
       "vars": {
         "APP_NETWORK": "mainnet",
         "NEXT_PUBLIC_APP_NETWORK": "mainnet",
+        "NEXT_PUBLIC_APP_URL": "https://xgp.badjoke-lab.com",
         "ALLOW_MAINNET_RUNTIME": "false",
         "MAINNET_GATE_APPROVED": "false",
         "XRPL_MAINNET_SOURCE_TAG": "2171267705",
