@@ -15,10 +15,47 @@ function json(body, status = 200) {
   });
 }
 
-async function fixture() {
+function runtimeConfig(overrides = {}) {
+  return {
+    env: {
+      mainnet: {
+        name: "xrpl-group-pay-mainnet",
+        workers_dev: false,
+        routes: [
+          { pattern: "xgp.badjoke-lab.com", custom_domain: true },
+        ],
+        vars: {
+          APP_NETWORK: "mainnet",
+          NEXT_PUBLIC_APP_NETWORK: "mainnet",
+          NEXT_PUBLIC_APP_URL: "https://xgp.badjoke-lab.com",
+          ALLOW_MAINNET_RUNTIME: "true",
+          MAINNET_GATE_APPROVED: "true",
+          MAINNET_SOURCE_TAG_APPROVED: "true",
+          XRPL_MAINNET_SOURCE_TAG: "2171267705",
+          MAINNET_RELEASE_MODE: "internal",
+          MAINNET_OPERATIONS_MODE: "halted",
+          PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
+          ...overrides,
+        },
+        d1_databases: [
+          {
+            binding: "PAYMENTS_DB_MAINNET",
+            database_id: "11111111-1111-4111-8111-111111111111",
+            preview_database_id: "22222222-2222-4222-8222-222222222222",
+          },
+        ],
+      },
+    },
+  };
+}
+
+async function fixture(overrides = {}) {
   const directory = await mkdtemp(join(tmpdir(), "xgp-halted-"));
   const configPath = join(directory, "wrangler.mainnet-halted.jsonc");
-  await writeFile(configPath, '{"env":{"mainnet":{}}}\n');
+  await writeFile(
+    configPath,
+    `${JSON.stringify(runtimeConfig(overrides), null, 2)}\n`,
+  );
   return { directory, configPath };
 }
 
@@ -85,6 +122,7 @@ describe("halted Mainnet deployment verification", () => {
         state: "verified",
         git_sha: SHA,
         checks: {
+          runtime_configuration_checked: true,
           operations_halted: true,
           payment_creation_blocked: true,
           payment_verification_blocked: true,
@@ -93,6 +131,24 @@ describe("halted Mainnet deployment verification", () => {
         },
       });
       expect(report).not.toHaveProperty("evidence_patch");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects staged configuration drift before any public request", async () => {
+    const { directory, configPath } = await fixture({
+      MAINNET_RELEASE_MODE: "public",
+    });
+    const request = fetcher();
+    try {
+      await expect(
+        verifyMainnetHaltedDeployment({
+          environment: environment(configPath),
+          fetcher: request,
+        }),
+      ).rejects.toThrow("runtime configuration is invalid");
+      expect(request).not.toHaveBeenCalled();
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
