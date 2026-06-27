@@ -7,8 +7,7 @@ export function assertMainnetXamanAttestationConfig(config) {
     config?.api_base_url !== "https://xumm.app/api/v1/platform" ||
     config?.payload?.transaction_type !== "SignIn" ||
     config?.payload?.force_network !== "MAINNET" ||
-    config?.payload?.submit !== false ||
-    config?.payload?.expire_minutes !== 5
+    config?.payload?.request_shape !== "minimal"
   ) {
     throw new Error("Mainnet Xaman attestation configuration is invalid.");
   }
