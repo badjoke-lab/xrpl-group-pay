@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import {
   assertCancellationResult,
   assertSafeSignInStatus,
-  assertSafelyCancelled,
   requestXamanJson,
 } from "./mainnet-xaman-attestation-http.mjs";
 
@@ -14,28 +13,21 @@ function json(body, status) {
   });
 }
 
-function status(meta, response) {
-  return {
-    meta,
-    payload: {
-      tx_type: "SignIn",
-      request_json: { TransactionType: "SignIn" },
-    },
-    response,
-  };
-}
-
 function unresolved(response) {
-  return status(
-    {
+  return {
+    meta: {
       submit: false,
       resolved: false,
       signed: false,
       cancelled: false,
       expired: false,
     },
+    payload: {
+      tx_type: "SignIn",
+      request_json: { TransactionType: "SignIn" },
+    },
     response,
-  );
+  };
 }
 
 describe("Mainnet Xaman HTTP diagnostics", () => {
@@ -100,33 +92,18 @@ describe("Mainnet Xaman SignIn status validation", () => {
     ).toThrow("Xaman initial status contains ledger submission data.");
   });
 
-  it("accepts a cancelled SignIn even when Xaman marks it resolved", () => {
-    expect(() =>
-      assertSafelyCancelled(
-        status(
-          {
-            submit: false,
-            resolved: true,
-            signed: false,
-            cancelled: true,
-            expired: true,
-          },
-          { txid: false, hex: "", account: null },
-        ),
-      ),
-    ).not.toThrow();
-  });
-
-  it("validates the Xaman cancellation response", () => {
+  it("validates the authoritative Xaman cancellation response", () => {
     expect(() =>
       assertCancellationResult({
         result: { cancelled: true, reason: "OK" },
+        meta: { signed: false, cancelled: true, expired: false },
       }),
     ).not.toThrow();
     expect(() =>
       assertCancellationResult({
         result: { cancelled: false, reason: "ALREADY_OPENED" },
+        meta: { signed: false, cancelled: false, expired: false },
       }),
-    ).toThrow("Xaman did not confirm payload cancellation.");
+    ).toThrow("Xaman did not confirm a safe payload cancellation.");
   });
 });

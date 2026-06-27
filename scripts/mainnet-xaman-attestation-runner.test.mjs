@@ -49,7 +49,7 @@ function json(body, status = 200) {
   });
 }
 
-function unresolved(extra = {}, response = { txid: null, hex: null, account: null }) {
+function unresolved(response = { txid: null, hex: null, account: null }) {
   return {
     meta: {
       exists: true,
@@ -59,7 +59,6 @@ function unresolved(extra = {}, response = { txid: null, hex: null, account: nul
       signed: false,
       cancelled: false,
       expired: false,
-      ...extra,
     },
     payload: {
       tx_type: "SignIn",
@@ -86,18 +85,19 @@ function successfulFetcher() {
     )
     .mockResolvedValueOnce(json({ uuid: PAYLOAD_ID }))
     .mockResolvedValueOnce(
-      json(unresolved({}, { txid: "", hex: false, account: null })),
+      json(unresolved({ txid: "", hex: false, account: null })),
     )
     .mockResolvedValueOnce(
-      json({ result: { cancelled: true, reason: "OK" } }),
-    )
-    .mockResolvedValueOnce(
-      json(
-        unresolved(
-          { resolved: true, cancelled: true, expired: true },
-          { txid: false, hex: "", account: null },
-        ),
-      ),
+      json({
+        result: { cancelled: true, reason: "OK" },
+        meta: {
+          submit: false,
+          resolved: false,
+          signed: false,
+          cancelled: true,
+          expired: false,
+        },
+      }),
     );
 }
 
@@ -121,18 +121,16 @@ describe("Mainnet Xaman attestation runner", () => {
       now: () => new Date("2026-06-26T07:00:00.000Z"),
     });
 
-    expect(fetcher).toHaveBeenCalledTimes(5);
+    expect(fetcher).toHaveBeenCalledTimes(4);
     expect(fetcher.mock.calls.map((call) => call[1].method)).toEqual([
       "GET",
       "POST",
       "GET",
       "DELETE",
-      "GET",
     ]);
     expect(fetcher.mock.calls.map((call) => call[0])).toEqual([
       `${API_BASE}/ping`,
       `${API_BASE}/payload`,
-      `${API_BASE}/payload/${PAYLOAD_ID}`,
       `${API_BASE}/payload/${PAYLOAD_ID}`,
       `${API_BASE}/payload/${PAYLOAD_ID}`,
     ]);
