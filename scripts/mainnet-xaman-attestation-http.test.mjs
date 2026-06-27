@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  assertCancellationResult,
   assertSafeSignInStatus,
+  assertSafelyCancelled,
   requestXamanJson,
 } from "./mainnet-xaman-attestation-http.mjs";
 
@@ -12,21 +14,28 @@ function json(body, status) {
   });
 }
 
-function unresolved(response) {
+function status(meta, response) {
   return {
-    meta: {
-      submit: false,
-      resolved: false,
-      signed: false,
-      cancelled: false,
-      expired: false,
-    },
+    meta,
     payload: {
       tx_type: "SignIn",
       request_json: { TransactionType: "SignIn" },
     },
     response,
   };
+}
+
+function unresolved(response) {
+  return status(
+    {
+      submit: false,
+      resolved: false,
+      signed: false,
+      cancelled: false,
+      expired: false,
+    },
+    response,
+  );
 }
 
 describe("Mainnet Xaman HTTP diagnostics", () => {
@@ -73,10 +82,10 @@ describe("Mainnet Xaman HTTP diagnostics", () => {
 });
 
 describe("Mainnet Xaman SignIn status validation", () => {
-  it("accepts null and empty response placeholders on an unresolved SignIn", () => {
+  it("accepts null, false, and empty unresolved response placeholders", () => {
     expect(() =>
       assertSafeSignInStatus(
-        unresolved({ txid: "", hex: "   ", account: null }),
+        unresolved({ txid: "", hex: false, account: null }),
         "initial",
       ),
     ).not.toThrow();
@@ -89,5 +98,35 @@ describe("Mainnet Xaman SignIn status validation", () => {
         "initial",
       ),
     ).toThrow("Xaman initial status contains ledger submission data.");
+  });
+
+  it("accepts a cancelled SignIn even when Xaman marks it resolved", () => {
+    expect(() =>
+      assertSafelyCancelled(
+        status(
+          {
+            submit: false,
+            resolved: true,
+            signed: false,
+            cancelled: true,
+            expired: true,
+          },
+          { txid: false, hex: "", account: null },
+        ),
+      ),
+    ).not.toThrow();
+  });
+
+  it("validates the Xaman cancellation response", () => {
+    expect(() =>
+      assertCancellationResult({
+        result: { cancelled: true, reason: "OK" },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertCancellationResult({
+        result: { cancelled: false, reason: "ALREADY_OPENED" },
+      }),
+    ).toThrow("Xaman did not confirm payload cancellation.");
   });
 });
