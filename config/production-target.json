@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "network": "mainnet",
+  "public_origin": "https://xgp.badjoke-lab.com",
+  "xaman_callback_path": "/api/xaman/callback",
+  "xaman_callback_url": "https://xgp.badjoke-lab.com/api/xaman/callback",
+  "domain_connection": "pending",
+  "deployment": "not_deployed",
+  "release_mode": "disabled",
+  "operations_mode": "halted"
+}

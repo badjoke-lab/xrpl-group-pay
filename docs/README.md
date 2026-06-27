@@ -2,7 +2,7 @@
 
 **Status:** Active  
 **Scope:** Public documentation map and precedence rules  
-**Last reviewed:** 2026-06-26  
+**Last reviewed:** 2026-06-27  
 **Document class:** Public
 
 ## 1. Purpose
@@ -51,6 +51,8 @@ These documents define approved behavior. They may describe target behavior that
 - `mainnet-operational-controls.md` — Mainnet enabled, verify-only, and halted runtime behavior.
 - `mainnet-acceptance-audit.md` — final cross-control audit, current release decision, unresolved findings, and approval procedure.
 - `mainnet-release-evidence.md` — non-secret production evidence contracts, acceptance fields, and update discipline.
+- `mainnet-production-target.md` — fixed public origin, guarded Xaman callback boundary, and halted deployment sequence.
+- `mainnet-xaman-attestation.md` — provider credential, application configuration, callback alignment, and safe lifecycle attestation.
 
 Any change to custody, asset identity, wallet authority, expected payment facts, ledger verification, receipt compatibility, public proof, Mainnet operations, release evidence, or release acceptance requires all affected documents in this section to be updated before implementation.
 
