@@ -23,7 +23,7 @@ function environment() {
 }
 
 describe("halted Mainnet deployment runner", () => {
-  it("passes Wrangler deployment options directly to OpenNext", async () => {
+  it("builds with OpenNext and deploys the generated Worker with Wrangler", async () => {
     const runCommand = vi.fn();
     const prepareConfig = vi.fn().mockResolvedValue(undefined);
     const writeSecretFile = vi.fn().mockResolvedValue(undefined);
@@ -67,13 +67,12 @@ describe("halted Mainnet deployment runner", () => {
     ]);
     expect(runCommand.mock.calls[2][1]).toEqual([
       "exec",
-      "opennextjs-cloudflare",
+      "wrangler",
       "deploy",
       "--config=/workspace/wrangler.mainnet-halted.jsonc",
       "--env=mainnet",
       "--secrets-file=/runner-temp/mainnet-worker-secrets.json",
     ]);
-    expect(runCommand.mock.calls[2][1]).not.toContain("--");
     expect(verify).toHaveBeenCalledWith({
       environment: expect.objectContaining({
         MAINNET_RELEASE_MODE: "internal",
