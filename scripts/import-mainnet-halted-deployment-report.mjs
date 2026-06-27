@@ -4,6 +4,14 @@ import { resolve } from "node:path";
 
 import { applyMainnetHaltedDeploymentReport } from "./mainnet-halted-deployment-report.mjs";
 
+function parseJsonc(source) {
+  return JSON.parse(
+    source
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1"),
+  );
+}
+
 function parseArguments(argv) {
   const values = new Map();
   for (let index = 0; index < argv.length; index += 1) {
@@ -29,6 +37,11 @@ function parseArguments(argv) {
     releasePlanPath:
       values.get("release-plan") ??
       resolve(process.cwd(), "config/mainnet-release-plan.json"),
+    wranglerPath:
+      values.get("wrangler") ?? resolve(process.cwd(), "wrangler.jsonc"),
+    productionTargetPath:
+      values.get("production-target") ??
+      resolve(process.cwd(), "config/production-target.json"),
   };
 }
 
@@ -42,13 +55,21 @@ export async function importMainnetHaltedDeploymentReport(options = {}) {
   if (!options.reportPath) throw new Error("--report is required.");
   const expectedGitSha = options.expectedGitSha ?? currentGitSha();
 
-  const [reportSource, evidenceSource, acceptanceSource, releasePlanSource] =
-    await Promise.all([
-      readFile(resolve(options.reportPath), "utf8"),
-      readFile(options.evidencePath, "utf8"),
-      readFile(options.acceptancePath, "utf8"),
-      readFile(options.releasePlanPath, "utf8"),
-    ]);
+  const [
+    reportSource,
+    evidenceSource,
+    acceptanceSource,
+    releasePlanSource,
+    wranglerSource,
+    productionTargetSource,
+  ] = await Promise.all([
+    readFile(resolve(options.reportPath), "utf8"),
+    readFile(options.evidencePath, "utf8"),
+    readFile(options.acceptancePath, "utf8"),
+    readFile(options.releasePlanPath, "utf8"),
+    readFile(options.wranglerPath, "utf8"),
+    readFile(options.productionTargetPath, "utf8"),
+  ]);
 
   const result = applyMainnetHaltedDeploymentReport({
     report: JSON.parse(reportSource),
@@ -56,6 +77,8 @@ export async function importMainnetHaltedDeploymentReport(options = {}) {
     evidence: JSON.parse(evidenceSource),
     acceptance: JSON.parse(acceptanceSource),
     releasePlan: JSON.parse(releasePlanSource),
+    wrangler: parseJsonc(wranglerSource),
+    productionTarget: JSON.parse(productionTargetSource),
   });
 
   await Promise.all([
@@ -67,6 +90,11 @@ export async function importMainnetHaltedDeploymentReport(options = {}) {
     writeFile(
       options.releasePlanPath,
       `${JSON.stringify(result.releasePlan, null, 2)}\n`,
+    ),
+    writeFile(options.wranglerPath, `${JSON.stringify(result.wrangler, null, 2)}\n`),
+    writeFile(
+      options.productionTargetPath,
+      `${JSON.stringify(result.productionTarget, null, 2)}\n`,
     ),
   ]);
 
