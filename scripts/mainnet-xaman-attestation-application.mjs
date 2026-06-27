@@ -8,7 +8,7 @@ export function assertMainnetXamanAttestationConfig(config) {
     config?.payload?.transaction_type !== "SignIn" ||
     config?.payload?.force_network !== "MAINNET" ||
     config?.payload?.submit !== false ||
-    config?.payload?.expire_minutes !== 1
+    config?.payload?.expire_minutes !== 5
   ) {
     throw new Error("Mainnet Xaman attestation configuration is invalid.");
   }

@@ -24,7 +24,7 @@ function config() {
       transaction_type: "SignIn",
       force_network: "MAINNET",
       submit: false,
-      expire_minutes: 1,
+      expire_minutes: 5,
       instruction: "Provider attestation",
     },
   };
@@ -134,7 +134,7 @@ describe("Mainnet Xaman attestation runner", () => {
     const createRequest = JSON.parse(fetcher.mock.calls[1][1].body);
     expect(createRequest).toMatchObject({
       txjson: { TransactionType: "SignIn" },
-      options: { submit: false, expire: 1, force_network: "MAINNET" },
+      options: { submit: false, expire: 5, force_network: "MAINNET" },
     });
     expect(createRequest.txjson.TransactionType).not.toBe("Payment");
 

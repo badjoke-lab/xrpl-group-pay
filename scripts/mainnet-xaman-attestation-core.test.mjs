@@ -13,7 +13,7 @@ describe("Mainnet Xaman SignIn attestation request", () => {
       txjson: { TransactionType: "SignIn" },
       options: {
         submit: false,
-        expire: 1,
+        expire: 5,
         force_network: "MAINNET",
       },
       custom_meta: {

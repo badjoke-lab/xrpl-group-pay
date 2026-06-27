@@ -1,4 +1,7 @@
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_IN_TEXT = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/gi;
+const LONG_HEX_IN_TEXT = /\b[0-9a-f]{32,}\b/gi;
+const URL_IN_TEXT = /https?:\/\/\S+/gi;
 
 export function xamanAuthHeaders(apiKey, apiSecret) {
   return {
@@ -7,6 +10,26 @@ export function xamanAuthHeaders(apiKey, apiSecret) {
     "X-API-Key": apiKey,
     "X-API-Secret": apiSecret,
   };
+}
+
+function publicXamanErrorDetail(body) {
+  if (!body || typeof body !== "object") return "";
+  const error = body.error;
+  const candidates = [
+    typeof error === "object" && error ? error.code : null,
+    typeof error === "object" && error ? error.message : null,
+    typeof error === "string" ? error : null,
+    typeof body.message === "string" ? body.message : null,
+  ];
+  const detail = candidates
+    .filter((value) => typeof value === "string" && value.trim())
+    .map((value) => value.trim())
+    .join(": ")
+    .slice(0, 240)
+    .replace(UUID_IN_TEXT, "[redacted-id]")
+    .replace(LONG_HEX_IN_TEXT, "[redacted-token]")
+    .replace(URL_IN_TEXT, "[redacted-url]");
+  return detail ? ` (${detail})` : "";
 }
 
 export async function requestXamanJson(fetcher, url, init, label) {
@@ -22,7 +45,9 @@ export async function requestXamanJson(fetcher, url, init, label) {
   }
   const body = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(`${label} was rejected by Xaman with status ${response.status}.`);
+    throw new Error(
+      `${label} was rejected by Xaman with status ${response.status}${publicXamanErrorDetail(body)}.`,
+    );
   }
   if (!body || typeof body !== "object") {
     throw new Error(`${label} returned invalid JSON.`);
