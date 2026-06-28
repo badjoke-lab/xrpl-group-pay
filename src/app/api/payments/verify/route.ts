@@ -1,6 +1,11 @@
 import { z } from "zod";
 
 import {
+  assertMainnetInternalAuthorization,
+  MainnetInternalAuthorizationConfigurationError,
+  MainnetInternalAuthorizationError,
+} from "@/config/mainnet-internal-auth";
+import {
   assertPaymentOperationAllowed,
   PaymentOperationsConfigurationError,
   PaymentOperationsHaltedError,
@@ -45,12 +50,14 @@ export type VerificationRouteDependencies = {
   verifyAndRecord(
     paymentToken: string,
     payloadId: string,
+    request: Request,
   ): Promise<AssetPaymentVerificationApiOutcome>;
 };
 
 const defaultDependencies: VerificationRouteDependencies = {
-  async verifyAndRecord(paymentToken, payloadId) {
+  async verifyAndRecord(paymentToken, payloadId, request) {
     assertPaymentOperationAllowed(process.env, "verify");
+    assertMainnetInternalAuthorization(process.env, request.headers);
     const database = await getPaymentsDatabase();
     const environment = getXamanEnvironment();
     const slot = await loadPaymentSlotByToken(database, paymentToken);
@@ -175,6 +182,7 @@ export async function handleVerificationRequest(
     const outcome = await dependencies.verifyAndRecord(
       rawInput.paymentToken,
       rawInput.payloadId,
+      request,
     );
     if (outcome.status === "pending") return json(outcome, 202);
     if (outcome.status === "failed") return json(outcome, 422);
@@ -194,7 +202,16 @@ export async function handleVerificationRequest(
         { "Retry-After": "60" },
       );
     }
-    if (error instanceof PaymentOperationsConfigurationError) {
+    if (error instanceof MainnetInternalAuthorizationError) {
+      return json(
+        { error: { code: error.code, message: error.message } },
+        404,
+      );
+    }
+    if (
+      error instanceof PaymentOperationsConfigurationError ||
+      error instanceof MainnetInternalAuthorizationConfigurationError
+    ) {
       return json(
         {
           error: {
