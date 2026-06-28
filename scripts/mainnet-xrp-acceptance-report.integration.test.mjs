@@ -175,12 +175,15 @@ describe("Mainnet XRP acceptance evidence import", () => {
         SHA,
       ),
     ).toThrow();
+
+    const mismatchedReceipt = `mainnet:${"D".repeat(64)}`;
+    const invalidReceiptReport = report();
+    invalidReceiptReport.receipt_id = mismatchedReceipt;
+    invalidReceiptReport.evidence_patch.receipt_id = mismatchedReceipt;
     expect(() =>
-      validateMainnetXrpAcceptanceReport(
-        { ...report(), receipt_id: `mainnet:${"D".repeat(64)}` },
-        SHA,
-      ),
+      validateMainnetXrpAcceptanceReport(invalidReceiptReport, SHA),
     ).toThrow("receipt identity");
+
     expect(() => validateMainnetXrpAcceptanceReport(report(), "d".repeat(40))).toThrow(
       "commit does not match",
     );
