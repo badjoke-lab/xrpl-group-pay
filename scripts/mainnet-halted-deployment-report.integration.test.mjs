@@ -117,10 +117,17 @@ async function repositoryState() {
 }
 
 describe("halted Mainnet deployment report import", () => {
-  it("advances to live XRP acceptance while keeping operations halted", async () => {
+  it("replays accepted evidence while keeping operations halted", async () => {
     const state = await repositoryState();
+    const acceptedReleaseConfiguration = state.evidence.records.find(
+      (record) => record.id === "production-release-configuration",
+    );
+    const replayReport = report();
+    replayReport.generated_at = acceptedReleaseConfiguration.recorded_at;
+    replayReport.evidence_patch = structuredClone(acceptedReleaseConfiguration);
+
     const result = applyMainnetHaltedDeploymentReport({
-      report: report(),
+      report: replayReport,
       expectedGitSha: SHA,
       ...state,
     });
