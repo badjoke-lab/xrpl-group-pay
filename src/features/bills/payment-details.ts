@@ -1,7 +1,10 @@
 import { z } from "zod";
 
 import { getXrpAssetDescriptor } from "@/features/assets/registry";
-import { assetDescriptorSchema } from "@/features/assets/types";
+import {
+  assetDescriptorSchema,
+  xrplNetworkSchema,
+} from "@/features/assets/types";
 import { moneyAmountSchema } from "@/features/money/types";
 import type { D1DatabaseLike } from "@/features/persistence/d1-types";
 
@@ -21,12 +24,12 @@ const commonPaymentDetailsShape = {
   destinationTag: z.number().int().min(0).max(4_294_967_295).nullable(),
   sourceTag: z.number().int().min(0).max(4_294_967_295),
   invoiceId: z.string().regex(/^[A-F0-9]{64}$/),
-  network: z.literal("testnet"),
 } as const;
 
 const canonicalPaymentDetailsSchema = z
   .object({
     ...commonPaymentDetailsShape,
+    network: xrplNetworkSchema,
     asset: assetDescriptorSchema,
     amount: moneyAmountSchema,
     amountDrops: legacyDropsSchema,
@@ -79,6 +82,7 @@ const canonicalPaymentDetailsSchema = z
 const legacyXrpPaymentDetailsSchema = z
   .object({
     ...commonPaymentDetailsShape,
+    network: z.literal("testnet"),
     amountDrops: positiveUnitsSchema,
   })
   .strict()
