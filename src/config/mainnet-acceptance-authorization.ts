@@ -11,9 +11,11 @@ const rawEnvironmentSchema = z.object({
     .enum(["halted", "verify-only", "enabled"])
     .optional(),
   MAINNET_ACCEPTANCE_AUTH_DIGEST: digestSchema.optional(),
+  MAINNET_ACCEPTANCE_EXPIRES_AT: z.string().datetime().optional(),
 });
 
 const bearerTokenPattern = /^[A-Za-z0-9_-]{43,128}$/;
+const MAX_INTERNAL_WINDOW_MILLISECONDS = 30 * 60 * 1000;
 
 export class MainnetAcceptanceAuthorizationError extends Error {
   readonly code = "MAINNET_ACCEPTANCE_UNAUTHORIZED" as const;
@@ -66,14 +68,16 @@ export type MainnetAcceptanceAuthorizationState = {
   network: "testnet" | "mainnet";
   releaseMode: "disabled" | "internal" | "limited" | "public";
   operationsMode: "halted" | "verify-only" | "enabled";
+  expiresAt: string | null;
 };
 
 export async function assertMainnetAcceptanceAuthorized(
   request: Request,
   environment: Record<string, string | undefined> = process.env,
+  now = new Date(),
 ): Promise<MainnetAcceptanceAuthorizationState> {
   const parsed = rawEnvironmentSchema.safeParse(environment);
-  if (!parsed.success) {
+  if (!parsed.success || !Number.isFinite(now.getTime())) {
     throw new MainnetAcceptanceAuthorizationConfigurationError();
   }
 
@@ -88,12 +92,11 @@ export async function assertMainnetAcceptanceAuthorized(
     network === "mainnet" &&
     parsed.data.MAINNET_RELEASE_MODE === "internal" &&
     operationsMode !== "halted";
+  const expectedDigest = parsed.data.MAINNET_ACCEPTANCE_AUTH_DIGEST;
+  const expiresAt = parsed.data.MAINNET_ACCEPTANCE_EXPIRES_AT;
 
   if (!controlled) {
-    if (
-      network === "testnet" &&
-      parsed.data.MAINNET_ACCEPTANCE_AUTH_DIGEST !== undefined
-    ) {
+    if (expectedDigest !== undefined || expiresAt !== undefined) {
       throw new MainnetAcceptanceAuthorizationConfigurationError();
     }
     return {
@@ -101,11 +104,20 @@ export async function assertMainnetAcceptanceAuthorized(
       network,
       releaseMode: parsed.data.MAINNET_RELEASE_MODE,
       operationsMode,
+      expiresAt: null,
     };
   }
 
-  const expectedDigest = parsed.data.MAINNET_ACCEPTANCE_AUTH_DIGEST;
-  if (!expectedDigest) {
+  if (!expectedDigest || !expiresAt) {
+    throw new MainnetAcceptanceAuthorizationConfigurationError();
+  }
+  const deadline = new Date(expiresAt).getTime();
+  const current = now.getTime();
+  if (
+    !Number.isFinite(deadline) ||
+    deadline <= current ||
+    deadline - current > MAX_INTERNAL_WINDOW_MILLISECONDS
+  ) {
     throw new MainnetAcceptanceAuthorizationConfigurationError();
   }
 
@@ -119,5 +131,6 @@ export async function assertMainnetAcceptanceAuthorized(
     network,
     releaseMode: parsed.data.MAINNET_RELEASE_MODE,
     operationsMode,
+    expiresAt,
   };
 }
