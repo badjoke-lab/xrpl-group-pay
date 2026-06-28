@@ -4,8 +4,8 @@
   "public_origin": "https://xgp.badjoke-lab.com",
   "xaman_callback_path": "/api/xaman/callback",
   "xaman_callback_url": "https://xgp.badjoke-lab.com/api/xaman/callback",
-  "domain_connection": "pending",
-  "deployment": "not_deployed",
-  "release_mode": "disabled",
+  "domain_connection": "connected",
+  "deployment": "deployed",
+  "release_mode": "internal",
   "operations_mode": "halted"
 }
