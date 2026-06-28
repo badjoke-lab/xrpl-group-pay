@@ -84,6 +84,7 @@ export type XamanPaymentPayloadRequest = {
     expire: number;
     force_network: XamanForceNetwork;
   };
+  user_token?: string;
 };
 
 export function buildTestnetPaymentPayload(
