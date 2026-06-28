@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
+import {
+  PaymentOperationsConfigurationError,
+  PaymentOperationsHaltedError,
+} from "@/config/payment-operations";
 import { BillDatabaseError, BillInputError } from "@/features/bills/create-bill";
 import { CREATED_BILL_FIXTURE } from "@/test/fixtures/bill-review";
 
@@ -104,6 +108,39 @@ describe("POST /api/bills", () => {
     );
     expect(oversized.status).toBe(413);
     expect(deps.createBill).not.toHaveBeenCalled();
+  });
+
+  it("returns a retryable halt response for blocked Mainnet creation", async () => {
+    const haltedDeps = dependencies();
+    haltedDeps.createBill.mockRejectedValue(
+      new PaymentOperationsHaltedError("create", "halted"),
+    );
+
+    const halted = await handleCreateBillRequest(request(), haltedDeps);
+
+    expect(halted.status).toBe(503);
+    expect(halted.headers.get("retry-after")).toBe("60");
+    await expect(halted.json()).resolves.toMatchObject({
+      error: {
+        code: "PAYMENT_OPERATIONS_HALTED",
+        operation: "create",
+        mode: "halted",
+      },
+    });
+  });
+
+  it("fails closed for an unsafe operations configuration", async () => {
+    const unsafeDeps = dependencies();
+    unsafeDeps.createBill.mockRejectedValue(
+      new PaymentOperationsConfigurationError(),
+    );
+
+    const response = await handleCreateBillRequest(request(), unsafeDeps);
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "PAYMENT_OPERATIONS_UNAVAILABLE" },
+    });
   });
 
   it("maps domain validation and storage failures", async () => {
