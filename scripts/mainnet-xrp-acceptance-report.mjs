@@ -52,7 +52,8 @@ const reportSchema = z
     asset_id: z.literal(ASSET_ID),
     generated_at: z.string().datetime({ offset: false }),
     git_sha: z.string().regex(/^[0-9a-f]{40}$/),
-    workflow_run_url: z.string().url(),
+    workflow_run_url: z.string().url().optional(),
+    ceremony_reference: z.string().trim().min(1).max(200).optional(),
     state: z.literal("verified"),
     public_url: z.literal(ORIGIN),
     transaction_hash: z.string().regex(TRANSACTION_HASH),
@@ -63,6 +64,7 @@ const reportSchema = z
     receipt_id: z.string().min(1),
     proof_digest: z.string().regex(PROOF_DIGEST),
     duplicate_rejected: z.literal(true),
+    duplicate_receipt_count: z.literal(1),
     replay_rejected: z.literal(true),
     operations_restored_halted: z.literal(true),
     sensitive_values_excluded: z.literal(true),
@@ -92,6 +94,27 @@ function findOne(items, id, context) {
   return matches[0];
 }
 
+function executionReference(report) {
+  const hasWorkflow = report.workflow_run_url !== undefined;
+  const hasCeremony = report.ceremony_reference !== undefined;
+  if (hasWorkflow === hasCeremony) {
+    throw new Error(
+      "The Mainnet XRP acceptance report requires exactly one workflow or human-operated ceremony reference.",
+    );
+  }
+  if (
+    hasWorkflow &&
+    !report.workflow_run_url.startsWith(
+      "https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/",
+    )
+  ) {
+    throw new Error("The Mainnet XRP acceptance workflow reference is invalid.");
+  }
+  return hasWorkflow
+    ? `GitHub Actions run ${report.workflow_run_url}`
+    : `Human-operated ceremony ${report.ceremony_reference}`;
+}
+
 export function validateMainnetXrpAcceptanceReport(rawReport, expectedGitSha) {
   assertNoSensitiveKeys(rawReport);
   const report = reportSchema.parse(rawReport);
@@ -101,9 +124,7 @@ export function validateMainnetXrpAcceptanceReport(rawReport, expectedGitSha) {
   if (report.git_sha !== expectedGitSha) {
     throw new Error("The Mainnet XRP acceptance report commit does not match.");
   }
-  if (!report.workflow_run_url.startsWith("https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/")) {
-    throw new Error("The Mainnet XRP acceptance workflow reference is invalid.");
-  }
+  executionReference(report);
   if (amount < 1n || amount > 1000n) {
     throw new Error("The Mainnet XRP acceptance amount is outside the approved range.");
   }
@@ -210,7 +231,7 @@ export function applyMainnetXrpAcceptanceReport({
 
   Object.assign(record, patch);
   evidence.updated_at = report.generated_at.slice(0, 10);
-  const summary = `GitHub Actions run ${report.workflow_run_url} verified controlled Mainnet XRP transaction ${report.transaction_hash} in validated ledger ${report.ledger_index}, recorded receipt ${report.receipt_id}, rejected duplicate and cross-slot replay, and restored halted operations from commit ${report.git_sha}`;
+  const summary = `${executionReference(report)} verified controlled Mainnet XRP transaction ${report.transaction_hash} in validated ledger ${report.ledger_index}, recorded receipt ${report.receipt_id}, prevented duplicate settlement with exactly one receipt, rejected cross-slot replay, and restored halted operations from commit ${report.git_sha}`;
   control.status = "passed";
   control.evidence = `${summary}.`;
   finding.status = "resolved";
