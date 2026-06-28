@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { MainnetAcceptanceAuthorizationError } from "@/config/mainnet-acceptance-authorization";
 import { PaymentOperationsHaltedError } from "@/config/payment-operations";
 import {
   PaymentSlotNotFoundError,
@@ -42,9 +43,13 @@ function request(body: unknown = { paymentToken }) {
 }
 
 function dependencies(): SlotPayloadRouteDependencies & {
+  authorize: ReturnType<typeof vi.fn>;
   createPayload: ReturnType<typeof vi.fn>;
 } {
-  return { createPayload: vi.fn().mockResolvedValue(payload) };
+  return {
+    authorize: vi.fn().mockResolvedValue(undefined),
+    createPayload: vi.fn().mockResolvedValue(payload),
+  };
 }
 
 describe("POST /api/payments/payload", () => {
@@ -56,6 +61,22 @@ describe("POST /api/payments/payload", () => {
     expect(response.headers.get("cache-control")).toContain("no-store");
     await expect(response.json()).resolves.toEqual(payload);
     expect(deps.createPayload).toHaveBeenCalledWith(paymentToken);
+  });
+
+  it("rejects controlled Mainnet requests before reading the capability", async () => {
+    const deps = dependencies();
+    deps.authorize.mockRejectedValue(
+      new MainnetAcceptanceAuthorizationError(),
+    );
+
+    const response = await handleCreateSlotPayloadRequest(request(), deps);
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toContain("Bearer");
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "MAINNET_ACCEPTANCE_UNAUTHORIZED" },
+    });
+    expect(deps.createPayload).not.toHaveBeenCalled();
   });
 
   it("uses a uniform not-found response for malformed capabilities", async () => {
