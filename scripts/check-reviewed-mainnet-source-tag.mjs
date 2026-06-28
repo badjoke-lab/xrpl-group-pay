@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 import {
   assertMainnetSourceTagAssignment,
+  deriveMainnetSourceTag,
 } from "./check-mainnet-source-tag.mjs";
 
 function parseJsonc(source) {
@@ -19,6 +20,24 @@ function findOne(records, id) {
     throw new Error(`Mainnet release evidence must contain one ${id}.`);
   }
   return matches[0];
+}
+
+function assertAssignment(assignment) {
+  const derived = deriveMainnetSourceTag(assignment.namespace);
+  if (
+    assignment.schema_version !== 1 ||
+    assignment.network !== "mainnet" ||
+    assignment.assignment_status !== "assigned" ||
+    assignment.approval_status !== "pending" ||
+    assignment.algorithm !== "sha256-first-u32-be-set-high-bit" ||
+    assignment.digest !== derived.digest ||
+    assignment.source_tag !== derived.sourceTag ||
+    assignment.source_tag_hex !== derived.sourceTagHex ||
+    assignment.no_testnet_fallback !== true ||
+    assignment.assignment_reference !== "config/mainnet-source-tag.json"
+  ) {
+    throw new Error("Mainnet Source Tag assignment is invalid.");
+  }
 }
 
 export function assertReviewedMainnetSourceTag({
@@ -40,6 +59,7 @@ export function assertReviewedMainnetSourceTag({
     );
   }
 
+  assertAssignment(assignment);
   const vars = wrangler?.env?.mainnet?.vars;
   if (!vars) throw new Error("Wrangler must define Mainnet variables.");
 
