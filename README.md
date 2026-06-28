@@ -125,7 +125,7 @@ pnpm build:worker
 
 Testnet and Mainnet use separate configuration, databases, XRPL endpoints, Source Tag values, and Asset Registry entries. Testnet Bills are not copied automatically to Mainnet.
 
-The Mainnet implementation has completed a repository-level acceptance audit, but the production release remains blocked pending the unresolved findings recorded in `config/mainnet-acceptance.json`. Non-secret production proof is recorded through `config/mainnet-release-evidence.json`. The committed Mainnet deployment stays disabled and operationally halted.
+The internal Mainnet Worker is deployed at `https://xgp.badjoke-lab.com` with the isolated Mainnet D1 binding and payment operations halted. Bill persistence is deployment-network-aware and rejects cross-network Asset identities. The production release remains blocked at controlled live XRP acceptance; no public Mainnet payment operation is enabled yet.
 
 ## License
 
