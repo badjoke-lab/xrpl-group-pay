@@ -4,14 +4,13 @@
   "state": "blocked",
   "review_status": "prepared",
   "release_decision": "blocked",
-  "current_stage": "live-xrp-acceptance",
+  "current_stage": "live-rlusd-acceptance",
   "accepted_foundations": [
     "production-d1-provisioning",
     "assigned-mainnet-source-tag",
     "operational-stop-drill"
   ],
   "remaining_evidence": [
-    "live-mainnet-xrp-acceptance",
     "live-mainnet-rlusd-acceptance"
   ],
   "stages": [
@@ -44,7 +43,7 @@
     {
       "id": "live-xrp-acceptance",
       "position": 4,
-      "status": "blocked",
+      "status": "complete",
       "requires": [
         "live-mainnet-xrp-acceptance"
       ]
@@ -52,7 +51,7 @@
     {
       "id": "live-rlusd-acceptance",
       "position": 5,
-      "status": "pending",
+      "status": "blocked",
       "requires": [
         "live-mainnet-rlusd-acceptance"
       ]
