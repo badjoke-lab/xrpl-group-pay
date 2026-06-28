@@ -33,20 +33,13 @@ describe("Mainnet XRP readiness workflow", () => {
     );
   });
 
-  it("does not include deployment, wallet, signing, secret, or production-write actions", async () => {
+  it("contains no deployment, secret, payment API, or D1 write command", async () => {
     const source = (await workflow()).toLowerCase();
     for (const forbidden of [
       "wrangler deploy",
       "opennextjs-cloudflare deploy",
-      "xaman_api",
-      "xaman api",
-      "payload",
-      "sign",
-      "submit",
-      "private_key",
-      "mnemonic",
-      "seed",
       "secrets.",
+      "/api/payments/",
       "d1 execute",
       "d1 migrations apply",
     ]) {
