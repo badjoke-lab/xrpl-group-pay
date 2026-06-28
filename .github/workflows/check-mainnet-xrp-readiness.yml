@@ -1,0 +1,87 @@
+name: Check Mainnet XRP Readiness
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type CHECK XRPL GROUP PAY MAINNET XRP ACCEPTANCE
+        required: true
+        type: string
+      destination_address:
+        description: Controlled Mainnet destination classic address
+        required: true
+        type: string
+      expected_payer_address:
+        description: Controlled Mainnet payer classic address
+        required: true
+        type: string
+      amount_drops:
+        description: Proposed XRP amount in drops, from 1 through 1000
+        required: true
+        default: "1"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xrpl-group-pay-mainnet-xrp-readiness
+  cancel-in-progress: false
+
+jobs:
+  readiness:
+    name: Verify non-executing Mainnet XRP preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      MAINNET_XRP_ACCEPTANCE_CONFIRMATION: ${{ inputs.confirmation }}
+      MAINNET_XRP_ACCEPTANCE_DESTINATION: ${{ inputs.destination_address }}
+      MAINNET_XRP_ACCEPTANCE_PAYER: ${{ inputs.expected_payer_address }}
+      MAINNET_XRP_ACCEPTANCE_AMOUNT_DROPS: ${{ inputs.amount_drops }}
+    steps:
+      - name: Require default branch
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: test "$GITHUB_REF_NAME" = "$DEFAULT_BRANCH"
+
+      - name: Check out default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate repository release state
+        run: |
+          pnpm check:production-target
+          pnpm check:mainnet-release-plan
+          pnpm check:mainnet-evidence
+          pnpm check:mainnet-acceptance
+
+      - name: Verify proposed controlled inputs
+        run: node scripts/check-mainnet-xrp-acceptance-readiness.mjs
+
+      - name: Record non-executing result
+        run: |
+          {
+            echo "## Mainnet XRP readiness passed"
+            echo
+            echo "The repository is at the controlled XRP acceptance stage."
+            echo "The production target remains internal and halted."
+            echo "Proposed amount: ${MAINNET_XRP_ACCEPTANCE_AMOUNT_DROPS} drops."
+            echo
+            echo "This workflow did not deploy, create a wallet request, request a signature, submit a transaction, or write production data."
+          } >> "$GITHUB_STEP_SUMMARY"
