@@ -56,8 +56,8 @@
     },
     {
       "id": "live-mainnet-xrp-acceptance",
-      "status": "pending",
-      "evidence": "No accepted live Mainnet XRP end-to-end evidence is recorded."
+      "status": "passed",
+      "evidence": "Human-operated ceremony controlled-mainnet-xrp-acceptance-2026-06-29 verified controlled Mainnet XRP transaction 7D4E2C90147C91112655516B96418BF5EB645E233A454F0CD5C23BC3F699EEEB in validated ledger 105236543, recorded receipt mainnet:7D4E2C90147C91112655516B96418BF5EB645E233A454F0CD5C23BC3F699EEEB, prevented duplicate settlement with exactly one receipt, rejected cross-slot replay, and restored halted operations from commit 17c07f119e71032069e18e3de2b37bf5b338e589."
     },
     {
       "id": "live-mainnet-rlusd-acceptance",
@@ -93,8 +93,8 @@
     },
     {
       "id": "live-xrp-acceptance-not-recorded",
-      "status": "open",
-      "evidence": "Complete a controlled Mainnet XRP payment and record validated-ledger, receipt, and Bill settlement evidence."
+      "status": "resolved",
+      "evidence": "Human-operated ceremony controlled-mainnet-xrp-acceptance-2026-06-29 verified controlled Mainnet XRP transaction 7D4E2C90147C91112655516B96418BF5EB645E233A454F0CD5C23BC3F699EEEB in validated ledger 105236543, recorded receipt mainnet:7D4E2C90147C91112655516B96418BF5EB645E233A454F0CD5C23BC3F699EEEB, prevented duplicate settlement with exactly one receipt, rejected cross-slot replay, and restored halted operations from commit 17c07f119e71032069e18e3de2b37bf5b338e589; the release remains internal and blocked pending live RLUSD acceptance."
     },
     {
       "id": "live-rlusd-acceptance-not-recorded",
