@@ -1,6 +1,16 @@
 import { ZodError } from "zod";
 
 import {
+  MainnetInternalAuthorizationConfigurationError,
+  MainnetInternalAuthorizationError,
+  assertMainnetInternalAuthorization,
+} from "@/config/mainnet-internal-auth";
+import {
+  assertPaymentOperationAllowed,
+  PaymentOperationsConfigurationError,
+  PaymentOperationsHaltedError,
+} from "@/config/payment-operations";
+import {
   BillDatabaseError,
   BillInputError,
   createPublishedBill,
@@ -17,11 +27,13 @@ export const dynamic = "force-dynamic";
 const MAX_BILL_REQUEST_BYTES = 32_768;
 
 export type BillRouteDependencies = {
-  createBill(input: CreateBillInput): Promise<CreatedBill>;
+  createBill(input: CreateBillInput, request: Request): Promise<CreatedBill>;
 };
 
 const defaultDependencies: BillRouteDependencies = {
-  async createBill(input) {
+  async createBill(input, request) {
+    assertPaymentOperationAllowed(process.env, "create");
+    assertMainnetInternalAuthorization(process.env, request.headers);
     const { database, target } = await getPaymentsDatabaseContext();
     return createPublishedBill(
       database,
@@ -33,10 +45,14 @@ const defaultDependencies: BillRouteDependencies = {
   },
 };
 
-function json(body: unknown, status: number) {
+function json(
+  body: unknown,
+  status: number,
+  headers: Record<string, string> = {},
+) {
   return Response.json(body, {
     status,
-    headers: { "Cache-Control": "no-store" },
+    headers: { "Cache-Control": "no-store", ...headers },
   });
 }
 
@@ -112,9 +128,50 @@ export async function handleCreateBillRequest(
   }
 
   try {
-    const created = await dependencies.createBill(input);
+    const created = await dependencies.createBill(input, request);
     return json(created, 201);
   } catch (error) {
+    if (error instanceof PaymentOperationsHaltedError) {
+      return json(
+        {
+          error: {
+            code: error.code,
+            operation: error.operation,
+            mode: error.mode,
+            message: error.message,
+          },
+        },
+        503,
+        { "Retry-After": "60" },
+      );
+    }
+    if (
+      error instanceof MainnetInternalAuthorizationError
+    ) {
+      return json(
+        {
+          error: {
+            code: error.code,
+            message: error.message,
+          },
+        },
+        404,
+      );
+    }
+    if (
+      error instanceof PaymentOperationsConfigurationError ||
+      error instanceof MainnetInternalAuthorizationConfigurationError
+    ) {
+      return json(
+        {
+          error: {
+            code: "BILL_CREATION_UNAVAILABLE",
+            message: error.message,
+          },
+        },
+        503,
+      );
+    }
     if (error instanceof BillInputError) {
       return json(
         { error: { code: "INVALID_BILL_INPUT", message: error.message } },
