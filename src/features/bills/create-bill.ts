@@ -1,7 +1,15 @@
 import { isValidClassicAddress } from "xrpl";
 
-import { assetRegistry, AssetRegistryError } from "@/features/assets/registry";
-import type { AssetDescriptor } from "@/features/assets/types";
+import {
+  assetRegistry,
+  AssetRegistryError,
+  XRPL_XRP_ASSET_IDS,
+} from "@/features/assets/registry";
+import { XRPL_RLUSD_ASSET_IDS } from "@/features/assets/rlusd";
+import type {
+  AssetDescriptor,
+  XrplNetwork,
+} from "@/features/assets/types";
 import {
   decimalToUnits,
   MoneyAmountError,
@@ -71,17 +79,23 @@ type PreparedBill = {
   allocation: PreparedBillAllocation;
 };
 
-function requireTestnetSettlementAsset(assetId: string): AssetDescriptor {
+function requireSettlementAsset(
+  assetId: string,
+  expectedNetwork: XrplNetwork,
+): AssetDescriptor {
   try {
     const asset = assetRegistry.require(assetId);
-    if (asset.paymentRail !== "xrpl" || asset.network !== "testnet") {
+    if (asset.paymentRail !== "xrpl" || asset.network !== expectedNetwork) {
       throw new BillInputError(
-        "Select an approved XRPL Testnet Settlement Asset.",
+        `Select an approved XRPL ${expectedNetwork === "mainnet" ? "Mainnet" : "Testnet"} Settlement Asset.`,
       );
     }
-    if (asset.id !== "xrpl:testnet:xrp" && asset.id !== "xrpl:testnet:rlusd") {
+    if (
+      asset.id !== XRPL_XRP_ASSET_IDS[expectedNetwork] &&
+      asset.id !== XRPL_RLUSD_ASSET_IDS[expectedNetwork]
+    ) {
       throw new BillInputError(
-        "Select XRP or official RLUSD for this Testnet Bill.",
+        `Select XRP or official RLUSD for this ${expectedNetwork === "mainnet" ? "Mainnet" : "Testnet"} Bill.`,
       );
     }
     return asset;
@@ -145,9 +159,12 @@ function parseDestinationTag(value: string | number | undefined) {
   return parsed;
 }
 
-function prepareBill(rawInput: CreateBillInput): PreparedBill {
+function prepareBill(
+  rawInput: CreateBillInput,
+  expectedNetwork: XrplNetwork = "testnet",
+): PreparedBill {
   const input = createBillInputSchema.parse(rawInput);
-  const asset = requireTestnetSettlementAsset(input.settlementAssetId);
+  const asset = requireSettlementAsset(input.settlementAssetId, expectedNetwork);
   const destinationAddress = input.destinationAddress.trim();
   if (!isValidClassicAddress(destinationAddress)) {
     throw new BillInputError("Enter a valid classic XRPL destination address.");
@@ -230,7 +247,7 @@ function prepareBill(rawInput: CreateBillInput): PreparedBill {
   };
 
   const review = billReviewSchema.parse({
-    network: "testnet",
+    network: asset.network,
     title: input.title.trim(),
     destinationAddress,
     destinationTag,
@@ -247,8 +264,11 @@ function prepareBill(rawInput: CreateBillInput): PreparedBill {
   return { input, review, allocation };
 }
 
-export function prepareBillReview(rawInput: CreateBillInput): BillReview {
-  return prepareBill(rawInput).review;
+export function prepareBillReview(
+  rawInput: CreateBillInput,
+  expectedNetwork: XrplNetwork = "testnet",
+): BillReview {
+  return prepareBill(rawInput, expectedNetwork).review;
 }
 
 export async function createPublishedBill(
@@ -256,8 +276,9 @@ export async function createPublishedBill(
   rawInput: CreateBillInput,
   now = new Date(),
   random: BillRandomSource = defaultRandomSource,
+  expectedNetwork: XrplNetwork = "testnet",
 ): Promise<CreatedBill> {
-  const prepared = prepareBill(rawInput);
+  const prepared = prepareBill(rawInput, expectedNetwork);
   const { review, allocation } = prepared;
 
   const billId = random.uuid();
