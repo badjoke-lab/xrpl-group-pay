@@ -1,6 +1,11 @@
 import { z } from "zod";
 
 import {
+  assertMainnetInternalAuthorization,
+  MainnetInternalAuthorizationConfigurationError,
+  MainnetInternalAuthorizationError,
+} from "@/config/mainnet-internal-auth";
+import {
   assertPaymentOperationAllowed,
   PaymentOperationsConfigurationError,
   PaymentOperationsHaltedError,
@@ -35,12 +40,13 @@ const inputSchema = z
   .strict();
 
 export type SlotPayloadRouteDependencies = {
-  createPayload(paymentToken: string): Promise<unknown>;
+  createPayload(paymentToken: string, request: Request): Promise<unknown>;
 };
 
 const defaultDependencies: SlotPayloadRouteDependencies = {
-  async createPayload(paymentToken) {
+  async createPayload(paymentToken, request) {
     assertPaymentOperationAllowed(process.env, "create");
+    assertMainnetInternalAuthorization(process.env, request.headers);
     const database = await getPaymentsDatabase();
     const environment = getXamanEnvironment();
     const provider = createXamanProvider(environment);
@@ -107,7 +113,10 @@ export async function handleCreateSlotPayloadRequest(
   }
 
   try {
-    return json(await dependencies.createPayload(input.paymentToken), 201);
+    return json(
+      await dependencies.createPayload(input.paymentToken, request),
+      201,
+    );
   } catch (error) {
     if (error instanceof PaymentOperationsHaltedError) {
       return json(
@@ -123,7 +132,16 @@ export async function handleCreateSlotPayloadRequest(
         { "Retry-After": "60" },
       );
     }
-    if (error instanceof PaymentOperationsConfigurationError) {
+    if (error instanceof MainnetInternalAuthorizationError) {
+      return json(
+        { error: { code: error.code, message: error.message } },
+        404,
+      );
+    }
+    if (
+      error instanceof PaymentOperationsConfigurationError ||
+      error instanceof MainnetInternalAuthorizationConfigurationError
+    ) {
       return json(
         {
           error: {
