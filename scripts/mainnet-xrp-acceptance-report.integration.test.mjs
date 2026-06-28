@@ -53,6 +53,7 @@ function report() {
     receipt_id: `mainnet:${TX}`,
     proof_digest: PROOF,
     duplicate_rejected: true,
+    duplicate_receipt_count: 1,
     replay_rejected: true,
     operations_restored_halted: true,
     sensitive_values_excluded: true,
@@ -154,6 +155,19 @@ describe("Mainnet XRP acceptance evidence import", () => {
       "halted",
     );
     expect(result.wrangler).toEqual(state.wrangler);
+    expect(result.acceptance.controls.find(
+      (control) => control.id === "live-mainnet-xrp-acceptance",
+    )?.evidence).toContain("prevented duplicate settlement with exactly one receipt");
+  });
+
+  it("accepts a human-operated ceremony reference", () => {
+    const humanReport = report();
+    delete humanReport.workflow_run_url;
+    humanReport.ceremony_reference = "controlled-mainnet-xrp-acceptance-2026-06-29";
+
+    expect(() =>
+      validateMainnetXrpAcceptanceReport(humanReport, SHA),
+    ).not.toThrow();
   });
 
   it("rejects unsafe, incomplete, or mismatched public reports", () => {
@@ -175,6 +189,26 @@ describe("Mainnet XRP acceptance evidence import", () => {
         SHA,
       ),
     ).toThrow();
+    expect(() =>
+      validateMainnetXrpAcceptanceReport(
+        { ...report(), duplicate_receipt_count: 2 },
+        SHA,
+      ),
+    ).toThrow();
+
+    const missingReference = report();
+    delete missingReference.workflow_run_url;
+    expect(() =>
+      validateMainnetXrpAcceptanceReport(missingReference, SHA),
+    ).toThrow("exactly one workflow or human-operated ceremony reference");
+
+    const duplicateReference = {
+      ...report(),
+      ceremony_reference: "also-present",
+    };
+    expect(() =>
+      validateMainnetXrpAcceptanceReport(duplicateReference, SHA),
+    ).toThrow("exactly one workflow or human-operated ceremony reference");
 
     const mismatchedReceipt = `mainnet:${"D".repeat(64)}`;
     const invalidReceiptReport = report();
