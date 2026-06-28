@@ -4,7 +4,7 @@
 
 This runbook defines the first live XRP acceptance test for XRPL Group Pay. It does not authorize a public Mainnet release. The production Worker remains in `MAINNET_RELEASE_MODE=internal` and `MAINNET_OPERATIONS_MODE=halted` before and after the test.
 
-The test is successful only when one participant-controlled XRP payment is independently verified on a validated Mainnet ledger, recorded as a durable receipt, rejected on duplicate use, rejected when replayed against another PaymentSlot, and followed by a verified return to halted operations.
+The test is successful only when one participant-controlled XRP payment is independently verified on a validated Mainnet ledger, recorded as a durable receipt, prevented from creating a second settlement when repeated, rejected when replayed against another PaymentSlot, and followed by a verified return to halted operations.
 
 ## Human-controlled boundary
 
@@ -169,10 +169,14 @@ The server then records the receipt and updates the PaymentSlot and Bill atomica
 
 After the primary slot is recorded:
 
-1. Submit the same verification again for the primary slot. It must be rejected as already settled or duplicate.
+1. Submit the same verification again for the primary slot. The duplicate settlement control passes when either:
+   - the API rejects the repeat with HTTP `409` and `SLOT_ALREADY_PAID`; or
+   - the API returns HTTP `200` with the same transaction identity, the same receipt identity and proof digest, and `receipt.status=existing`.
 2. Submit the same transaction outcome against the replay-control slot. It must be rejected because the InvoiceID and slot identity do not match.
 
-Neither rejection may create another receipt or mutate the replay-control slot to paid.
+The duplicate settlement control must leave the Mainnet receipt count unchanged at exactly one for the transaction. Neither control may create another receipt or mutate the replay-control slot to paid.
+
+For backward compatibility, the public evidence field `duplicate_rejected=true` means that a duplicate settlement was prevented. It does not require a particular HTTP status when the API safely returns an existing receipt without another write.
 
 ### 8. Mandatory rollback
 
@@ -187,13 +191,13 @@ A test without verified rollback is failed even when the XRP transaction itself 
 A successful report contains only:
 
 - schema version and Mainnet network;
-- source commit and workflow URL;
+- source commit and workflow or human-operated ceremony reference;
 - generated timestamp;
 - transaction hash and validated ledger index;
 - `tesSUCCESS` result;
 - expected XRP amount in drops;
 - receipt ID and proof digest;
-- duplicate rejection result;
+- duplicate settlement prevention result and confirmation that only one receipt exists;
 - cross-slot replay rejection result;
 - confirmation that halted mode was restored;
 - confirmation that sensitive values were excluded.
