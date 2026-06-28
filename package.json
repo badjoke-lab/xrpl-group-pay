@@ -17,7 +17,7 @@
     "check:env": "node scripts/check-env.mjs",
     "check:production-target": "node scripts/check-production-target.mjs",
     "check:mainnet-assets": "node scripts/check-mainnet-assets.mjs",
-    "check:mainnet-source-tag": "node scripts/check-mainnet-source-tag.mjs",
+    "check:mainnet-source-tag": "node scripts/check-reviewed-mainnet-source-tag.mjs",
     "check:mainnet-release-plan": "node scripts/check-mainnet-release-plan.mjs",
     "check:mainnet-gate": "node scripts/check-mainnet-gate.mjs",
     "check:mainnet-evidence": "node scripts/check-mainnet-release-evidence.mjs",
