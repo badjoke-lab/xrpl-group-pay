@@ -1,6 +1,10 @@
 import { ZodError } from "zod";
 
 import {
+  controlledMainnetAuthorizationFailure,
+  type MainnetAcceptanceAuthorizer,
+} from "@/config/mainnet-acceptance-http";
+import {
   assertPaymentOperationAllowed,
   PaymentOperationsConfigurationError,
   PaymentOperationsHaltedError,
@@ -22,6 +26,7 @@ export const dynamic = "force-dynamic";
 const MAX_BILL_REQUEST_BYTES = 32_768;
 
 export type BillRouteDependencies = {
+  authorize?: MainnetAcceptanceAuthorizer;
   createBill(input: CreateBillInput): Promise<CreatedBill>;
 };
 
@@ -82,6 +87,12 @@ export async function handleCreateBillRequest(
       413,
     );
   }
+
+  const authorizationFailure = await controlledMainnetAuthorizationFailure(
+    request,
+    dependencies.authorize,
+  );
+  if (authorizationFailure) return authorizationFailure;
 
   let input: CreateBillInput;
   try {
