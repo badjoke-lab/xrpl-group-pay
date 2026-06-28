@@ -72,17 +72,49 @@ verify=false
 
 An unsigned Xaman callback must still be rejected. The Mainnet D1 binding must be the isolated production database.
 
-### 2. Prepare a temporary internal target
+### 2. Prepare production-only temporary targets
 
-Generate an ephemeral Wrangler configuration from the reviewed committed target. The only operational change is:
+Run the repository-owned preparation command from the repository root. It generates three ignored standalone Wrangler targets:
+
+```text
+wrangler.acceptance.enabled.json
+wrangler.acceptance.verify-only.json
+wrangler.acceptance.halted.json
+```
+
+The generated targets must satisfy all of the following:
+
+- the Worker name is the reviewed Mainnet Worker;
+- the target is standalone and does not contain an `env` block;
+- the only D1 binding is `PAYMENTS_DB_MAINNET`;
+- its D1 UUID is copied from the reviewed Mainnet `database_id`;
+- `preview_database_id` is absent at every nesting level;
+- the internal release mode, approved Source Tag, custom domain, assets, and compatibility settings remain unchanged;
+- only the operations mode and temporary acceptance authorization controls differ between the three targets.
+
+The temporary enabled target changes:
 
 ```text
 MAINNET_OPERATIONS_MODE=enabled
 ```
 
-The temporary target must retain Mainnet network identity, internal release mode, approved Source Tag, isolated D1 binding, custom domain, and non-custodial Xaman credentials.
+The verify-only target changes:
 
-A random acceptance authorization value must protect Bill creation, payload creation, and verification. Only its SHA-256 digest may be placed in runtime variables. The raw value remains in the operator process and is destroyed after rollback.
+```text
+MAINNET_OPERATIONS_MODE=verify-only
+```
+
+The rollback target restores:
+
+```text
+MAINNET_OPERATIONS_MODE=halted
+```
+
+A random acceptance authorization value must protect Bill creation, payload creation, and verification. Only its SHA-256 digest may be placed in runtime variables. The raw value remains in the protected operator process and is destroyed after rollback.
+
+Before any enabled deployment, run Wrangler in dry-run mode against the generated enabled target. The displayed D1 UUID must exactly equal the reviewed production `database_id`. A preview UUID, missing binding, unexpected second D1 binding, environment warning, or any other mismatch aborts the attempt and leaves the production Worker halted.
+
+Deploy generated standalone targets without `--env`. Supplying `--env` to these generated targets is invalid because they intentionally contain no named environments.
 
 ### 3. Create the frozen Bill
 
@@ -144,13 +176,9 @@ Neither rejection may create another receipt or mutate the replay-control slot t
 
 ### 8. Mandatory rollback
 
-Rollback runs regardless of success, failure, cancellation, or timeout. Restore:
+Rollback runs regardless of success, failure, cancellation, or timeout. Deploy the generated standalone halted target without `--env`, then verify `/api/status/payments` reports both creation and verification disabled.
 
-```text
-MAINNET_OPERATIONS_MODE=halted
-```
-
-Then verify `/api/status/payments` reports both creation and verification disabled. Destroy all temporary configuration files, capability tokens, Xaman handoff data, and authorization values.
+Destroy all generated Wrangler targets, temporary configuration files, capability tokens, Xaman handoff data, and authorization values.
 
 A test without verified rollback is failed even when the XRP transaction itself succeeded.
 
@@ -177,7 +205,7 @@ The report must not mark `live-mainnet-xrp-acceptance` accepted until every requ
 On any failure:
 
 1. stop creating new Xaman requests;
-2. restore halted operations;
+2. restore halted operations with the standalone halted target;
 3. verify the halted status endpoint;
 4. preserve only public-safe stage diagnostics;
 5. do not import partial evidence;
