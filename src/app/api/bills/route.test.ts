@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { MainnetAcceptanceAuthorizationError } from "@/config/mainnet-acceptance-authorization";
 import {
   PaymentOperationsConfigurationError,
   PaymentOperationsHaltedError,
@@ -50,9 +51,13 @@ function request(body: unknown = validInput) {
 }
 
 function dependencies(): BillRouteDependencies & {
+  authorize: ReturnType<typeof vi.fn>;
   createBill: ReturnType<typeof vi.fn>;
 } {
-  return { createBill: vi.fn().mockResolvedValue(CREATED_BILL_FIXTURE) };
+  return {
+    authorize: vi.fn().mockResolvedValue(undefined),
+    createBill: vi.fn().mockResolvedValue(CREATED_BILL_FIXTURE),
+  };
 }
 
 describe("POST /api/bills", () => {
@@ -78,6 +83,22 @@ describe("POST /api/bills", () => {
 
     expect(response.status).toBe(201);
     expect(deps.createBill).toHaveBeenCalledWith(input);
+  });
+
+  it("rejects controlled Mainnet requests before parsing or persistence", async () => {
+    const deps = dependencies();
+    deps.authorize.mockRejectedValue(
+      new MainnetAcceptanceAuthorizationError(),
+    );
+
+    const response = await handleCreateBillRequest(request(), deps);
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toContain("Bearer");
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "MAINNET_ACCEPTANCE_UNAUTHORIZED" },
+    });
+    expect(deps.createBill).not.toHaveBeenCalled();
   });
 
   it("rejects malformed, invalid, and oversized input before creation", async () => {
