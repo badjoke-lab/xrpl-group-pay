@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 import {
+  controlledMainnetAuthorizationFailure,
+  type MainnetAcceptanceAuthorizer,
+} from "@/config/mainnet-acceptance-http";
+import {
   assertPaymentOperationAllowed,
   PaymentOperationsConfigurationError,
   PaymentOperationsHaltedError,
@@ -35,6 +39,7 @@ const inputSchema = z
   .strict();
 
 export type SlotPayloadRouteDependencies = {
+  authorize?: MainnetAcceptanceAuthorizer;
   createPayload(paymentToken: string): Promise<unknown>;
 };
 
@@ -78,6 +83,12 @@ export async function handleCreateSlotPayloadRequest(
       415,
     );
   }
+
+  const authorizationFailure = await controlledMainnetAuthorizationFailure(
+    request,
+    dependencies.authorize,
+  );
+  if (authorizationFailure) return authorizationFailure;
 
   let input: z.infer<typeof inputSchema>;
   try {

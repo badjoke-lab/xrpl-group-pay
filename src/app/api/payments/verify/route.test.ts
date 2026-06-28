@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { MainnetAcceptanceAuthorizationError } from "@/config/mainnet-acceptance-authorization";
 import { getRlusdAssetDescriptor } from "@/features/assets/registry";
 import { PaymentSlotNotFoundError } from "@/features/bills/payment-slot";
 import {
@@ -92,9 +93,11 @@ function request(
 function dependencies(
   outcome: AssetPaymentVerificationApiOutcome,
 ): VerificationRouteDependencies & {
+  authorize: ReturnType<typeof vi.fn>;
   verifyAndRecord: ReturnType<typeof vi.fn>;
 } {
   return {
+    authorize: vi.fn().mockResolvedValue(undefined),
     verifyAndRecord: vi.fn().mockResolvedValue(outcome),
   };
 }
@@ -113,6 +116,22 @@ describe("POST /api/payments/verify", () => {
     expect(response.headers.get("cache-control")).toContain("no-store");
   });
 
+  it("rejects controlled Mainnet requests before reading verification material", async () => {
+    const deps = dependencies(verifiedOutcome);
+    deps.authorize.mockRejectedValue(
+      new MainnetAcceptanceAuthorizationError(),
+    );
+
+    const response = await handleVerificationRequest(request(), deps);
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toContain("Bearer");
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "MAINNET_ACCEPTANCE_UNAUTHORIZED" },
+    });
+    expect(deps.verifyAndRecord).not.toHaveBeenCalled();
+  });
+
   it("uses a uniform not-found response for malformed capabilities", async () => {
     const deps = dependencies(verifiedOutcome);
     const response = await handleVerificationRequest(
@@ -125,28 +144,35 @@ describe("POST /api/payments/verify", () => {
   });
 
   it("rejects malformed JSON and invalid payload identifiers", async () => {
-    const malformed = await POST(
+    const malformedDeps = dependencies(verifiedOutcome);
+    const malformed = await handleVerificationRequest(
       new Request("http://localhost/api/payments/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: "{",
       }),
+      malformedDeps,
     );
     expect(malformed.status).toBe(400);
 
-    const invalidId = await POST(
+    const invalidDeps = dependencies(verifiedOutcome);
+    const invalidId = await handleVerificationRequest(
       request({ paymentToken: PAYMENT_TOKEN, payloadId: "not-a-uuid" }),
+      invalidDeps,
     );
     expect(invalidId.status).toBe(400);
   });
 
   it("rejects oversized verification bodies and declared lengths", async () => {
-    const oversizedBody = await POST(
+    const bodyDeps = dependencies(verifiedOutcome);
+    const oversizedBody = await handleVerificationRequest(
       request({ paymentToken: PAYMENT_TOKEN, payloadId: "x".repeat(600) }),
+      bodyDeps,
     );
     expect(oversizedBody.status).toBe(413);
 
-    const oversizedDeclaredLength = await POST(
+    const lengthDeps = dependencies(verifiedOutcome);
+    const oversizedDeclaredLength = await handleVerificationRequest(
       new Request("http://localhost/api/payments/verify", {
         method: "POST",
         headers: {
@@ -155,6 +181,7 @@ describe("POST /api/payments/verify", () => {
         },
         body: "{}",
       }),
+      lengthDeps,
     );
     expect(oversizedDeclaredLength.status).toBe(413);
   });
