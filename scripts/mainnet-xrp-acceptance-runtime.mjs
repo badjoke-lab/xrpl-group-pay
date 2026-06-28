@@ -24,8 +24,8 @@ export function parseJsonc(source) {
 
 export function dropsToDecimal(amountDrops) {
   const drops = Number(amountDrops);
-  if (!Number.isInteger(drops) || drops < 1 || drops > 1000) {
-    throw new Error("The controlled XRP amount must be from 1 through 1000 drops.");
+  if (!Number.isSafeInteger(drops) || drops < 1 || drops > 2000) {
+    throw new Error("The XRP amount must be a positive integer no greater than 2000 drops.");
   }
   const whole = Math.floor(drops / 1_000_000);
   const fraction = String(drops % 1_000_000).padStart(6, "0");
@@ -202,6 +202,7 @@ document.getElementById('decrypt').addEventListener('click',async()=>{
 }
 
 export function assertPublicSafeReport(report) {
+  const patch = report?.evidence_patch;
   if (
     report?.schema_version !== 1 ||
     report?.network !== "mainnet" ||
@@ -209,15 +210,29 @@ export function assertPublicSafeReport(report) {
     report?.state !== "verified" ||
     !/^[A-F0-9]{64}$/.test(report?.transaction_hash ?? "") ||
     !Number.isInteger(report?.ledger_index) ||
+    report?.ledger_index <= 0 ||
     report?.validated !== true ||
     report?.transaction_result !== "tesSUCCESS" ||
     !/^[1-9]\d*$/.test(report?.amount_drops ?? "") ||
+    BigInt(report.amount_drops) > 1000n ||
     report?.receipt_id !== `mainnet:${report.transaction_hash}` ||
     !/^[A-F0-9]{64}$/.test(report?.proof_digest ?? "") ||
     report?.duplicate_rejected !== true ||
     report?.replay_rejected !== true ||
     report?.operations_restored_halted !== true ||
-    report?.sensitive_values_excluded !== true
+    report?.sensitive_values_excluded !== true ||
+    patch?.id !== "live-mainnet-xrp-acceptance" ||
+    patch?.status !== "accepted" ||
+    patch?.recorded_at !== report.generated_at ||
+    patch?.transaction_hash !== report.transaction_hash ||
+    patch?.ledger_index !== report.ledger_index ||
+    patch?.validated !== true ||
+    patch?.transaction_result !== "tesSUCCESS" ||
+    patch?.amount_drops !== report.amount_drops ||
+    patch?.receipt_id !== report.receipt_id ||
+    patch?.proof_digest !== report.proof_digest ||
+    patch?.duplicate_rejected !== true ||
+    patch?.replay_rejected !== true
   ) {
     throw new Error("The public-safe XRP acceptance report is incomplete.");
   }
