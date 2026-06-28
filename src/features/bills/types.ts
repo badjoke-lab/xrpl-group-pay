@@ -1,15 +1,20 @@
 import { z } from "zod";
 
-import { assetDescriptorSchema } from "@/features/assets/types";
+import {
+  assetDescriptorSchema,
+  xrplNetworkSchema,
+} from "@/features/assets/types";
 import {
   moneyAmountSchema,
   moneyScaleSchema,
   moneyUnitsSchema,
 } from "@/features/money/types";
 
-export const testnetSettlementAssetIdSchema = z.enum([
+export const xrplSettlementAssetIdSchema = z.enum([
   "xrpl:testnet:xrp",
   "xrpl:testnet:rlusd",
+  "xrpl:mainnet:xrp",
+  "xrpl:mainnet:rlusd",
 ]);
 
 const decimalAmountSchema = z
@@ -97,7 +102,7 @@ const canonicalCreateBillInputSchema = z
     title: z.string().trim().min(1).max(100),
     destinationAddress: z.string().trim().min(1),
     destinationTag: destinationTagSchema.optional(),
-    settlementAssetId: testnetSettlementAssetIdSchema,
+    settlementAssetId: xrplSettlementAssetIdSchema,
     totalAmount: decimalAmountSchema,
     creatorShareAmount: decimalAmountSchema,
     allocation: billAllocationInputSchema.optional(),
@@ -146,7 +151,7 @@ export type NormalizedCreateBillInput = {
   title: string;
   destinationAddress: string;
   destinationTag?: string | number;
-  settlementAssetId: z.infer<typeof testnetSettlementAssetIdSchema>;
+  settlementAssetId: z.infer<typeof xrplSettlementAssetIdSchema>;
   totalAmount: string;
   creatorShareAmount: string;
   allocation?: BillAllocationInput;
@@ -175,7 +180,7 @@ const reviewedParticipantSchema = z
 
 export const billReviewSchema = z
   .object({
-    network: z.literal("testnet"),
+    network: xrplNetworkSchema,
     title: z.string().min(1).max(100),
     destinationAddress: z.string().min(1),
     destinationTag: z.number().int().min(0).max(4_294_967_295).nullable(),
@@ -198,7 +203,7 @@ export const createdBillSchema = z
       .object({
         publicId: z.string().uuid(),
         title: z.string().min(1).max(100),
-        network: z.literal("testnet"),
+        network: xrplNetworkSchema,
         destinationAddress: z.string().min(1),
         destinationTag: z.number().int().min(0).max(4_294_967_295).nullable(),
         asset: assetDescriptorSchema,
