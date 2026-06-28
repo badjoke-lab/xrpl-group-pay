@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "pnpm check:env && pnpm check:production-target && pnpm check:mainnet-assets && pnpm check:mainnet-source-tag && pnpm check:mainnet-release-plan && pnpm check:mainnet-gate && pnpm check:mainnet-evidence && pnpm check:mainnet-acceptance && next build",
+    "build": "pnpm check:env && pnpm check:production-target && pnpm check:mainnet-assets && pnpm check:mainnet-source-tag && pnpm check:mainnet-release-plan && pnpm check:mainnet-gate && pnpm check:mainnet-evidence && pnpm check:mainnet-acceptance && pnpm check:mainnet-xrp-operator-boundary && next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
@@ -22,6 +22,7 @@
     "check:mainnet-gate": "node scripts/check-mainnet-gate.mjs",
     "check:mainnet-evidence": "node scripts/check-mainnet-release-evidence.mjs",
     "check:mainnet-acceptance": "node scripts/check-mainnet-acceptance.mjs",
+    "check:mainnet-xrp-operator-boundary": "node scripts/check-mainnet-xrp-operator-boundary.mjs",
     "import:mainnet-d1-evidence": "node scripts/import-mainnet-d1-provisioning-report.mjs",
     "import:mainnet-xaman-evidence": "node scripts/import-mainnet-xaman-attestation-report.mjs",
     "import:mainnet-halted-deployment-evidence": "node scripts/import-mainnet-halted-deployment-report.mjs",
@@ -35,7 +36,7 @@
     "deploy:mainnet": "pnpm check:production-target && pnpm check:mainnet-assets && pnpm check:mainnet-source-tag && pnpm check:mainnet-release-plan && node scripts/check-mainnet-release-evidence.mjs --require-complete && node scripts/check-mainnet-acceptance.mjs --require-ready && node scripts/check-mainnet-gate.mjs --require-mainnet && opennextjs-cloudflare build && opennextjs-cloudflare deploy --env mainnet",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "validate": "pnpm db:migrate:local && pnpm db:check:local && pnpm check:production-target && pnpm check:mainnet-assets && pnpm check:mainnet-source-tag && pnpm check:mainnet-release-plan && pnpm check:mainnet-gate && pnpm check:mainnet-evidence && pnpm check:mainnet-acceptance && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "validate": "pnpm db:migrate:local && pnpm db:check:local && pnpm check:production-target && pnpm check:mainnet-assets && pnpm check:mainnet-source-tag && pnpm check:mainnet-release-plan && pnpm check:mainnet-gate && pnpm check:mainnet-evidence && pnpm check:mainnet-acceptance && pnpm check:mainnet-xrp-operator-boundary && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "dependencies": {
     "clsx": "2.1.1",
@@ -55,7 +56,7 @@
     "@storybook/nextjs-vite": "10.4.6",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "6.9.1",
-    "@testing-library/react": "16.3.2",
+    "@testing-library/react": "16.3.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
