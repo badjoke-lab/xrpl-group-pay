@@ -10,6 +10,7 @@ const rawXamanEnvironmentSchema = z.object({
   XAMAN_API_KEY: z.string().trim().min(1).max(256),
   XAMAN_API_SECRET: z.string().trim().min(1).max(256),
   XAMAN_API_BASE_URL: z.literal(XAMAN_API_BASE_URL).default(XAMAN_API_BASE_URL),
+  XAMAN_USER_TOKEN: z.string().trim().min(1).max(512).optional(),
   XRPL_SOURCE_TAG: z.string().optional(),
   XRPL_TESTNET_SOURCE_TAG: z.string().optional(),
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
@@ -21,6 +22,7 @@ export type XamanEnvironment = {
   XAMAN_API_KEY: string;
   XAMAN_API_SECRET: string;
   XAMAN_API_BASE_URL: typeof XAMAN_API_BASE_URL;
+  XAMAN_USER_TOKEN?: string;
   XRPL_SOURCE_TAG: number;
   NEXT_PUBLIC_APP_URL: string;
   APP_NETWORK: "testnet" | "mainnet";
@@ -48,6 +50,9 @@ export function getXamanEnvironment(
       XAMAN_API_KEY: parsed.data.XAMAN_API_KEY,
       XAMAN_API_SECRET: parsed.data.XAMAN_API_SECRET,
       XAMAN_API_BASE_URL: parsed.data.XAMAN_API_BASE_URL,
+      ...(parsed.data.XAMAN_USER_TOKEN
+        ? { XAMAN_USER_TOKEN: parsed.data.XAMAN_USER_TOKEN }
+        : {}),
       XRPL_SOURCE_TAG: resolveXrplSourceTag(input, parsed.data.APP_NETWORK),
       NEXT_PUBLIC_APP_URL: parsed.data.NEXT_PUBLIC_APP_URL,
       APP_NETWORK: parsed.data.APP_NETWORK,
