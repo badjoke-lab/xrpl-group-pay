@@ -321,6 +321,7 @@ export async function createPublishedBill(
         publicTokenHash,
         adminTokenHash,
         review.title,
+        review.network,
         review.destinationAddress,
         review.destinationTag,
         legacyCompatibilityUnits(review.totalAmount.units),
