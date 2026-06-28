@@ -96,9 +96,73 @@ async function repositoryState() {
   };
 }
 
+function pendingXrpState(state) {
+  const pending = structuredClone(state);
+
+  Object.assign(
+    pending.evidence.records.find(
+      (record) => record.id === "live-mainnet-xrp-acceptance",
+    ),
+    {
+      status: "pending",
+      recorded_at: null,
+      transaction_hash: null,
+      ledger_index: null,
+      validated: false,
+      transaction_result: null,
+      amount_drops: null,
+      receipt_id: null,
+      proof_digest: null,
+      duplicate_rejected: false,
+      replay_rejected: false,
+    },
+  );
+
+  Object.assign(
+    pending.acceptance.controls.find(
+      (control) => control.id === "live-mainnet-xrp-acceptance",
+    ),
+    {
+      status: "pending",
+      evidence: "No accepted live Mainnet XRP end-to-end evidence is recorded.",
+    },
+  );
+
+  Object.assign(
+    pending.acceptance.blocking_findings.find(
+      (finding) => finding.id === "live-xrp-acceptance-not-recorded",
+    ),
+    {
+      status: "open",
+      evidence:
+        "Complete a controlled Mainnet XRP payment and record validated-ledger, receipt, and Bill settlement evidence.",
+    },
+  );
+
+  pending.releasePlan.current_stage = "live-xrp-acceptance";
+  pending.releasePlan.remaining_evidence = [
+    "live-mainnet-xrp-acceptance",
+    "live-mainnet-rlusd-acceptance",
+  ];
+
+  const statuses = {
+    foundations: "complete",
+    "provider-attestation": "complete",
+    "halted-deployment-review": "complete",
+    "live-xrp-acceptance": "blocked",
+    "live-rlusd-acceptance": "pending",
+    "final-release-audit": "pending",
+  };
+  pending.releasePlan.stages.forEach((stage) => {
+    stage.status = statuses[stage.id];
+  });
+
+  return pending;
+}
+
 describe("Mainnet XRP acceptance evidence import", () => {
   it("advances only to live RLUSD acceptance and preserves halted operation", async () => {
-    const state = await repositoryState();
+    const state = pendingXrpState(await repositoryState());
     const result = applyMainnetXrpAcceptanceReport({
       report: report(),
       expectedGitSha: SHA,

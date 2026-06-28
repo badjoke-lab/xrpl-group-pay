@@ -164,9 +164,8 @@ describe("halted Mainnet deployment report import", () => {
       }),
     ).not.toThrow();
 
-    expect(result.releasePlan.current_stage).toBe("live-xrp-acceptance");
+    expect(result.releasePlan.current_stage).toBe("live-rlusd-acceptance");
     expect(result.releasePlan.remaining_evidence).toEqual([
-      "live-mainnet-xrp-acceptance",
       "live-mainnet-rlusd-acceptance",
     ]);
     expect(result.releasePlan.staged_target.committed).toBe(true);
@@ -180,14 +179,8 @@ describe("halted Mainnet deployment report import", () => {
     expect(
       result.acceptance.blocking_findings
         .filter((finding) => finding.status === "open")
-        .map((finding) => finding.id)
-        .sort(),
-    ).toEqual(
-      [
-        "live-rlusd-acceptance-not-recorded",
-        "live-xrp-acceptance-not-recorded",
-      ].sort(),
-    );
+        .map((finding) => finding.id),
+    ).toEqual(["live-rlusd-acceptance-not-recorded"]);
   });
 
   it("rejects a report containing protected deployment fields", async () => {
