@@ -1,6 +1,11 @@
 import { ZodError } from "zod";
 
 import {
+  assertPaymentOperationAllowed,
+  PaymentOperationsConfigurationError,
+  PaymentOperationsHaltedError,
+} from "@/config/payment-operations";
+import {
   BillDatabaseError,
   BillInputError,
   createPublishedBill,
@@ -22,6 +27,7 @@ export type BillRouteDependencies = {
 
 const defaultDependencies: BillRouteDependencies = {
   async createBill(input) {
+    assertPaymentOperationAllowed(process.env, "create");
     const { database, target } = await getPaymentsDatabaseContext();
     return createPublishedBill(
       database,
@@ -33,10 +39,14 @@ const defaultDependencies: BillRouteDependencies = {
   },
 };
 
-function json(body: unknown, status: number) {
+function json(
+  body: unknown,
+  status: number,
+  headers: Record<string, string> = {},
+) {
   return Response.json(body, {
     status,
-    headers: { "Cache-Control": "no-store" },
+    headers: { "Cache-Control": "no-store", ...headers },
   });
 }
 
@@ -115,6 +125,31 @@ export async function handleCreateBillRequest(
     const created = await dependencies.createBill(input);
     return json(created, 201);
   } catch (error) {
+    if (error instanceof PaymentOperationsHaltedError) {
+      return json(
+        {
+          error: {
+            code: error.code,
+            operation: error.operation,
+            mode: error.mode,
+            message: error.message,
+          },
+        },
+        503,
+        { "Retry-After": "60" },
+      );
+    }
+    if (error instanceof PaymentOperationsConfigurationError) {
+      return json(
+        {
+          error: {
+            code: "PAYMENT_OPERATIONS_UNAVAILABLE",
+            message: error.message,
+          },
+        },
+        503,
+      );
+    }
     if (error instanceof BillInputError) {
       return json(
         { error: { code: "INVALID_BILL_INPUT", message: error.message } },
