@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "network": "mainnet",
+  "stage": "live-xrp-acceptance",
+  "confirmation": "CHECK XRPL GROUP PAY MAINNET XRP ACCEPTANCE",
+  "worker_name": "xrpl-group-pay-mainnet",
+  "public_origin": "https://xgp.badjoke-lab.com",
+  "custom_domain": "xgp.badjoke-lab.com",
+  "database_binding": "PAYMENTS_DB_MAINNET",
+  "source_tag": 2171267705,
+  "asset_id": "xrpl:mainnet:xrp",
+  "minimum_amount_drops": 1,
+  "maximum_amount_drops": 1000,
+  "participant_slots": 2,
+  "release_mode": "internal",
+  "required_baseline_operations_mode": "halted",
+  "required_restore_operations_mode": "halted",
+  "signature_timeout_minutes": 20,
+  "poll_interval_seconds": 10,
+  "public_evidence_retention_days": 7
+}
