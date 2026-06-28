@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "network": "mainnet",
+  "stage": "live-xrp-acceptance",
+  "execution_model": "human-operated",
+  "maximum_internal_window_minutes": 30,
+  "signature_timeout_minutes": 20,
+  "automation_boundary": {
+    "automatic_mainnet_enablement": false,
+    "automatic_bill_creation": false,
+    "automatic_xaman_request_creation": false,
+    "automatic_signature": false,
+    "automatic_transaction_submission": false,
+    "automatic_evidence_import": false
+  },
+  "required_manual_gates": [
+    "review-halted-baseline",
+    "approve-temporary-runtime-diff",
+    "create-frozen-bill",
+    "create-private-xaman-handoff",
+    "inspect-and-sign-in-xaman",
+    "review-validated-ledger-evidence",
+    "review-negative-controls",
+    "restore-and-verify-halted-mode",
+    "review-public-safe-report"
+  ],
+  "required_mode_sequence": [
+    "halted",
+    "enabled",
+    "verify-only",
+    "halted"
+  ],
+  "private_delivery": {
+    "public_actions_log": false,
+    "public_artifact": false,
+    "pull_request": false,
+    "operator_controlled_channel_only": true
+  },
+  "final_release_decision": "blocked"
+}
