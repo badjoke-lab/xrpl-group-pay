@@ -35,6 +35,7 @@ export async function runMainnetHaltedDeployment({
   verify = executeMainnetHaltedDeploymentVerification,
   prepareConfig = writeHaltedMainnetWrangler,
   writeSecretFile = writeFile,
+  writeStageFile = writeFile,
   removeFile = unlink,
   wait = delay,
 } = {}) {
@@ -53,6 +54,26 @@ export async function runMainnetHaltedDeployment({
   const workspace = resolve(required(environment, "GITHUB_WORKSPACE"));
   const configPath = join(workspace, "wrangler.mainnet-halted.jsonc");
   const secretsPath = join(runnerTemp, "mainnet-worker-secrets.json");
+  const stagePath = join(runnerTemp, "mainnet-halted-deployment-stage.json");
+
+  const recordStage = async (stage) => {
+    await writeStageFile(
+      stagePath,
+      `${JSON.stringify(
+        {
+          schema_version: 1,
+          network: "mainnet",
+          state: "in_progress",
+          stage,
+          git_sha: environment.GITHUB_SHA,
+          workflow_run_id: environment.GITHUB_RUN_ID,
+        },
+        null,
+        2,
+      )}\n`,
+      { mode: 0o600 },
+    );
+  };
 
   const childEnvironment = {
     ...environment,
@@ -71,6 +92,7 @@ export async function runMainnetHaltedDeployment({
   };
 
   try {
+    await recordStage("prepare-configuration");
     await prepareConfig({ outputPath: configPath });
     await writeSecretFile(
       secretsPath,
@@ -81,9 +103,11 @@ export async function runMainnetHaltedDeployment({
       { mode: 0o600 },
     );
 
+    await recordStage("next-build");
     console.log("[halted-mainnet] Building Next.js output.");
     runCommand("pnpm", ["exec", "next", "build"], childEnvironment);
 
+    await recordStage("opennext-transform");
     console.log("[halted-mainnet] Transforming the existing build for Cloudflare.");
     runCommand(
       "pnpm",
@@ -98,6 +122,7 @@ export async function runMainnetHaltedDeployment({
       childEnvironment,
     );
 
+    await recordStage("wrangler-deploy");
     console.log("[halted-mainnet] Deploying the internal halted Worker with Wrangler.");
     runCommand(
       "pnpm",
@@ -112,6 +137,7 @@ export async function runMainnetHaltedDeployment({
       childEnvironment,
     );
 
+    await recordStage("public-verification");
     console.log("[halted-mainnet] Verifying the public halted target.");
     let lastError;
     for (let attempt = 1; attempt <= 30; attempt += 1) {
