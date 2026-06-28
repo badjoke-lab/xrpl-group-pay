@@ -38,6 +38,7 @@ export type XamanPayloadClient = Pick<XamanClient, "createPayload">;
 export type XamanProviderConfiguration = {
   network: XrplNetwork;
   mainnetAccess?: MainnetAssetAccess;
+  userToken?: string;
 };
 
 export const XAMAN_PROVIDER_CAPABILITIES = {
@@ -135,6 +136,9 @@ function buildXamanRequest(
         expire: 5,
         force_network: XAMAN_FORCE_NETWORKS[canonicalIntent.network],
       },
+      ...(configuration.userToken
+        ? { user_token: configuration.userToken }
+        : {}),
     };
   } catch (error) {
     if (error instanceof XrplPaymentBuildError) {
@@ -237,5 +241,8 @@ export function createXamanProvider(environment: XamanEnvironment) {
   return new XamanProvider(new XamanClient(environment), {
     network: environment.APP_NETWORK,
     mainnetAccess,
+    ...(environment.XAMAN_USER_TOKEN
+      ? { userToken: environment.XAMAN_USER_TOKEN }
+      : {}),
   });
 }
