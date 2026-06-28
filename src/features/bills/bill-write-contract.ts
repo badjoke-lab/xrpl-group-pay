@@ -34,9 +34,9 @@ export const INSERT_ASSET_AWARE_BILL = `
     created_at,
     updated_at
   ) VALUES (
-    ?1, ?2, ?3, ?4, ?5, 'testnet', ?6, ?7, ?8, ?9,
-    ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17,
-    'open', 1, ?18, NULL, ?18, ?18
+    ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
+    ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
+    'open', 1, ?19, NULL, ?19, ?19
   )
 `;
 
@@ -106,8 +106,9 @@ export function slotAssetWriteValues(
 /**
  * The original D1 tables require numeric values in their legacy `*_drops`
  * columns. Until those compatibility columns are removed in a later migration,
- * the canonical fixed-precision units are mirrored there for every six-decimal
- * Testnet Asset. Application code must use the Asset-bound generic unit columns.
+ * the canonical fixed-precision units are mirrored there for supported
+ * six-decimal XRPL Assets. Application code must use the Asset-bound generic
+ * unit columns.
  */
 export function legacyCompatibilityUnits(units: string) {
   return units;

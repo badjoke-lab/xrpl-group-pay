@@ -2,7 +2,10 @@ import "server-only";
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-import { resolveDeploymentTarget } from "@/config/deployment-gate";
+import {
+  resolveDeploymentTarget,
+  type DeploymentTarget,
+} from "@/config/deployment-gate";
 
 import type { D1DatabaseLike } from "./d1-types";
 
@@ -12,6 +15,11 @@ export class PaymentsDatabaseUnavailableError extends Error {
     this.name = "PaymentsDatabaseUnavailableError";
   }
 }
+
+export type PaymentsDatabaseContext = {
+  database: D1DatabaseLike;
+  target: DeploymentTarget;
+};
 
 function isD1Database(value: unknown): value is D1DatabaseLike {
   if (!value || typeof value !== "object") {
@@ -48,10 +56,10 @@ function deploymentInput(
   return input;
 }
 
-export function getPaymentsDatabaseFromBindings(
+export function getPaymentsDatabaseContextFromBindings(
   bindings: Record<string, unknown>,
   processEnvironment: Record<string, string | undefined> = process.env,
-): D1DatabaseLike {
+): PaymentsDatabaseContext {
   try {
     const target = resolveDeploymentTarget(
       deploymentInput(bindings, processEnvironment),
@@ -60,7 +68,31 @@ export function getPaymentsDatabaseFromBindings(
     if (!isD1Database(database)) {
       throw new PaymentsDatabaseUnavailableError();
     }
-    return database;
+    return { database, target };
+  } catch (error) {
+    if (error instanceof PaymentsDatabaseUnavailableError) {
+      throw error;
+    }
+    throw new PaymentsDatabaseUnavailableError();
+  }
+}
+
+export function getPaymentsDatabaseFromBindings(
+  bindings: Record<string, unknown>,
+  processEnvironment: Record<string, string | undefined> = process.env,
+): D1DatabaseLike {
+  return getPaymentsDatabaseContextFromBindings(
+    bindings,
+    processEnvironment,
+  ).database;
+}
+
+export async function getPaymentsDatabaseContext(): Promise<PaymentsDatabaseContext> {
+  try {
+    const { env } = await getCloudflareContext({ async: true });
+    return getPaymentsDatabaseContextFromBindings(
+      env as unknown as Record<string, unknown>,
+    );
   } catch (error) {
     if (error instanceof PaymentsDatabaseUnavailableError) {
       throw error;
@@ -70,15 +102,5 @@ export function getPaymentsDatabaseFromBindings(
 }
 
 export async function getPaymentsDatabase(): Promise<D1DatabaseLike> {
-  try {
-    const { env } = await getCloudflareContext({ async: true });
-    return getPaymentsDatabaseFromBindings(
-      env as unknown as Record<string, unknown>,
-    );
-  } catch (error) {
-    if (error instanceof PaymentsDatabaseUnavailableError) {
-      throw error;
-    }
-    throw new PaymentsDatabaseUnavailableError();
-  }
+  return (await getPaymentsDatabaseContext()).database;
 }

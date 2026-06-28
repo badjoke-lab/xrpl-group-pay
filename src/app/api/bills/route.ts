@@ -8,7 +8,7 @@ import {
 import type { CreateBillInput, CreatedBill } from "@/features/bills/types";
 import { createBillInputSchema } from "@/features/bills/types";
 import {
-  getPaymentsDatabase,
+  getPaymentsDatabaseContext,
   PaymentsDatabaseUnavailableError,
 } from "@/features/persistence/cloudflare-d1";
 
@@ -22,8 +22,14 @@ export type BillRouteDependencies = {
 
 const defaultDependencies: BillRouteDependencies = {
   async createBill(input) {
-    const database = await getPaymentsDatabase();
-    return createPublishedBill(database, input);
+    const { database, target } = await getPaymentsDatabaseContext();
+    return createPublishedBill(
+      database,
+      input,
+      new Date(),
+      undefined,
+      target.network,
+    );
   },
 };
 
