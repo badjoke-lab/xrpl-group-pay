@@ -23,10 +23,11 @@ function environment() {
 }
 
 describe("halted Mainnet deployment runner", () => {
-  it("builds with OpenNext and deploys the generated Worker with Wrangler", async () => {
+  it("records each deployment stage and deploys with Wrangler", async () => {
     const runCommand = vi.fn();
     const prepareConfig = vi.fn().mockResolvedValue(undefined);
     const writeSecretFile = vi.fn().mockResolvedValue(undefined);
+    const writeStageFile = vi.fn().mockResolvedValue(undefined);
     const removeFile = vi.fn().mockResolvedValue(undefined);
     const verify = vi.fn().mockResolvedValue({ state: "verified" });
 
@@ -35,6 +36,7 @@ describe("halted Mainnet deployment runner", () => {
       runCommand,
       prepareConfig,
       writeSecretFile,
+      writeStageFile,
       removeFile,
       verify,
     });
@@ -51,6 +53,15 @@ describe("halted Mainnet deployment runner", () => {
       }),
       { mode: 0o600 },
     );
+    expect(
+      writeStageFile.mock.calls.map(([, body]) => JSON.parse(body).stage),
+    ).toEqual([
+      "prepare-configuration",
+      "next-build",
+      "opennext-transform",
+      "wrangler-deploy",
+      "public-verification",
+    ]);
     expect(runCommand).toHaveBeenCalledTimes(3);
     expect(runCommand.mock.calls[0][1]).toEqual([
       "exec",
@@ -81,12 +92,32 @@ describe("halted Mainnet deployment runner", () => {
           "/workspace/wrangler.mainnet-halted.jsonc",
       }),
     });
-    expect(removeFile).toHaveBeenCalledWith(
-      "/workspace/wrangler.mainnet-halted.jsonc",
+  });
+
+  it("leaves the failing stage recorded", async () => {
+    const writeStageFile = vi.fn().mockResolvedValue(undefined);
+    const runCommand = vi
+      .fn()
+      .mockImplementationOnce(() => undefined)
+      .mockImplementationOnce(() => {
+        throw new Error("transform failed");
+      });
+
+    await expect(
+      runMainnetHaltedDeployment({
+        environment: environment(),
+        runCommand,
+        prepareConfig: vi.fn().mockResolvedValue(undefined),
+        writeSecretFile: vi.fn().mockResolvedValue(undefined),
+        writeStageFile,
+        removeFile: vi.fn().mockResolvedValue(undefined),
+      }),
+    ).rejects.toThrow("transform failed");
+
+    const stages = writeStageFile.mock.calls.map(([, body]) =>
+      JSON.parse(body).stage,
     );
-    expect(removeFile).toHaveBeenCalledWith(
-      "/runner-temp/mainnet-worker-secrets.json",
-    );
+    expect(stages.at(-1)).toBe("opennext-transform");
   });
 
   it("retries public verification without rebuilding or redeploying", async () => {
@@ -102,6 +133,7 @@ describe("halted Mainnet deployment runner", () => {
       runCommand,
       prepareConfig: vi.fn().mockResolvedValue(undefined),
       writeSecretFile: vi.fn().mockResolvedValue(undefined),
+      writeStageFile: vi.fn().mockResolvedValue(undefined),
       removeFile: vi.fn().mockResolvedValue(undefined),
       verify,
       wait,
