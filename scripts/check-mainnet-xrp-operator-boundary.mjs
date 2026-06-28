@@ -23,6 +23,24 @@ const AUTOMATION_KEYS = [
   "automatic_evidence_import",
 ];
 
+function isReviewedPostXrpStage(releasePlan) {
+  if (releasePlan?.current_stage !== "live-rlusd-acceptance") return false;
+  if (
+    JSON.stringify(releasePlan.remaining_evidence) !==
+    JSON.stringify(["live-mainnet-rlusd-acceptance"])
+  ) {
+    return false;
+  }
+  const stages = new Map(
+    (releasePlan.stages ?? []).map((stage) => [stage.id, stage.status]),
+  );
+  return (
+    stages.get("live-xrp-acceptance") === "complete" &&
+    stages.get("live-rlusd-acceptance") === "blocked" &&
+    stages.get("final-release-audit") === "pending"
+  );
+}
+
 export function assertMainnetXrpOperatorBoundary({
   boundary,
   contract,
@@ -78,9 +96,11 @@ export function assertMainnetXrpOperatorBoundary({
     throw new Error("The XRP acceptance contract does not match the operator boundary.");
   }
 
+  const atXrpStage = releasePlan?.current_stage === boundary.stage;
+  const afterXrpStage = isReviewedPostXrpStage(releasePlan);
   if (
     releasePlan?.network !== "mainnet" ||
-    releasePlan?.current_stage !== boundary.stage ||
+    (!atXrpStage && !afterXrpStage) ||
     releasePlan?.release_decision !== boundary.final_release_decision
   ) {
     throw new Error("The release plan does not match the operator boundary.");
@@ -96,7 +116,8 @@ export function assertMainnetXrpOperatorBoundary({
 
   return {
     network: "mainnet",
-    stage: boundary.stage,
+    stage: releasePlan.current_stage,
+    boundaryStage: boundary.stage,
     executionModel: boundary.execution_model,
     automaticLiveActions: false,
     baselineMode: "halted",
