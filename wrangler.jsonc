@@ -53,11 +53,11 @@
         "APP_NETWORK": "mainnet",
         "NEXT_PUBLIC_APP_NETWORK": "mainnet",
         "NEXT_PUBLIC_APP_URL": "https://xgp.badjoke-lab.com",
-        "ALLOW_MAINNET_RUNTIME": "false",
-        "MAINNET_GATE_APPROVED": "false",
+        "ALLOW_MAINNET_RUNTIME": "true",
+        "MAINNET_GATE_APPROVED": "true",
         "XRPL_MAINNET_SOURCE_TAG": "2171267705",
-        "MAINNET_SOURCE_TAG_APPROVED": "false",
-        "MAINNET_RELEASE_MODE": "disabled",
+        "MAINNET_SOURCE_TAG_APPROVED": "true",
+        "MAINNET_RELEASE_MODE": "internal",
         "MAINNET_OPERATIONS_MODE": "halted",
         "PAYMENTS_DATABASE_BINDING": "PAYMENTS_DB_MAINNET"
       },
@@ -69,7 +69,14 @@
           "preview_database_id": "da6590b3-cf0a-4584-80a3-a36749ae523f",
           "migrations_dir": "migrations"
         }
-      ]
+      ],
+      "routes": [
+        {
+          "pattern": "xgp.badjoke-lab.com",
+          "custom_domain": true
+        }
+      ],
+      "workers_dev": false
     }
   },
   "observability": {

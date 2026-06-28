@@ -131,7 +131,6 @@ describe("Mainnet Xaman attestation compatibility", () => {
       [
         "live-rlusd-acceptance-not-recorded",
         "live-xrp-acceptance-not-recorded",
-        "production-runtime-not-approved",
       ].sort(),
     );
     expect(

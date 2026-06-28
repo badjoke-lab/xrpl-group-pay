@@ -41,8 +41,8 @@
     },
     {
       "id": "production-release-configuration",
-      "status": "pending",
-      "evidence": "The committed Mainnet target remains disabled, unapproved, and operationally halted."
+      "status": "passed",
+      "evidence": "GitHub Actions run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28308063230 verified the halted Mainnet Worker at https://xgp.badjoke-lab.com, the reviewed runtime configuration, disabled payment creation and verification, and the guarded Xaman callback route from commit 40870ee0bd3e93b7fa59fa74969a5380e1df685f."
     },
     {
       "id": "production-provider-attestation",
@@ -78,8 +78,8 @@
     },
     {
       "id": "production-runtime-not-approved",
-      "status": "open",
-      "evidence": "Complete release configuration review before enabling Mainnet build, runtime, gate approval, Source Tag approval, release mode, or payment operations."
+      "status": "resolved",
+      "evidence": "GitHub Actions run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28308063230 verified the halted Mainnet Worker at https://xgp.badjoke-lab.com, the reviewed runtime configuration, disabled payment creation and verification, and the guarded Xaman callback route from commit 40870ee0bd3e93b7fa59fa74969a5380e1df685f; the deployment remained internal and operationally halted, and no live XRP or RLUSD payment was performed."
     },
     {
       "id": "production-provider-not-attested",

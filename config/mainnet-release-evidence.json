@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "network": "mainnet",
-  "updated_at": "2026-06-27",
+  "updated_at": "2026-06-28",
   "records": [
     {
       "id": "production-d1-provisioning",
@@ -16,16 +16,16 @@
     },
     {
       "id": "production-release-configuration",
-      "status": "pending",
-      "recorded_at": null,
-      "public_url": null,
+      "status": "accepted",
+      "recorded_at": "2026-06-28T01:52:05.124Z",
+      "public_url": "https://xgp.badjoke-lab.com",
       "app_network": "mainnet",
       "public_network": "mainnet",
       "database_binding": "PAYMENTS_DB_MAINNET",
-      "runtime_allowed": false,
-      "gate_approved": false,
-      "source_tag_approved": false,
-      "release_mode": "disabled",
+      "runtime_allowed": true,
+      "gate_approved": true,
+      "source_tag_approved": true,
+      "release_mode": "internal",
       "operations_mode": "halted"
     },
     {
