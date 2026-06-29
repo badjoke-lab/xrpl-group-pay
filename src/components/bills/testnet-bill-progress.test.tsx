@@ -117,7 +117,9 @@ describe("TestnetBillProgress", () => {
     render(<TestnetBillProgress capabilityToken={TOKEN} />);
     expect(await screen.findByText("Read-only view")).toBeVisible();
     expect(screen.queryByText("Alex")).toBeNull();
-    expect(screen.getByText("Payment slot 1")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Payment slot 1" }),
+    ).toBeVisible();
   });
 
   it("shows invalid and retryable states", async () => {
