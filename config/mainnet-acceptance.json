@@ -37,7 +37,7 @@
     {
       "id": "production-d1-provisioning",
       "status": "passed",
-      "evidence": "GitHub Actions run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28214774332 verified 12 migrations on isolated production and preview D1 databases from commit 526ed55e8571a40fe62c38817f8147820514cdc2."
+      "evidence": "GitHub Actions run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28385216096 verified 14 migrations on the unchanged isolated production and preview D1 databases from commit a5cb8a1bef5af852f34a222308774353e56103f6."
     },
     {
       "id": "production-release-configuration",
@@ -74,7 +74,7 @@
     {
       "id": "production-d1-not-provisioned",
       "status": "resolved",
-      "evidence": "GitHub Actions run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28214774332 verified 12 migrations on isolated production and preview D1 databases from commit 526ed55e8571a40fe62c38817f8147820514cdc2; the committed PAYMENTS_DB_MAINNET IDs now match the verified report."
+      "evidence": "GitHub Actions run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28385216096 verified 14 migrations on the unchanged isolated production and preview D1 databases from commit a5cb8a1bef5af852f34a222308774353e56103f6; the PAYMENTS_DB_MAINNET database IDs remained unchanged."
     },
     {
       "id": "production-runtime-not-approved",
