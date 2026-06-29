@@ -25,6 +25,11 @@ type LocalizationContextValue = {
 };
 
 const LocalizationContext = createContext<LocalizationContextValue | null>(null);
+const ENGLISH_FALLBACK: LocalizationContextValue = {
+  locale: "en",
+  setLocale: () => undefined,
+  t: (key, variables) => translate("en", key, variables),
+};
 
 export function LocalizationProvider({
   initialLocale,
@@ -64,11 +69,7 @@ export function LocalizationProvider({
 }
 
 export function useLocalization() {
-  const value = useContext(LocalizationContext);
-  if (!value) {
-    throw new Error("LocalizationProvider is required.");
-  }
-  return value;
+  return useContext(LocalizationContext) ?? ENGLISH_FALLBACK;
 }
 
 export { LOCALE_COOKIE };
