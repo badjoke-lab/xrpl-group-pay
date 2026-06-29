@@ -46,14 +46,13 @@ export function TestnetBillReview({
   const issued = review.asset.assetType === "issued";
   const networkLabel = review.network === "mainnet" ? "Mainnet" : "Testnet";
   const strategyLabel = allocationSummary
-    ? t(
-        {
-          custom: "bill.allocation.custom.label",
-          equal: "bill.allocation.equal.label",
-          percentage: "bill.allocation.percentage.label",
-          shares: "bill.allocation.shares.label",
-        }[allocationSummary.strategy],
-      )
+    ? allocationSummary.strategy === "custom"
+      ? t("bill.allocation.custom.label")
+      : allocationSummary.strategy === "equal"
+        ? t("bill.allocation.equal.label")
+        : allocationSummary.strategy === "percentage"
+          ? t("bill.allocation.percentage.label")
+          : t("bill.allocation.shares.label")
     : null;
   const remainderAssignmentLabel = allocationSummary
     ? allocationSummary.remainderAssignmentLabel === "No remainder"
