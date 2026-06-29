@@ -1,16 +1,16 @@
 {
   "schema_version": 1,
   "network": "mainnet",
-  "updated_at": "2026-06-28",
+  "updated_at": "2026-06-29",
   "records": [
     {
       "id": "production-d1-provisioning",
       "status": "accepted",
-      "recorded_at": "2026-06-26T03:14:41.122Z",
+      "recorded_at": "2026-06-29T15:58:03.890Z",
       "database_name": "xrpl-group-pay-mainnet",
       "database_id": "d2c580e7-8039-40e1-baa6-5461e0a54cad",
       "preview_database_id": "da6590b3-cf0a-4584-80a3-a36749ae523f",
-      "migration_count": 12,
+      "migration_count": 14,
       "migrations_applied": true,
       "receipt_schema_checked": true
     },
