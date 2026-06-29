@@ -5,6 +5,7 @@ import { Check, Copy, Eye, Share2, UserRoundCog } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { CreatedBill } from "@/features/bills/types";
+import { useLocalization } from "@/features/localization/provider";
 import { formatMoneyAmount } from "@/features/money/money";
 
 function paymentUrl(token: string) {
@@ -26,6 +27,7 @@ export function CreatedBillShare({
   created: CreatedBill;
   onReset(): void;
 }) {
+  const { t } = useLocalization();
   const [copied, setCopied] = useState<string | null>(null);
   const issued = created.bill.asset.assetType === "issued";
 
@@ -43,46 +45,55 @@ export function CreatedBillShare({
         </div>
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-success">
-            Bill created
+            {t("bill.created.badge")}
           </p>
           <h2 className="mt-2 font-heading text-3xl font-semibold">
             {created.bill.title}
           </h2>
           <p className="mt-2 leading-7 text-muted">
-            The {created.bill.asset.symbol} Bill is frozen. Save the creator
-            progress link, then send each participant their payment link.
+            {t("bill.created.description", {
+              asset: created.bill.asset.symbol,
+            })}
           </p>
         </div>
       </div>
 
       <div className="mt-7 grid gap-3 sm:grid-cols-4">
-        <Summary label="Settlement Asset" value={created.bill.asset.symbol} />
-        <Summary label="Total" value={amount(created.bill.totalAmount)} />
         <Summary
-          label="Creator share"
+          label={t("bill.created.asset")}
+          value={created.bill.asset.symbol}
+        />
+        <Summary
+          label={t("bill.created.total")}
+          value={amount(created.bill.totalAmount)}
+        />
+        <Summary
+          label={t("bill.created.creatorShare")}
           value={amount(created.bill.creatorShareAmount)}
         />
-        <Summary label="Participants" value={String(created.slots.length)} />
+        <Summary
+          label={t("bill.created.participants")}
+          value={String(created.slots.length)}
+        />
       </div>
 
       {issued && (
         <div className="mt-5 rounded-lg border border-action/25 bg-action/10 p-4 text-sm leading-6">
-          <p className="font-semibold">Official RLUSD issuer</p>
+          <p className="font-semibold">{t("bill.created.issuer")}</p>
           <p className="mt-1 break-all font-mono text-xs">
             {created.bill.asset.issuer}
           </p>
-          <p className="mt-2 text-muted">
-            Participant wallets pay the XRPL network fee separately in XRP.
-          </p>
+          <p className="mt-2 text-muted">{t("bill.created.fee")}</p>
         </div>
       )}
 
       <div className="mt-8 grid gap-4 md:grid-cols-2">
         <AccessCard
           icon={UserRoundCog}
-          title="Creator progress"
-          body="Shows participant labels, expected wallets, InvoiceIDs, and independent verification states."
-          buttonLabel="Copy creator progress link"
+          title={t("bill.created.creatorProgress")}
+          body={t("bill.created.creatorProgressBody")}
+          buttonLabel={t("bill.created.copyCreator")}
+          copiedLabel={t("bill.created.copied")}
           copied={copied === "admin-progress"}
           onCopy={() =>
             void copyUrl(
@@ -93,9 +104,10 @@ export function CreatedBillShare({
         />
         <AccessCard
           icon={Eye}
-          title="Read-only progress"
-          body="Shows amounts and settlement states without participant labels, expected wallet addresses, or InvoiceIDs."
-          buttonLabel="Copy read-only progress link"
+          title={t("bill.created.readOnly")}
+          body={t("bill.created.readOnlyBody")}
+          buttonLabel={t("bill.created.copyReadOnly")}
+          copiedLabel={t("bill.created.copied")}
           copied={copied === "public-progress"}
           onCopy={() =>
             void copyUrl(
@@ -108,7 +120,7 @@ export function CreatedBillShare({
 
       <div className="mt-8 space-y-4">
         <h3 className="font-heading text-xl font-semibold">
-          Participant payment links
+          {t("bill.created.paymentLinks")}
         </h3>
         {created.slots.map((slot, index) => (
           <article
@@ -117,11 +129,13 @@ export function CreatedBillShare({
           >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm text-muted">Participant {index + 1}</p>
+                <p className="text-sm text-muted">
+                  {t("bill.participant.number", { number: index + 1 })}
+                </p>
                 <h4 className="mt-1 font-heading text-lg font-semibold">
-                  {slot.participantLabel || "Unnamed participant"}
+                  {slot.participantLabel || t("bill.created.unnamed")}
                 </h4>
-                <p className="mt-1 font-mono text-xs text-muted">
+                <p className="mt-1 break-all font-mono text-xs text-muted">
                   {slot.expectedPayerAddress}
                 </p>
                 <p className="mt-2 font-semibold text-brand">
@@ -140,7 +154,9 @@ export function CreatedBillShare({
                 ) : (
                   <Copy aria-hidden="true" className="size-4" />
                 )}
-                {copied === slot.publicId ? "Copied" : "Copy payment link"}
+                {copied === slot.publicId
+                  ? t("bill.created.copied")
+                  : t("bill.created.copyPayment")}
               </Button>
             </div>
           </article>
@@ -150,10 +166,7 @@ export function CreatedBillShare({
       <div className="mt-7 rounded-lg bg-brand-subtle p-4 text-sm leading-6 text-brand">
         <div className="flex gap-3">
           <Share2 aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
-          <p>
-            Payment and progress capabilities stay in URL fragments. Share each
-            capability only with its intended viewer.
-          </p>
+          <p>{t("bill.created.capabilityNotice")}</p>
         </div>
       </div>
 
@@ -163,7 +176,7 @@ export function CreatedBillShare({
         className="mt-7"
         onClick={onReset}
       >
-        Create another bill
+        {t("bill.created.another")}
       </Button>
     </section>
   );
@@ -185,6 +198,7 @@ function AccessCard({
   title,
   body,
   buttonLabel,
+  copiedLabel,
   copied,
   onCopy,
 }: {
@@ -192,6 +206,7 @@ function AccessCard({
   title: string;
   body: string;
   buttonLabel: string;
+  copiedLabel: string;
   copied: boolean;
   onCopy(): void;
 }) {
@@ -217,7 +232,7 @@ function AccessCard({
         ) : (
           <Copy aria-hidden="true" className="size-4" />
         )}
-        {copied ? "Copied" : buttonLabel}
+        {copied ? copiedLabel : buttonLabel}
       </Button>
     </article>
   );
