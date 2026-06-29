@@ -106,9 +106,9 @@ describe("XRPL account transaction client", () => {
   });
 
   it("fails closed when pagination exceeds the bounded review window", async () => {
-    const fetcher = vi
-      .fn()
-      .mockResolvedValue(response({ marker: { ledger: 100, seq: 1 } }));
+    const fetcher = vi.fn().mockImplementation(async () =>
+      response({ marker: { ledger: 100, seq: 1 } }),
+    );
     const client = new XrplAccountTransactionClient(
       "testnet",
       ["https://testnet.example/"],
