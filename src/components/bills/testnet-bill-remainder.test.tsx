@@ -54,7 +54,11 @@ describe("TestnetBillForm remainder handling", () => {
     expect(
       screen.getByText("Assign the remainder explicitly"),
     ).toBeVisible();
-    expect(screen.getByText("1", { selector: "strong" })).toBeVisible();
+    expect(
+      screen.getByText(
+        "The calculation leaves 1 smallest Asset unit. Group Pay will not discard or assign it silently.",
+      ),
+    ).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Review bill before freezing" }),
     ).toBeDisabled();
