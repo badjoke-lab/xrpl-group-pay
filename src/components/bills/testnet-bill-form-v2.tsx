@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { LoaderCircle, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { publicEnv } from "@/config/public-env";
 import {
   getRlusdAssetDescriptor,
   getXrpAssetDescriptor,
@@ -40,9 +41,10 @@ import {
 } from "./remainder-controls";
 import { TestnetBillReview } from "./testnet-bill-review";
 
+const NETWORK = publicEnv.NEXT_PUBLIC_APP_NETWORK;
 const ASSETS = [
-  getXrpAssetDescriptor("testnet"),
-  getRlusdAssetDescriptor("testnet"),
+  getXrpAssetDescriptor(NETWORK),
+  getRlusdAssetDescriptor(NETWORK),
 ] as const;
 
 async function readJson(response: Response) {
@@ -56,7 +58,7 @@ async function readJson(response: Response) {
 }
 
 export function TestnetBillForm() {
-  const [draft, setDraft] = useState<BillDraft>(() => newBillDraft());
+  const [draft, setDraft] = useState<BillDraft>(() => newBillDraft(NETWORK));
   const [review, setReview] = useState<BillReview | null>(null);
   const [created, setCreated] = useState<CreatedBill | null>(null);
   const [reviewing, setReviewing] = useState(false);
@@ -147,7 +149,11 @@ export function TestnetBillForm() {
   }
 
   function selectAsset(asset: AssetDescriptor) {
-    if (asset.id !== "xrpl:testnet:xrp" && asset.id !== "xrpl:testnet:rlusd") {
+    if (asset.network !== NETWORK) return;
+    if (
+      asset.id !== `xrpl:${NETWORK}:xrp` &&
+      asset.id !== `xrpl:${NETWORK}:rlusd`
+    ) {
       return;
     }
     setDraft((current) => ({
@@ -247,7 +253,7 @@ export function TestnetBillForm() {
   }
 
   function reset() {
-    setDraft(newBillDraft());
+    setDraft(newBillDraft(NETWORK));
     setReview(null);
     setCreated(null);
     setError(null);
@@ -288,8 +294,7 @@ export function TestnetBillForm() {
             Choose one Settlement Asset for the Bill
           </h2>
           <p className="mt-2 leading-7 text-muted">
-            Every participant pays the same frozen Asset. Nothing becomes payable
-            until the review step is confirmed.
+            Every participant pays the same frozen Asset on XRPL {NETWORK === "mainnet" ? "Mainnet" : "Testnet"}. Nothing becomes payable until the review step is confirmed.
           </p>
         </div>
       </div>
@@ -362,34 +367,33 @@ export function TestnetBillForm() {
 
       <AllocationStatus
         strategy={draft.allocationStrategy}
-        customAllocation={customAllocation}
-        strategyPreview={strategyPreview}
         assetSymbol={selectedAsset.symbol}
+        assetScale={selectedAsset.precision}
+        custom={customAllocation}
+        strategyPreview={strategyPreview}
       />
 
       {error && (
         <p
           role="alert"
-          className="mt-5 rounded-md bg-danger/10 px-4 py-3 text-sm text-danger"
+          className="mt-6 rounded-md bg-danger/10 px-4 py-3 text-sm text-danger"
         >
           {error}
         </p>
       )}
 
-      <Button
-        type="submit"
-        className="mt-7 w-full"
-        disabled={reviewing || !canReview}
-      >
-        {reviewing ? (
-          <>
-            <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-            Validating bill review
-          </>
-        ) : (
-          "Review bill before freezing"
-        )}
-      </Button>
+      <div className="mt-8 flex justify-end">
+        <Button type="submit" disabled={!canReview || reviewing}>
+          {reviewing ? (
+            <>
+              <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+              Reviewing bill
+            </>
+          ) : (
+            "Review frozen payment conditions"
+          )}
+        </Button>
+      </div>
     </form>
   );
 }
