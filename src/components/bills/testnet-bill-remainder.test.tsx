@@ -86,7 +86,9 @@ describe("TestnetBillForm remainder handling", () => {
     });
     expect(screen.getByText("Equal", { exact: true })).toBeVisible();
     expect(screen.getByText("Remainder units")).toBeVisible();
-    expect(screen.getByText("Creator", { exact: true })).toBeVisible();
+    expect(
+      screen.getByText("Remainder assignment").parentElement,
+    ).toHaveTextContent("Creator share");
   });
 
   it("requires a selected participant before assigning the remainder", () => {

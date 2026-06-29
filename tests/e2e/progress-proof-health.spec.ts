@@ -63,7 +63,10 @@ test("renders capability-bound bill progress", async ({ page }) => {
 
   await page.goto(`/testnet/bill/progress#token=${"a".repeat(64)}`);
   await expect(
-    page.getByRole("heading", { level: 1, name: /Follow every participant/i }),
+    page.getByRole("heading", {
+      level: 1,
+      name: /Track settlement without trusting wallet status alone/i,
+    }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "XRPL Meetup Dinner" }),
