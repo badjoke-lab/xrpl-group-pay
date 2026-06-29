@@ -30,6 +30,7 @@
     "check:mainnet-rlusd-preparation": "node scripts/prepare-mainnet-rlusd-acceptance.mjs --check",
     "prepare:mainnet-rlusd-acceptance": "node scripts/prepare-mainnet-rlusd-acceptance.mjs",
     "import:mainnet-d1-evidence": "node scripts/import-mainnet-d1-provisioning-report.mjs",
+    "import:mainnet-d1-forward-evidence": "node scripts/import-mainnet-d1-forward-report.mjs",
     "import:mainnet-xaman-evidence": "node scripts/import-mainnet-xaman-attestation-report.mjs",
     "import:mainnet-halted-deployment-evidence": "node scripts/import-mainnet-halted-deployment-report.mjs",
     "drill:mainnet-operations": "vitest run tests/mainnet-operational-stop-drill.test.ts --reporter=verbose",
