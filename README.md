@@ -8,43 +8,48 @@ A creator prepares a Bill, allocates participant obligations, shares individual 
 
 The merged application currently provides:
 
-- one-time XRP or official RLUSD Bills on XRPL Testnet;
+- one-time XRP or official RLUSD Bills on the configured XRPL network;
 - one frozen Settlement Asset per Bill and all of its participant slots;
-- creator share and custom participant amounts in fixed-precision Asset units;
+- Custom Amount, Equal, Percentage, and Shares allocation;
+- explicit deterministic remainder assignment;
+- creator share and participant amounts in fixed-precision Asset units;
 - expected payer XRPL addresses;
 - separate participant capabilities;
 - creator review before Bill freeze;
 - participant final confirmation;
 - Xaman handoff for native XRP and issued RLUSD Payments;
-- Source Tag and unique InvoiceID;
+- one-shot Xaman transaction binding to the expected payer, one XRPL Sequence, and a bounded ledger window;
+- Source Tag and unique InvoiceID correlation;
 - strict validated-ledger XRP and issued-asset verification;
 - durable Asset-aware D1 payment records;
 - atomic Bill progress updates;
 - public XRP transaction proof;
-- responsive payer and creator views.
+- responsive payer and creator views;
+- deployment-aware Bill creation UI;
+- public Roadmap and Changelog pages.
 
-| Area | Available now |
+| Area | Available in merged code |
 |---|---|
-| Network | XRPL Testnet |
+| Network | XRPL Testnet and controlled XRPL Mainnet configuration |
 | Settlement Asset | XRP or official network-specific RLUSD; one Asset per Bill |
 | Wallet Provider | Xaman |
-| Allocation | Creator share and custom participant amounts |
+| Allocation | Creator share plus Custom Amount, Equal, Percentage, or Shares |
 | Interface language | English |
 | Custody | None; payer sends directly to creator |
 
-## Approved Make Waves v1 target
+The production Mainnet Worker remains operationally halted. Merged Mainnet capability is not a public-release claim until the remaining release blockers, controlled RLUSD acceptance, and final audit are completed.
 
-The remaining approved target adds:
+## Remaining Make Waves v1 work
 
-- Equal, Percentage, Shares, and Custom Amount allocation;
-- explicit remainder handling;
-- further wallet-neutral Payment Intent and Wallet Provider integration;
-- RLUSD recipient-readiness checks;
+The approved v1 target still requires:
+
+- validated-ledger reconciliation before creating any replacement wallet handoff;
+- a fresh controlled official RLUSD Mainnet acceptance ceremony;
+- accepted RLUSD release evidence and final Mainnet release audit;
 - English, Japanese, and Korean critical flows;
-- controlled XRPL Mainnet release;
-- public Roadmap and Changelog pages in the application interface.
+- final public Mainnet runtime configuration and post-deployment checks.
 
-Target features are not claimed as available until their implementation is merged and tested.
+Submission deliverables such as the pitch video, pitch deck, and Source Tag metrics summary are tracked separately from product runtime completion.
 
 ## Product direction
 
@@ -125,7 +130,7 @@ pnpm build:worker
 
 Testnet and Mainnet use separate configuration, databases, XRPL endpoints, Source Tag values, and Asset Registry entries. Testnet Bills are not copied automatically to Mainnet.
 
-The internal Mainnet Worker is deployed at `https://xgp.badjoke-lab.com` with the isolated Mainnet D1 binding and payment operations halted. Bill persistence is deployment-network-aware and rejects cross-network Asset identities. The production release remains blocked at controlled live XRP acceptance; no public Mainnet payment operation is enabled yet.
+The internal Mainnet Worker is deployed at `https://xgp.badjoke-lab.com` with the isolated Mainnet D1 binding and payment operations halted. Mainnet creation remains unavailable to public users until the release decision is approved and a reviewed public operations configuration is deployed.
 
 ## License
 

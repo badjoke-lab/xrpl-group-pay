@@ -6,32 +6,35 @@ Meaningful user-facing, security, compatibility, persistence, and operational ch
 
 ### Added
 
-- Introduced fixed-precision `MoneyAmount` primitives and an immutable Asset Registry foundation with separate XRP Testnet and Mainnet descriptors.
-- Added official network-specific RLUSD Asset descriptors and issued-Payment transaction construction.
-- Added wallet-neutral Payment Intent contracts and a Xaman adapter that supports native XRP and official RLUSD on Testnet.
+- Added official network-specific RLUSD Asset descriptors and issued-Payment construction.
+- Added wallet-neutral Payment Intent contracts and a Xaman adapter for native XRP and official RLUSD.
 - Added strict validated-ledger verification for XRP and issued RLUSD Payments.
 - Added generic Asset-aware verified-payment records and issued-asset PaymentSlot settlement.
-- Added XRP or official RLUSD selection to Bill creation with one frozen Settlement Asset across every participant slot.
-- Added Asset-aware review, participant payment details, sharing, and Bill progress views.
+- Added XRP or official RLUSD selection with one frozen Settlement Asset across every participant slot.
+- Added fixed-precision Custom Amount, Equal, Percentage, and Shares allocation.
+- Added explicit deterministic remainder assignment and immutable allocation records.
 - Added durable provider-request lifecycle records with one active request allowed per PaymentSlot.
+- Added controlled Mainnet XRP acceptance evidence.
+- Added a deployment-aware Bill creation route and public Roadmap and Changelog application pages.
 
 ### Changed
 
-- Bill totals, creator shares, and participant obligations now use canonical fixed-precision Asset units while retaining bounded legacy XRP compatibility fields.
-- Existing slot-bound Xaman requests are derived from frozen Payment Intents and Asset identity.
+- Bill totals, creator shares, and participant obligations use canonical fixed-precision Asset units while retaining bounded legacy XRP compatibility fields.
+- Existing slot-bound Xaman requests are derived from frozen Payment Intents and canonical Asset identity.
 - Payment request creation records provider ID, provider request ID, Payment Intent identity and revision, status, expiry, and submitted transaction identity when available.
 - Bill progress and verification responses normalize legacy XRP shapes into the shared Asset-aware contracts.
-- Defined Equal, Percentage, Shares, and Custom Amount allocation contracts.
-- Defined English, Japanese, and Korean localization requirements.
-- Added public Roadmap and Changelog governance.
+- Bill creation UI now selects Testnet or Mainnet XRP and RLUSD descriptors from the deployment network instead of hard-coding Testnet Assets.
+- Public product copy and release status now distinguish merged Mainnet capability from the still-halted production release.
 
 ### Security
 
 - Official RLUSD currency and network-specific issuer identity are frozen and verified without floating-point arithmetic.
 - A Bill cannot mix Settlement Assets across participant PaymentSlots.
 - Issued-asset delivered values, destination, sender, tags, InvoiceID, network, result, and unsupported path fields are verified before settlement.
+- Xaman Payment requests now pin the expected payer `Account`, one validated XRPL `Sequence`, and a bounded `LastLedgerSequence` so a reused handoff cannot produce two validated Payments.
+- The controlled Mainnet RLUSD duplicate-transfer incident is documented as a release blocker without exposing private operator material.
 
-Runtime availability now includes XRP and official RLUSD Bills on XRPL Testnet through Xaman. Mainnet, additional wallets, allocation strategies beyond Custom Amount, and additional interface languages remain planned until separately merged and tested.
+Runtime availability includes XRP and official RLUSD Bills, all four allocation strategies, participant capabilities, Xaman handoffs, and validated-ledger settlement in merged code. The production Mainnet Worker remains halted pending replacement-handoff reconciliation, a fresh RLUSD ceremony, and final release approval. Japanese and Korean critical flows remain planned until separately merged and tested.
 
 ## [0.1.0] — 2026-06-24
 

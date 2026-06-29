@@ -1,29 +1,39 @@
 # XRPL Group Pay Roadmap
 
 **Status:** Active  
-**Last reviewed:** 2026-06-25
+**Last reviewed:** 2026-06-29
 
-This roadmap shows product direction, not promised dates. A capability moves to **Available** only after it is merged, tested, and usable.
+This roadmap shows product direction, not promised dates. A capability moves to **Available** only after it is merged, tested, and usable in the intended environment.
 
 ## Available
 
-- XRP and official RLUSD Testnet Bills.
-- One frozen Settlement Asset per Bill and all participant PaymentSlots.
+- XRP and official RLUSD Bills with one frozen Settlement Asset.
+- Custom Amount, Equal, Percentage, and Shares allocation.
+- Explicit deterministic remainder assignment.
+- Immutable allocation records and participant PaymentSlots.
 - Xaman signing handoff for native XRP and issued RLUSD Payments.
 - Validated-ledger XRP and issued-asset verification.
 - Durable Asset-aware payment records and atomic Bill progress.
 - Public XRP transaction proof.
 - Direct payer-to-recipient settlement with capability separation.
-
-## In Progress
-
-- Wallet-neutral Payment Intent and Xaman Provider adapter integration.
-- Equal, Percentage, Shares, and Custom Amount allocation.
-- Explicit deterministic remainder handling.
-- RLUSD recipient-readiness checks.
-- English, Japanese, and Korean critical flows.
-- Controlled Mainnet release.
+- Controlled Mainnet XRP acceptance evidence.
+- One-shot Xaman transaction binding to the expected payer, one XRPL Sequence, and a bounded ledger window.
+- Deployment-aware Bill creation UI.
 - Public Roadmap and Changelog pages in the application interface.
+
+## Release blockers
+
+- Validated-ledger reconciliation before any replacement Wallet Handoff is created.
+- Fresh controlled official RLUSD Mainnet acceptance after duplicate-transfer remediation.
+- Accepted RLUSD transaction, receipt, duplicate-control, replay-control, and halted-restoration evidence.
+- Final Mainnet release audit and reviewed public runtime configuration.
+
+## Make Waves v1 completion
+
+- English, Japanese, and Korean critical creator and payer flows.
+- Final Mainnet post-deployment smoke and operational checks.
+- Source Tag metrics summary for distinct successful signers, transaction count, XRP volume, and RLUSD volume.
+- Submission video and pitch deck.
 
 ## Next
 
