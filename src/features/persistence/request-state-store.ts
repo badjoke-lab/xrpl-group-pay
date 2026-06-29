@@ -11,12 +11,17 @@ import {
   EXPIRE_ACTIVE_REQUEST,
   MARK_SLOT_WAITING,
   SELECT_ACTIVE_REQUEST,
+  SELECT_REQUEST_HISTORY,
   STORE_REQUEST,
 } from "./request-state-sql";
 
 const activeRowSchema = z.object({
   id: z.string().min(1),
   expires_at: z.string().datetime(),
+});
+
+const requestCountSchema = z.object({
+  request_count: z.number().int().nonnegative(),
 });
 
 export type ProviderRequestState = {
@@ -56,6 +61,19 @@ export async function requireNoActiveRequest(
   }
 
   throw new ActiveRequestError();
+}
+
+export async function hasPriorRequest(
+  database: D1DatabaseLike,
+  slotId: string,
+): Promise<boolean> {
+  const row = await database
+    .prepare(SELECT_REQUEST_HISTORY)
+    .bind(slotId)
+    .first();
+  const parsed = requestCountSchema.safeParse(row);
+  if (!parsed.success) throw new RequestPersistenceError();
+  return parsed.data.request_count > 0;
 }
 
 export async function persistRequestState(
