@@ -1,5 +1,6 @@
 import type { D1DatabaseLike } from "@/features/persistence/d1-types";
 import {
+  hasPriorRequest,
   persistRequestState,
   requireNoActiveRequest,
 } from "@/features/persistence/request-state-store";
@@ -12,8 +13,10 @@ import type { StoredSlotPayload } from "./create-slot-payload";
 import {
   loadPaymentSlotByToken,
   requirePayableSlot,
+  type ResolvedPaymentSlot,
 } from "./payment-slot";
 import { paymentDetailsFromSlot } from "./payment-details";
+import { PaymentReconciliationUnavailableError } from "./reconcile-replacement-payment";
 import { buildStoredSlotPaymentIntent } from "./slot-payment-request";
 
 export type PersistedPayloadDependencies = {
@@ -21,6 +24,11 @@ export type PersistedPayloadDependencies = {
   createHandoff(
     intent: ReturnType<typeof buildStoredSlotPaymentIntent>,
   ): Promise<WalletHandoff>;
+  reconcileReplacement?(
+    database: D1DatabaseLike,
+    slot: ResolvedPaymentSlot,
+    now: Date,
+  ): Promise<void>;
   now?: () => Date;
 };
 
@@ -53,6 +61,15 @@ export async function createPersistedSlotPayload(
   );
 
   await requireNoActiveRequest(database, slot.slotId, now);
+
+  if (await hasPriorRequest(database, slot.slotId)) {
+    if (!dependencies.reconcileReplacement) {
+      throw new PaymentReconciliationUnavailableError(
+        "Replacement payment reconciliation is not configured.",
+      );
+    }
+    await dependencies.reconcileReplacement(database, slot, now);
+  }
 
   const intent = buildStoredSlotPaymentIntent(
     slot,
