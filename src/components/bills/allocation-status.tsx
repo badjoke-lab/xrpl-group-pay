@@ -17,6 +17,12 @@ export type StrategyAllocationStatus = {
   message: string;
 };
 
+const REMAINDER_INSTRUCTION = {
+  en: "Choose exactly who receives the remaining smallest Asset units.",
+  ja: "残った最小資産単位を誰に割り当てるか明示してください。",
+  ko: "남은 최소 자산 단위를 누구에게 배정할지 명확히 선택하세요.",
+} as const;
+
 export function AllocationStatus({
   strategy,
   customAllocation,
@@ -28,7 +34,7 @@ export function AllocationStatus({
   strategyPreview: StrategyAllocationStatus;
   assetSymbol: string;
 }) {
-  const { t } = useLocalization();
+  const { locale, t } = useLocalization();
 
   if (strategy !== "custom") {
     const exact = strategyPreview.status === "exact";
@@ -48,7 +54,7 @@ export function AllocationStatus({
           exact
             ? t("bill.status.matches", { asset: assetSymbol })
             : needsRemainder
-              ? t("bill.remainder.title")
+              ? REMAINDER_INSTRUCTION[locale]
               : t("bill.status.enterAll")
         }
       />
