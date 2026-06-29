@@ -3,15 +3,23 @@ import Link from "next/link";
 
 import { TestnetBillForm } from "@/components/bills/testnet-bill-form";
 import { BrandMark } from "@/components/brand/brand-mark";
+import { LanguageSwitcher } from "@/components/localization/language-switcher";
 import { NetworkBadge } from "@/components/ui/network-badge";
 import { resolvePaymentOperations } from "@/config/payment-operations";
 import { publicEnv } from "@/config/public-env";
+import { translate } from "@/features/localization/catalog";
+import { getRequestLocale } from "@/features/localization/server";
 
 export const metadata = {
   title: "Create Shared Bill",
 };
 
-export default function BillPage() {
+export default async function BillPage() {
+  const locale = await getRequestLocale();
+  const t = (
+    key: Parameters<typeof translate>[1],
+    variables?: Record<string, string | number>,
+  ) => translate(locale, key, variables);
   const network = publicEnv.NEXT_PUBLIC_APP_NETWORK;
   const operations = resolvePaymentOperations(process.env);
   const releaseMode = process.env.MAINNET_RELEASE_MODE ?? "disabled";
@@ -23,26 +31,27 @@ export default function BillPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-5 py-6 sm:px-8">
+      <header className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-5 py-6 sm:px-8">
         <Link href="/" className="flex items-center gap-3">
           <BrandMark />
           <span className="font-heading font-bold text-brand">XRPL Group Pay</span>
         </Link>
-        <NetworkBadge network={network} />
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <LanguageSwitcher compact />
+          <NetworkBadge network={network} />
+        </div>
       </header>
 
       <div className="mx-auto w-full max-w-5xl px-5 pb-20 pt-8 sm:px-8 sm:pt-14">
         <div className="mb-9 max-w-3xl">
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-action">
-            Creator flow · XRPL {networkLabel}
+            {t("bill.page.eyebrow", { network: networkLabel })}
           </p>
           <h1 className="mt-3 font-heading text-4xl font-bold tracking-tight sm:text-5xl">
-            Create one bill. Send each person their exact share.
+            {t("bill.page.title")}
           </h1>
           <p className="mt-5 text-lg leading-8 text-muted">
-            Group Pay freezes the destination, Settlement Asset, and allocations,
-            then creates a separate payment capability for every participant. Funds
-            move directly from each participant wallet to the recipient wallet.
+            {t("bill.page.description")}
           </p>
         </div>
 
@@ -57,20 +66,23 @@ export default function BillPage() {
               />
               <div>
                 <h2 className="font-heading text-2xl font-semibold">
-                  Mainnet bill creation is not publicly open yet
+                  {t("bill.page.halted.title")}
                 </h2>
                 <p className="mt-3 max-w-2xl leading-7 text-foreground">
-                  This deployment is operationally halted while controlled release
-                  checks are completed. No payment request can be created in this
-                  state. The page will enable automatically only after the reviewed
-                  Mainnet release configuration is published.
+                  {t("bill.page.halted.body")}
                 </p>
                 <div className="mt-5 flex flex-wrap gap-3 text-sm font-semibold">
-                  <Link href="/roadmap" className="text-brand underline-offset-4 hover:underline">
-                    View release status
+                  <Link
+                    href="/roadmap"
+                    className="text-brand underline-offset-4 hover:underline"
+                  >
+                    {t("bill.page.releaseStatus")}
                   </Link>
-                  <Link href="/changelog" className="text-brand underline-offset-4 hover:underline">
-                    View completed work
+                  <Link
+                    href="/changelog"
+                    className="text-brand underline-offset-4 hover:underline"
+                  >
+                    {t("bill.page.completedWork")}
                   </Link>
                 </div>
               </div>
