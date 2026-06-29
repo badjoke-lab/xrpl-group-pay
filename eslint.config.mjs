@@ -13,12 +13,22 @@ const eslintConfig = defineConfig([
       "react-hooks/set-state-in-effect": "off",
     },
   },
-  // Override default ignores of eslint-config-next.
+  // Override default ignores of eslint-config-next and keep generated outputs
+  // outside the source lint boundary.
   globalIgnores([
-    // Default ignores of eslint-config-next:
     ".next/**",
+    ".open-next/**",
+    ".wrangler/**",
     "out/**",
+    "dist/**",
     "build/**",
+    "coverage/**",
+    "storybook-static/**",
+    "playwright-report/**",
+    "test-results/**",
+    ".tmp/**",
+    "tmp/**",
+    ".cache/**",
     "next-env.d.ts",
   ]),
 ]);
