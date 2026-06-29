@@ -8,31 +8,21 @@ import {
 import Link from "next/link";
 
 import { BrandMark } from "@/components/brand/brand-mark";
+import { LanguageSwitcher } from "@/components/localization/language-switcher";
 import { PaymentPreview } from "@/components/payment/payment-preview";
 import { buttonStyles } from "@/components/ui/button";
 import { NetworkBadge } from "@/components/ui/network-badge";
 import { resolvePaymentOperations } from "@/config/payment-operations";
 import { publicEnv } from "@/config/public-env";
+import { translate } from "@/features/localization/catalog";
+import { getRequestLocale } from "@/features/localization/server";
 
-const principles = [
-  {
-    icon: WalletCards,
-    title: "You approve every payment",
-    body: "Participants review and sign with their own Xaman wallet.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Funds move directly",
-    body: "Group Pay never becomes an intermediate recipient or app balance.",
-  },
-  {
-    icon: Check,
-    title: "Ledger-verified completion",
-    body: "A payment is not marked paid until the validated transaction matches.",
-  },
-];
-
-export default function Home() {
+export default async function Home() {
+  const locale = await getRequestLocale();
+  const t = (
+    key: Parameters<typeof translate>[1],
+    variables?: Record<string, string | number>,
+  ) => translate(locale, key, variables);
   const network = publicEnv.NEXT_PUBLIC_APP_NETWORK;
   const operations = resolvePaymentOperations(process.env);
   const releaseMode = process.env.MAINNET_RELEASE_MODE ?? "disabled";
@@ -40,25 +30,48 @@ export default function Home() {
     network === "testnet" ||
     (["limited", "public"].includes(releaseMode) && operations.creationEnabled);
   const networkLabel = network === "mainnet" ? "Mainnet" : "Testnet";
+  const principles = [
+    {
+      icon: WalletCards,
+      title: t("home.principle.approve.title"),
+      body: t("home.principle.approve.body"),
+    },
+    {
+      icon: ShieldCheck,
+      title: t("home.principle.direct.title"),
+      body: t("home.principle.direct.body"),
+    },
+    {
+      icon: Check,
+      title: t("home.principle.verify.title"),
+      body: t("home.principle.verify.body"),
+    },
+  ];
+  const steps = [
+    ["01", t("home.step.create.title"), t("home.step.create.body")],
+    ["02", t("home.step.sign.title"), t("home.step.sign.body")],
+    ["03", t("home.step.verify.title"), t("home.step.verify.body")],
+  ];
 
   return (
     <main className="min-h-screen overflow-hidden bg-background">
-      <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-6 sm:px-8 lg:px-10">
+      <header className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-5 py-6 sm:px-8 lg:px-10">
         <div className="flex items-center gap-3">
           <BrandMark />
           <span className="font-heading text-lg font-bold text-brand">
             XRPL Group Pay
           </span>
         </div>
-        <div className="flex items-center gap-4">
-          <nav className="hidden items-center gap-4 text-sm font-semibold sm:flex">
+        <div className="flex flex-wrap items-center justify-end gap-4">
+          <nav className="hidden items-center gap-4 text-sm font-semibold md:flex">
             <Link href="/roadmap" className="text-muted hover:text-foreground">
-              Roadmap
+              {t("nav.roadmap")}
             </Link>
             <Link href="/changelog" className="text-muted hover:text-foreground">
-              Changelog
+              {t("nav.changelog")}
             </Link>
           </nav>
+          <LanguageSwitcher compact />
           <NetworkBadge network={network} />
         </div>
       </header>
@@ -67,30 +80,27 @@ export default function Home() {
         <div className="relative z-10 max-w-2xl">
           <p className="mb-5 inline-flex items-center gap-2 rounded-pill border border-brand/15 bg-brand-subtle px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-brand">
             <Users aria-hidden="true" className="size-4" />
-            Non-custodial shared settlement
+            {t("home.eyebrow")}
           </p>
           <h1 className="font-heading text-5xl font-bold leading-[1.03] tracking-[-0.045em] text-foreground sm:text-6xl lg:text-7xl">
-            Split the cost.
-            <span className="block text-brand">Settle directly.</span>
+            {t("home.title")}
+            <span className="block text-brand">{t("home.titleAccent")}</span>
           </h1>
           <p className="mt-7 max-w-xl text-lg leading-8 text-muted sm:text-xl">
-            Create one shared bill in XRP or official RLUSD, give each participant
-            a frozen obligation, and verify every direct payment on XRPL {networkLabel}.
+            {t("home.description", { network: networkLabel })}
           </p>
 
           {!publicCreationEnabled && network === "mainnet" && (
             <p className="mt-5 max-w-xl rounded-lg border border-action/25 bg-action/10 px-4 py-3 text-sm leading-6 text-foreground">
-              Mainnet payment creation is currently halted while the controlled
-              release checklist is completed. The public interface remains visible,
-              but it will not create payment requests until release approval.
+              {t("home.halted")}
             </p>
           )}
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
             <Link href="/bill" className={buttonStyles({ className: "min-h-13" })}>
               {publicCreationEnabled
-                ? `Create a ${networkLabel} bill`
-                : "View bill creation status"}
+                ? t("home.cta.create", { network: networkLabel })
+                : t("home.cta.status")}
               <ArrowRight aria-hidden="true" className="size-4" />
             </Link>
             <a
@@ -100,7 +110,7 @@ export default function Home() {
                 className: "min-h-13",
               })}
             >
-              Read the product foundation
+              {t("home.cta.docs")}
             </a>
           </div>
 
@@ -135,11 +145,7 @@ export default function Home() {
 
       <section className="border-t border-border bg-surface">
         <div className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-12 sm:px-8 md:grid-cols-3 lg:px-10">
-          {[
-            ["01", "Create", "Set the recipient, Asset, total, and participant shares."],
-            ["02", "Sign", "Each participant approves their own Payment in Xaman."],
-            ["03", "Verify", "Group Pay confirms the validated transaction before completion."],
-          ].map(([number, title, body]) => (
+          {steps.map(([number, title, body]) => (
             <article key={number} className="flex gap-4">
               <span className="font-heading text-sm font-bold text-action">{number}</span>
               <div>
@@ -155,19 +161,19 @@ export default function Home() {
 
       <footer className="border-t border-border bg-background">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-5 py-8 text-sm text-muted sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10">
-          <p>Non-custodial coordination and validated-ledger verification.</p>
+          <p>{t("home.footer")}</p>
           <div className="flex gap-5 font-semibold">
             <Link href="/roadmap" className="hover:text-foreground">
-              Roadmap
+              {t("nav.roadmap")}
             </Link>
             <Link href="/changelog" className="hover:text-foreground">
-              Changelog
+              {t("nav.changelog")}
             </Link>
             <a
               href="https://github.com/badjoke-lab/xrpl-group-pay"
               className="hover:text-foreground"
             >
-              Source
+              {t("nav.source")}
             </a>
           </div>
         </div>
