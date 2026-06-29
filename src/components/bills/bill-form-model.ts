@@ -1,3 +1,4 @@
+import type { XrplNetwork } from "@/features/assets/types";
 import type { RemainderAssignment } from "@/features/bills/allocation-engine";
 import type { AllocationFormStrategy } from "@/features/bills/allocation-form";
 import type { AllocationViewSummary } from "@/features/bills/allocation-view";
@@ -8,7 +9,9 @@ import type { RemainderMode } from "./remainder-controls";
 
 export type SettlementAssetId =
   | "xrpl:testnet:xrp"
-  | "xrpl:testnet:rlusd";
+  | "xrpl:testnet:rlusd"
+  | "xrpl:mainnet:xrp"
+  | "xrpl:mainnet:rlusd";
 
 export type ParticipantDraft = {
   id: string;
@@ -72,12 +75,12 @@ export function newParticipant(): ParticipantDraft {
   };
 }
 
-export function newBillDraft(): BillDraft {
+export function newBillDraft(network: XrplNetwork = "testnet"): BillDraft {
   return {
     title: "",
     destinationAddress: "",
     destinationTag: "",
-    settlementAssetId: "xrpl:testnet:xrp",
+    settlementAssetId: `xrpl:${network}:xrp`,
     totalAmount: "",
     creatorShareAmount: "",
     allocationStrategy: "custom",
