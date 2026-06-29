@@ -294,7 +294,9 @@ export function TestnetBillForm() {
             Choose one Settlement Asset for the Bill
           </h2>
           <p className="mt-2 leading-7 text-muted">
-            Every participant pays the same frozen Asset on XRPL {NETWORK === "mainnet" ? "Mainnet" : "Testnet"}. Nothing becomes payable until the review step is confirmed.
+            Every participant pays the same frozen Asset on XRPL{" "}
+            {NETWORK === "mainnet" ? "Mainnet" : "Testnet"}. Nothing becomes
+            payable until the review step is confirmed.
           </p>
         </div>
       </div>
@@ -367,33 +369,34 @@ export function TestnetBillForm() {
 
       <AllocationStatus
         strategy={draft.allocationStrategy}
-        assetSymbol={selectedAsset.symbol}
-        assetScale={selectedAsset.precision}
-        custom={customAllocation}
+        customAllocation={customAllocation}
         strategyPreview={strategyPreview}
+        assetSymbol={selectedAsset.symbol}
       />
 
       {error && (
         <p
           role="alert"
-          className="mt-6 rounded-md bg-danger/10 px-4 py-3 text-sm text-danger"
+          className="mt-5 rounded-md bg-danger/10 px-4 py-3 text-sm text-danger"
         >
           {error}
         </p>
       )}
 
-      <div className="mt-8 flex justify-end">
-        <Button type="submit" disabled={!canReview || reviewing}>
-          {reviewing ? (
-            <>
-              <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-              Reviewing bill
-            </>
-          ) : (
-            "Review frozen payment conditions"
-          )}
-        </Button>
-      </div>
+      <Button
+        type="submit"
+        className="mt-7 w-full"
+        disabled={reviewing || !canReview}
+      >
+        {reviewing ? (
+          <>
+            <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+            Validating bill review
+          </>
+        ) : (
+          "Review bill before freezing"
+        )}
+      </Button>
     </form>
   );
 }
