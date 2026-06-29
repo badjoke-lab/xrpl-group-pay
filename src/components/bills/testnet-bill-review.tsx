@@ -42,6 +42,7 @@ export function TestnetBillReview({
   onConfirm,
 }: TestnetBillReviewProps) {
   const issued = review.asset.assetType === "issued";
+  const networkLabel = review.network === "mainnet" ? "Mainnet" : "Testnet";
 
   return (
     <section className="space-y-6">
@@ -51,7 +52,7 @@ export function TestnetBillReview({
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-pill bg-brand-subtle px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
-                  Testnet review
+                  {networkLabel} review
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-pill bg-success/10 px-3 py-1 text-xs font-bold text-success">
                   <CheckCircle2 aria-hidden="true" className="size-3.5" />
@@ -91,6 +92,25 @@ export function TestnetBillReview({
         </dl>
       </div>
 
+      {review.network === "mainnet" && (
+        <section className="rounded-xl border border-action/30 bg-action/10 p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <CircleAlert
+              aria-hidden="true"
+              className="mt-0.5 size-6 shrink-0 text-action"
+            />
+            <div>
+              <h3 className="font-semibold text-action">Real Mainnet payment links</h3>
+              <p className="mt-1 leading-7 text-foreground">
+                Participants will sign transactions that move real XRP or RLUSD.
+                Check the destination, payer addresses, Asset, and every amount
+                before freezing this Bill.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
       <section className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8">
         <div className="grid gap-5 lg:grid-cols-2">
           <ReviewField label="Bill title" value={review.title} />
@@ -107,7 +127,7 @@ export function TestnetBillReview({
                 : String(review.destinationTag)
             }
           />
-          <ReviewField label="Network" value="XRPL Testnet" />
+          <ReviewField label="Network" value={`XRPL ${networkLabel}`} />
           <ReviewField
             label="Settlement Asset"
             value={review.asset.symbol}
