@@ -2,8 +2,11 @@ import { CheckCircle2, CircleDot, FlaskConical, Layers3 } from "lucide-react";
 import Link from "next/link";
 
 import { BrandMark } from "@/components/brand/brand-mark";
+import { LanguageSwitcher } from "@/components/localization/language-switcher";
 import { NetworkBadge } from "@/components/ui/network-badge";
 import { publicEnv } from "@/config/public-env";
+import { translate } from "@/features/localization/catalog";
+import { getRequestLocale } from "@/features/localization/server";
 
 export const metadata = {
   title: "Roadmap",
@@ -27,7 +30,7 @@ const sections = [
     title: "Release blockers",
     icon: CircleDot,
     items: [
-      "Reconcile the expected payer's validated XRPL history before any replacement handoff is created.",
+      "Deploy the merged replacement-handoff reconciliation and one-shot signing defenses.",
       "Repeat controlled Mainnet RLUSD acceptance after the duplicate-transfer remediation is deployed.",
       "Record the accepted RLUSD receipt, duplicate control, replay control, and halted restoration evidence.",
       "Complete the final Mainnet release audit and publish the reviewed runtime configuration.",
@@ -55,28 +58,35 @@ const sections = [
   },
 ] as const;
 
-export default function RoadmapPage() {
+export default async function RoadmapPage() {
+  const locale = await getRequestLocale();
+  const t = (
+    key: Parameters<typeof translate>[1],
+    variables?: Record<string, string | number>,
+  ) => translate(locale, key, variables);
+
   return (
     <main className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-5 py-6 sm:px-8">
+      <header className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-5 py-6 sm:px-8">
         <Link href="/" className="flex items-center gap-3">
           <BrandMark />
           <span className="font-heading font-bold text-brand">XRPL Group Pay</span>
         </Link>
-        <NetworkBadge network={publicEnv.NEXT_PUBLIC_APP_NETWORK} />
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <LanguageSwitcher compact />
+          <NetworkBadge network={publicEnv.NEXT_PUBLIC_APP_NETWORK} />
+        </div>
       </header>
 
       <div className="mx-auto w-full max-w-5xl px-5 pb-20 pt-8 sm:px-8 sm:pt-14">
         <p className="text-sm font-semibold uppercase tracking-[0.14em] text-action">
-          Public status
+          {t("roadmap.eyebrow")}
         </p>
         <h1 className="mt-3 font-heading text-4xl font-bold tracking-tight sm:text-5xl">
-          Roadmap
+          {t("roadmap.title")}
         </h1>
         <p className="mt-5 max-w-3xl text-lg leading-8 text-muted">
-          This page separates usable product behavior from release-blocking work and
-          later direction. An item moves to Available only after it is merged,
-          tested, and usable in the intended environment.
+          {t("roadmap.description")}
         </p>
 
         <div className="mt-10 grid gap-6 lg:grid-cols-2">
@@ -94,7 +104,10 @@ export default function RoadmapPage() {
               <ul className="mt-6 space-y-3">
                 {items.map((item) => (
                   <li key={item} className="flex gap-3 leading-7 text-muted">
-                    <span aria-hidden="true" className="mt-3 size-1.5 shrink-0 rounded-full bg-action" />
+                    <span
+                      aria-hidden="true"
+                      className="mt-3 size-1.5 shrink-0 rounded-full bg-action"
+                    />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -105,16 +118,19 @@ export default function RoadmapPage() {
 
         <div className="mt-10 flex flex-wrap gap-4 text-sm font-semibold">
           <Link href="/bill" className="text-brand underline-offset-4 hover:underline">
-            Open bill creation
+            {t("home.cta.status")}
           </Link>
-          <Link href="/changelog" className="text-brand underline-offset-4 hover:underline">
-            View completed changes
+          <Link
+            href="/changelog"
+            className="text-brand underline-offset-4 hover:underline"
+          >
+            {t("nav.changelog")}
           </Link>
           <a
             href="https://github.com/badjoke-lab/xrpl-group-pay/blob/main/ROADMAP.md"
             className="text-brand underline-offset-4 hover:underline"
           >
-            Repository roadmap
+            {t("nav.source")}
           </a>
         </div>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import type { RemainderAssignment } from "@/features/bills/allocation-engine";
+import { useLocalization } from "@/features/localization/provider";
 
 export type RemainderParticipant = {
   participantId: string;
@@ -62,51 +63,60 @@ export function RemainderControls({
   onSelectedParticipantChange(participantId: string): void;
   onManualUnitsChange(participantId: string, units: string): void;
 }) {
+  const { t } = useLocalization();
+  const participantName = (participant: RemainderParticipant, index: number) =>
+    participant.label || t("bill.participant.number", { number: index + 1 });
+
   return (
     <fieldset className="mt-6 rounded-xl border border-action/30 bg-action/10 p-5 sm:p-6">
       <legend className="px-2 font-heading text-lg font-semibold text-action">
-        Assign the remainder explicitly
+        {t("bill.remainder.title")}
       </legend>
       <p className="mt-1 text-sm leading-6 text-foreground">
-        The calculation leaves <strong>{remainderUnits}</strong> smallest Asset
-        unit{remainderUnits === "1" ? "" : "s"}. Group Pay will not discard or
-        assign it silently.
+        {t(
+          remainderUnits === "1"
+            ? "bill.remainder.description.one"
+            : "bill.remainder.description.many",
+          { units: remainderUnits },
+        )}
       </p>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <RemainderChoice
           value="creator"
           checked={mode === "creator"}
-          label="Creator pays remainder"
-          description="Add all remainder units to the creator share."
+          label={t("bill.remainder.creator.label")}
+          description={t("bill.remainder.creator.description")}
           onChange={() => onModeChange("creator")}
         />
         <RemainderChoice
           value="first_participant"
           checked={mode === "first_participant"}
-          label="First participant pays remainder"
-          description="Add all remainder units to participant 1."
+          label={t("bill.remainder.first.label")}
+          description={t("bill.remainder.first.description")}
           onChange={() => onModeChange("first_participant")}
         />
         <RemainderChoice
           value="selected_participant"
           checked={mode === "selected_participant"}
-          label="Choose one participant"
-          description="Add all remainder units to a selected participant."
+          label={t("bill.remainder.selected.label")}
+          description={t("bill.remainder.selected.description")}
           onChange={() => onModeChange("selected_participant")}
         />
         <RemainderChoice
           value="manual"
           checked={mode === "manual"}
-          label="Distribute manually"
-          description="Split only the remainder units across participants."
+          label={t("bill.remainder.manual.label")}
+          description={t("bill.remainder.manual.description")}
           onChange={() => onModeChange("manual")}
         />
       </div>
 
       {mode === "selected_participant" && (
         <label className="mt-5 block">
-          <span className="text-sm font-semibold">Remainder participant</span>
+          <span className="text-sm font-semibold">
+            {t("bill.remainder.participant")}
+          </span>
           <select
             value={selectedParticipantId}
             onChange={(event) =>
@@ -114,13 +124,13 @@ export function RemainderControls({
             }
             className="mt-2 min-h-12 w-full rounded-md border border-border bg-background px-4 outline-none focus:border-brand focus:ring-3 focus:ring-focus/20"
           >
-            <option value="">Select participant</option>
+            <option value="">{t("bill.remainder.select")}</option>
             {participants.map((participant, index) => (
               <option
                 key={participant.participantId}
                 value={participant.participantId}
               >
-                {participant.label || `Participant ${index + 1}`}
+                {participantName(participant, index)}
               </option>
             ))}
           </select>
@@ -130,32 +140,35 @@ export function RemainderControls({
       {mode === "manual" && (
         <div className="mt-5 space-y-3">
           <p className="text-sm font-semibold">
-            Manual remainder increments must total exactly {remainderUnits}.
+            {t("bill.remainder.manualTotal", { units: remainderUnits })}
           </p>
-          {participants.map((participant, index) => (
-            <label
-              key={participant.participantId}
-              className="grid gap-2 rounded-md border border-border bg-background p-4 sm:grid-cols-[1fr_10rem] sm:items-center"
-            >
-              <span className="text-sm font-semibold">
-                {participant.label || `Participant ${index + 1}`}
-              </span>
-              <input
-                aria-label={`Remainder units for ${participant.label || `participant ${index + 1}`}`}
-                value={participant.manualUnits}
-                onChange={(event) =>
-                  onManualUnitsChange(
-                    participant.participantId,
-                    event.target.value,
-                  )
-                }
-                inputMode="numeric"
-                pattern="[0-9]*"
-                placeholder="0"
-                className="min-h-11 rounded-md border border-border bg-surface px-3 font-mono outline-none focus:border-brand focus:ring-3 focus:ring-focus/20"
-              />
-            </label>
-          ))}
+          {participants.map((participant, index) => {
+            const name = participantName(participant, index);
+            return (
+              <label
+                key={participant.participantId}
+                className="grid gap-2 rounded-md border border-border bg-background p-4 sm:grid-cols-[1fr_10rem] sm:items-center"
+              >
+                <span className="text-sm font-semibold">{name}</span>
+                <input
+                  aria-label={t("bill.remainder.unitsFor", {
+                    participant: name,
+                  })}
+                  value={participant.manualUnits}
+                  onChange={(event) =>
+                    onManualUnitsChange(
+                      participant.participantId,
+                      event.target.value,
+                    )
+                  }
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="0"
+                  className="min-h-11 rounded-md border border-border bg-surface px-3 font-mono outline-none focus:border-brand focus:ring-3 focus:ring-focus/20"
+                />
+              </label>
+            );
+          })}
         </div>
       )}
     </fieldset>

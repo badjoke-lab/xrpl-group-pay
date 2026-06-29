@@ -13,6 +13,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { useCapabilityToken } from "@/features/capabilities/use-capability-token";
+import { useProofLocalization } from "@/features/localization/proof-catalog";
 import {
   PublicProofRequestError,
   requestPublicProof,
@@ -41,33 +42,30 @@ function shortValue(value: string, start = 12, end = 10) {
     : value;
 }
 
-function requestErrorMessage(error: unknown) {
-  return error instanceof PublicProofRequestError
-    ? error.message
-    : "The transaction proof could not be loaded.";
-}
-
 export function TestnetTransactionProof({
   proofToken,
 }: TestnetTransactionProofProps) {
   const { capability, resolved } = useCapabilityToken(proofToken);
+  const { pt } = useProofLocalization();
 
   if (!resolved) return <ProofLoading />;
   if (!capability) {
-    return (
-      <ProofError
-        title="Transaction proof unavailable"
-        message="This proof link is incomplete or invalid. Ask for a new verified-payment link."
-      />
-    );
+    return <ProofError title={pt("unavailable")} message={pt("invalid")} />;
   }
 
   return <ProofLoader key={capability} proofToken={capability} />;
 }
 
 function ProofLoader({ proofToken }: { proofToken: string }) {
+  const { pt } = useProofLocalization();
   const [state, setState] = useState<ProofState>({ kind: "loading" });
   const [refreshing, setRefreshing] = useState(false);
+
+  function requestErrorMessage(error: unknown) {
+    return error instanceof PublicProofRequestError
+      ? error.message
+      : pt("fallback");
+  }
 
   useEffect(() => {
     let active = true;
@@ -84,6 +82,9 @@ function ProofLoader({ proofToken }: { proofToken: string }) {
     return () => {
       active = false;
     };
+    // The proof token is the only request identity. Locale changes refresh copy
+    // without changing the protected capability or issuing a second request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proofToken]);
 
   async function refresh() {
@@ -101,7 +102,7 @@ function ProofLoader({ proofToken }: { proofToken: string }) {
   if (state.kind === "error") {
     return (
       <ProofError
-        title="Transaction proof unavailable"
+        title={pt("unavailable")}
         message={state.message}
         action={
           <Button
@@ -114,7 +115,7 @@ function ProofLoader({ proofToken }: { proofToken: string }) {
             ) : (
               <RefreshCw aria-hidden="true" className="size-4" />
             )}
-            Try again
+            {pt("retry")}
           </Button>
         }
       />
@@ -125,6 +126,7 @@ function ProofLoader({ proofToken }: { proofToken: string }) {
 }
 
 function ProofSnapshot({ proof }: { proof: PublicTransactionProof }) {
+  const { pt } = useProofLocalization();
   return (
     <div className="space-y-7">
       <section className="overflow-hidden rounded-xl border border-success/25 bg-surface shadow-sm">
@@ -134,18 +136,17 @@ function ProofSnapshot({ proof }: { proof: PublicTransactionProof }) {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-pill bg-success/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-success">
                   <BadgeCheck aria-hidden="true" className="size-3.5" />
-                  Ledger verified
+                  {pt("verified")}
                 </span>
                 <span className="rounded-pill bg-brand-subtle px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
                   Testnet
                 </span>
               </div>
               <h2 className="mt-5 font-heading text-3xl font-semibold sm:text-4xl">
-                {dropsToXrp(proof.amountDrops)} XRP delivered
+                {pt("delivered", { amount: dropsToXrp(proof.amountDrops) })}
               </h2>
               <p className="mt-3 max-w-2xl leading-7 text-muted">
-                This receipt records a successful XRP Payment observed on a
-                validated ledger. It contains public transaction facts only.
+                {pt("summary")}
               </p>
             </div>
             <ShieldCheck
@@ -156,9 +157,9 @@ function ProofSnapshot({ proof }: { proof: PublicTransactionProof }) {
         </div>
 
         <div className="grid border-t border-border sm:grid-cols-3">
-          <ProofMetric label="Validation" value="Validated" />
-          <ProofMetric label="Result" value={proof.transactionResult} />
-          <ProofMetric label="Ledger index" value={String(proof.ledgerIndex)} />
+          <ProofMetric label={pt("validation")} value={pt("validated")} />
+          <ProofMetric label={pt("result")} value={proof.transactionResult} />
+          <ProofMetric label={pt("ledger")} value={String(proof.ledgerIndex)} />
         </div>
       </section>
 
@@ -166,36 +167,30 @@ function ProofSnapshot({ proof }: { proof: PublicTransactionProof }) {
         <div className="flex items-center gap-3">
           <Fingerprint aria-hidden="true" className="size-6 text-brand" />
           <div>
-            <h3 className="font-heading text-2xl font-semibold">
-              Verified transaction facts
-            </h3>
-            <p className="mt-1 text-sm text-muted">
-              Bill titles, participant labels, expected pre-payment data,
-              operational timestamps, and Xaman payload identifiers are not
-              included.
-            </p>
+            <h3 className="font-heading text-2xl font-semibold">{pt("facts")}</h3>
+            <p className="mt-1 text-sm text-muted">{pt("factsBody")}</p>
           </div>
         </div>
 
         <dl className="mt-7 grid gap-5 lg:grid-cols-2">
-          <ProofField label="Transaction ID" value={proof.transactionId} mono />
-          <ProofField label="InvoiceID" value={proof.invoiceId} mono />
-          <ProofField label="Sender" value={proof.sender} mono />
-          <ProofField label="Destination" value={proof.destination} mono />
+          <ProofField label={pt("transaction")} value={proof.transactionId} mono />
+          <ProofField label={pt("invoice")} value={proof.invoiceId} mono />
+          <ProofField label={pt("sender")} value={proof.sender} mono />
+          <ProofField label={pt("destination")} value={proof.destination} mono />
           <ProofField
-            label="Amount"
+            label={pt("amount")}
             value={`${proof.amountDrops} drops (${dropsToXrp(proof.amountDrops)} XRP)`}
           />
           <ProofField
-            label="Delivered amount"
+            label={pt("deliveredAmount")}
             value={`${proof.deliveredAmountDrops} drops`}
           />
-          <ProofField label="Source Tag" value={String(proof.sourceTag)} />
+          <ProofField label={pt("sourceTag")} value={String(proof.sourceTag)} />
           <ProofField
-            label="Destination Tag"
+            label={pt("destinationTag")}
             value={
               proof.destinationTag === null
-                ? "Not present"
+                ? pt("absent")
                 : String(proof.destinationTag)
             }
           />
@@ -209,10 +204,9 @@ function ProofSnapshot({ proof }: { proof: PublicTransactionProof }) {
             className="mt-0.5 size-5 shrink-0 text-brand"
           />
           <div className="min-w-0">
-            <h3 className="font-semibold">Proof digest</h3>
+            <h3 className="font-semibold">{pt("digest")}</h3>
             <p className="mt-1 text-sm leading-6 text-muted">
-              This identifier is derived from the normalized immutable receipt
-              facts and is used to retrieve this public proof.
+              {pt("digestBody")}
             </p>
             <p
               className="mt-3 break-all font-mono text-xs font-semibold"
@@ -263,6 +257,7 @@ function ProofField({
 }
 
 function ProofLoading() {
+  const { pt } = useProofLocalization();
   return (
     <div className="flex min-h-80 items-center justify-center rounded-xl border border-border bg-surface">
       <div className="text-center">
@@ -270,7 +265,7 @@ function ProofLoading() {
           aria-hidden="true"
           className="mx-auto size-9 animate-spin text-brand"
         />
-        <p className="mt-4 font-semibold">Loading transaction proof</p>
+        <p className="mt-4 font-semibold">{pt("loading")}</p>
       </div>
     </div>
   );
@@ -285,6 +280,7 @@ function ProofError({
   message: string;
   action?: React.ReactNode;
 }) {
+  const { pt } = useProofLocalization();
   return (
     <section className="mx-auto max-w-xl rounded-xl border border-danger/25 bg-surface p-7 text-center shadow-sm sm:p-9">
       <CircleAlert
@@ -296,7 +292,7 @@ function ProofError({
       {action && <div className="mt-6">{action}</div>}
       <p className="mt-6 inline-flex items-center gap-2 text-xs text-muted">
         <Clock3 aria-hidden="true" className="size-3.5" />
-        Proof pages contain public ledger facts, not private bill details.
+        {pt("privacy")}
       </p>
     </section>
   );

@@ -33,6 +33,10 @@ import {
   PaymentDetailsRequestError,
   requestPaymentDetails,
 } from "@/features/bills/payment-details-client";
+import {
+  criticalTranslate,
+  useCriticalLocalization,
+} from "@/features/localization/critical-catalog";
 import { formatMoneyAmount } from "@/features/money/money";
 import type { AssetPaymentVerificationApiOutcome } from "@/features/payment-verification/asset-api-outcome";
 import { requestPaymentVerification } from "@/features/payment-verification/browser-client";
@@ -122,12 +126,10 @@ function getServerHashCapabilitySnapshot() {
   return HASH_CAPABILITY_PENDING;
 }
 
-async function readJson(response: Response) {
+async function readJson(response: Response, fallback: string) {
   const body = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(
-      body?.error?.message ?? "The payment request could not be completed.",
-    );
+    throw new Error(body?.error?.message ?? fallback);
   }
   return body;
 }
@@ -152,6 +154,7 @@ function paymentMatchesFrozenSlot(
 }
 
 export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
+  const { locale, ct } = useCriticalLocalization();
   const normalizedProp =
     paymentToken && CAPABILITY_PATTERN.test(paymentToken)
       ? paymentToken.toLowerCase()
@@ -196,12 +199,12 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
         message:
           error instanceof Error
             ? error.message
-            : "The frozen payment details could not be loaded.",
+            : criticalTranslate(locale, "payer.error.details"),
         code:
           error instanceof PaymentDetailsRequestError ? error.code : null,
       });
     }
-  }, [capability]);
+  }, [capability, locale]);
 
   useEffect(() => {
     if (!capabilityResolved || !capability) return;
@@ -225,8 +228,7 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
             kind: "verificationFailed",
             payload,
             txid: transactionId,
-            message:
-              "The verified response did not match the frozen participant payment details.",
+            message: criticalTranslate(locale, "payer.error.mismatch"),
           });
           return;
         }
@@ -254,7 +256,7 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
         });
       }
     },
-    [],
+    [locale],
   );
 
   const verifySubmittedPayment = useCallback(
@@ -278,13 +280,13 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
           message:
             error instanceof Error
               ? error.message
-              : "The validated ledger could not be checked.",
+              : criticalTranslate(locale, "payer.error.ledger"),
         });
       } finally {
         verificationInFlight.current.delete(payload.payloadId);
       }
     },
-    [applyVerificationOutcome, capability],
+    [applyVerificationOutcome, capability, locale],
   );
 
   const refreshStatus = useCallback(
@@ -292,7 +294,10 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
       const response = await fetch(`/api/xaman/payloads/${payload.payloadId}`, {
         cache: "no-store",
       });
-      const status = (await readJson(response)) as PayloadStatus;
+      const status = (await readJson(
+        response,
+        criticalTranslate(locale, "payer.error.request"),
+      )) as PayloadStatus;
       if (status.status === "submitted" && status.txid) {
         await verifySubmittedPayment(payload, status.txid);
       } else if (status.status === "rejected") {
@@ -302,7 +307,7 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
       }
       return status;
     },
-    [verifySubmittedPayment],
+    [locale, verifySubmittedPayment],
   );
 
   useEffect(() => {
@@ -349,7 +354,10 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
       });
       setState({
         kind: "waiting",
-        payload: (await readJson(response)) as CreatedPayload,
+        payload: (await readJson(
+          response,
+          criticalTranslate(locale, "payer.error.create"),
+        )) as CreatedPayload,
       });
     } catch (error) {
       setState({
@@ -357,7 +365,7 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
         message:
           error instanceof Error
             ? error.message
-            : "The payment request could not be created.",
+            : criticalTranslate(locale, "payer.error.create"),
       });
     }
   }
@@ -371,7 +379,7 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
       setStatusError(
         error instanceof Error
           ? error.message
-          : "The Xaman status could not be checked.",
+          : criticalTranslate(locale, "payer.error.status"),
       );
     } finally {
       setIsChecking(false);
@@ -387,7 +395,7 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
     return (
       <div className="flex min-h-72 items-center justify-center rounded-xl border border-border bg-surface">
         <LoaderCircle
-          aria-label="Loading payment link"
+          aria-label={ct("payer.link.loading")}
           className="size-8 animate-spin text-brand"
         />
       </div>
@@ -406,6 +414,8 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
   }
 
   const details = detailsState.details;
+  const networkLabel = details.network === "mainnet" ? "Mainnet" : "Testnet";
+
   return (
     <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
       <PaymentSummary details={details} />
@@ -421,6 +431,7 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
           />
         ) : state.kind === "ready" || state.kind === "error" ? (
           <ReadyPanel
+            networkLabel={networkLabel}
             error={state.kind === "error" ? state.message : null}
             onContinue={() => setConfirming(true)}
           />
@@ -432,8 +443,8 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
                 className="size-11 animate-spin text-brand"
               />
             }
-            title="Preparing secure request"
-            body="The confirmed frozen conditions are being placed into a short-lived Testnet Xaman Sign Request."
+            title={ct("payer.state.preparing.title")}
+            body={ct("payer.state.preparing.body", { network: networkLabel })}
           />
         ) : state.kind === "waiting" ? (
           <WaitingPanel
@@ -451,13 +462,13 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
                 className="size-11 animate-spin text-brand"
               />
             }
-            title="Verifying on the XRP Ledger"
-            body="The submitted transaction must appear in a validated Testnet ledger and match every frozen slot condition."
+            title={ct("payer.state.verifying.title")}
+            body={ct("payer.state.verifying.body", { network: networkLabel })}
           />
         ) : state.kind === "verificationPending" ? (
           <StatusPanel
             icon={<Clock3 aria-hidden="true" className="size-11 text-action" />}
-            title="Ledger confirmation pending"
+            title={ct("payer.state.pending.title")}
             body={state.message}
             action={
               <Button
@@ -467,7 +478,7 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
                 }
               >
                 <RefreshCw aria-hidden="true" className="size-4" />
-                Check again
+                {ct("payer.state.checkAgain")}
               </Button>
             }
           />
@@ -479,12 +490,15 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
                 className="size-12 text-success"
               />
             }
-            title="Ledger verified"
-            body={`${formatMoneyAmount(state.payment.deliveredAmount)} ${state.payment.deliveredAmount.code} was delivered directly to the recipient and the payment slot is now marked paid.`}
+            title={ct("payer.state.verified.title")}
+            body={ct("payer.state.verified.body", {
+              amount: formatMoneyAmount(state.payment.deliveredAmount),
+              asset: state.payment.deliveredAmount.code,
+            })}
             detail={
               state.receiptStatus === "existing"
-                ? "This exact transaction was already recorded safely."
-                : "A durable verification receipt was recorded."
+                ? ct("payer.state.receiptExisting")
+                : ct("payer.state.receiptRecorded")
             }
           />
         ) : state.kind === "verificationFailed" ? (
@@ -495,24 +509,28 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
                 className="size-11 text-danger"
               />
             }
-            title="Payment could not be verified"
+            title={ct("payer.state.failed.title")}
             body={state.message}
           />
         ) : state.kind === "rejected" ? (
           <StatusPanel
             icon={<XCircle aria-hidden="true" className="size-11 text-danger" />}
-            title="Request rejected"
-            body="No settlement payment was submitted. Review the frozen details again before creating another short-lived request."
-            action={<Button onClick={reopenConfirmation}>Review and try again</Button>}
+            title={ct("payer.state.rejected.title")}
+            body={ct("payer.state.rejected.body")}
+            action={
+              <Button onClick={reopenConfirmation}>
+                {ct("payer.state.rejected.action")}
+              </Button>
+            }
           />
         ) : (
           <StatusPanel
             icon={<Clock3 aria-hidden="true" className="size-11 text-action" />}
-            title="Request expired"
-            body="No settlement payment was submitted. Review the frozen details again before creating a fresh Xaman request."
+            title={ct("payer.state.expired.title")}
+            body={ct("payer.state.expired.body")}
             action={
               <Button onClick={reopenConfirmation}>
-                Review and create new request
+                {ct("payer.state.expired.action")}
               </Button>
             }
           />
@@ -523,21 +541,23 @@ export function TestnetPaymentForm({ paymentToken }: TestnetPaymentFormProps) {
 }
 
 function ReadyPanel({
+  networkLabel,
   error,
   onContinue,
 }: {
+  networkLabel: string;
   error: string | null;
   onContinue(): void;
 }) {
+  const { ct } = useCriticalLocalization();
   return (
     <div className="flex min-h-80 flex-col items-center justify-center text-center">
       <Smartphone aria-hidden="true" className="size-12 text-brand" />
       <h2 className="mt-5 font-heading text-xl font-semibold">
-        Frozen payment details loaded
+        {ct("payer.ready.title")}
       </h2>
       <p className="mt-2 max-w-sm leading-7 text-muted">
-        Review the exact Testnet payment once more before Group Pay creates a
-        short-lived Xaman Sign Request.
+        {ct("payer.ready.body", { network: networkLabel })}
       </p>
       {error && (
         <p
@@ -549,7 +569,7 @@ function ReadyPanel({
       )}
       <Button className="mt-6" onClick={onContinue}>
         <ShieldCheck aria-hidden="true" className="size-4" />
-        Review final payment
+        {ct("payer.ready.review")}
       </Button>
     </div>
   );

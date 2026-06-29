@@ -4,6 +4,7 @@ import { CheckCircle2, CircleAlert } from "lucide-react";
 
 import type { AllocationFormStrategy } from "@/features/bills/allocation-form";
 import { formatAllocationUnits } from "@/features/bills/allocation-preview";
+import { useLocalization } from "@/features/localization/provider";
 
 export type CustomAllocationStatus = {
   status: "incomplete" | "under" | "exact" | "over";
@@ -16,6 +17,12 @@ export type StrategyAllocationStatus = {
   message: string;
 };
 
+const REMAINDER_INSTRUCTION = {
+  en: "Choose exactly who receives the remaining smallest Asset units.",
+  ja: "残った最小資産単位を誰に割り当てるか明示してください。",
+  ko: "남은 최소 자산 단위를 누구에게 배정할지 명확히 선택하세요.",
+} as const;
+
 export function AllocationStatus({
   strategy,
   customAllocation,
@@ -27,47 +34,68 @@ export function AllocationStatus({
   strategyPreview: StrategyAllocationStatus;
   assetSymbol: string;
 }) {
+  const { locale, t } = useLocalization();
+
   if (strategy !== "custom") {
     const exact = strategyPreview.status === "exact";
+    const needsRemainder = strategyPreview.status === "needs_remainder";
     return (
       <StatusBox
         exact={exact}
-        warning={strategyPreview.status === "needs_remainder"}
+        warning={needsRemainder}
         title={
           exact
-            ? "Allocation exact"
-            : strategyPreview.status === "needs_remainder"
-              ? "Remainder rule required"
-              : "Allocation incomplete"
+            ? t("bill.status.exact")
+            : needsRemainder
+              ? t("bill.status.remainder")
+              : t("bill.status.incomplete")
         }
-        message={strategyPreview.message}
+        message={
+          exact
+            ? t("bill.status.matches", { asset: assetSymbol })
+            : needsRemainder
+              ? REMAINDER_INSTRUCTION[locale]
+              : t("bill.status.enterAll")
+        }
       />
     );
   }
 
   const exact = customAllocation.status === "exact";
-  let message = "Enter the total, creator share, and every participant amount.";
+  let message = t("bill.status.enterAll");
   if (
     customAllocation.status === "under" &&
     customAllocation.differenceUnits !== null
   ) {
-    message = `${formatAllocationUnits(customAllocation.differenceUnits, customAllocation.scale)} ${assetSymbol} remains to allocate.`;
+    message = t("bill.status.remaining", {
+      amount: formatAllocationUnits(
+        customAllocation.differenceUnits,
+        customAllocation.scale,
+      ),
+      asset: assetSymbol,
+    });
   }
   if (
     customAllocation.status === "over" &&
     customAllocation.differenceUnits !== null
   ) {
-    message = `${formatAllocationUnits(-customAllocation.differenceUnits, customAllocation.scale)} ${assetSymbol} is allocated above the bill total.`;
+    message = t("bill.status.over", {
+      amount: formatAllocationUnits(
+        -customAllocation.differenceUnits,
+        customAllocation.scale,
+      ),
+      asset: assetSymbol,
+    });
   }
   if (exact) {
-    message = `Creator share and participant amounts match the ${assetSymbol} total.`;
+    message = t("bill.status.matches", { asset: assetSymbol });
   }
 
   return (
     <StatusBox
       exact={exact}
       warning={false}
-      title={exact ? "Allocation exact" : "Allocation incomplete"}
+      title={exact ? t("bill.status.exact") : t("bill.status.incomplete")}
       message={message}
     />
   );

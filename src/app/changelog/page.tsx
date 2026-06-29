@@ -2,8 +2,11 @@ import { CircleAlert, GitCommitHorizontal, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 import { BrandMark } from "@/components/brand/brand-mark";
+import { LanguageSwitcher } from "@/components/localization/language-switcher";
 import { NetworkBadge } from "@/components/ui/network-badge";
 import { publicEnv } from "@/config/public-env";
+import { translate } from "@/features/localization/catalog";
+import { getRequestLocale } from "@/features/localization/server";
 
 export const metadata = {
   title: "Changelog",
@@ -11,6 +14,17 @@ export const metadata = {
 };
 
 const entries = [
+  {
+    date: "2026-06-29",
+    title: "Validated-ledger replacement reconciliation",
+    kind: "Security",
+    icon: ShieldCheck,
+    body: [
+      "Reviews the expected payer's validated account history before replacing a previous Wallet Handoff.",
+      "Settles one exact existing payment, sends multiple exact payments to durable review, and fails closed when history is incomplete.",
+      "Keeps InvoiceID as candidate discovery only; every candidate still passes the complete frozen Payment verification contract.",
+    ],
+  },
   {
     date: "2026-06-29",
     title: "One-shot Xaman payment handoffs",
@@ -56,27 +70,35 @@ const entries = [
   },
 ] as const;
 
-export default function ChangelogPage() {
+export default async function ChangelogPage() {
+  const locale = await getRequestLocale();
+  const t = (
+    key: Parameters<typeof translate>[1],
+    variables?: Record<string, string | number>,
+  ) => translate(locale, key, variables);
+
   return (
     <main className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-5 py-6 sm:px-8">
+      <header className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-5 py-6 sm:px-8">
         <Link href="/" className="flex items-center gap-3">
           <BrandMark />
           <span className="font-heading font-bold text-brand">XRPL Group Pay</span>
         </Link>
-        <NetworkBadge network={publicEnv.NEXT_PUBLIC_APP_NETWORK} />
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <LanguageSwitcher compact />
+          <NetworkBadge network={publicEnv.NEXT_PUBLIC_APP_NETWORK} />
+        </div>
       </header>
 
       <div className="mx-auto w-full max-w-5xl px-5 pb-20 pt-8 sm:px-8 sm:pt-14">
         <p className="text-sm font-semibold uppercase tracking-[0.14em] text-action">
-          Completed work
+          {t("changelog.eyebrow")}
         </p>
         <h1 className="mt-3 font-heading text-4xl font-bold tracking-tight sm:text-5xl">
-          Changelog
+          {t("changelog.title")}
         </h1>
         <p className="mt-5 max-w-3xl text-lg leading-8 text-muted">
-          Meaningful user-facing, security, compatibility, persistence, and
-          operational changes. Planned work remains on the Roadmap.
+          {t("changelog.description")}
         </p>
 
         <section className="mt-8 rounded-xl border border-action/30 bg-action/10 p-5 sm:p-6">
@@ -86,11 +108,11 @@ export default function ChangelogPage() {
               className="mt-0.5 size-6 shrink-0 text-action"
             />
             <div>
-              <h2 className="font-semibold text-action">Current release status</h2>
+              <h2 className="font-semibold text-action">
+                {t("changelog.status.title")}
+              </h2>
               <p className="mt-1 leading-7 text-foreground">
-                Mainnet remains halted and blocked pending validated-ledger
-                reconciliation before replacement handoffs, a fresh controlled
-                RLUSD ceremony, and final release approval.
+                {t("changelog.status.body")}
               </p>
             </div>
           </div>
@@ -121,7 +143,10 @@ export default function ChangelogPage() {
               <ul className="mt-6 space-y-3">
                 {body.map((item) => (
                   <li key={item} className="flex gap-3 leading-7 text-muted">
-                    <span aria-hidden="true" className="mt-3 size-1.5 shrink-0 rounded-full bg-action" />
+                    <span
+                      aria-hidden="true"
+                      className="mt-3 size-1.5 shrink-0 rounded-full bg-action"
+                    />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -131,14 +156,17 @@ export default function ChangelogPage() {
         </div>
 
         <div className="mt-10 flex flex-wrap gap-4 text-sm font-semibold">
-          <Link href="/roadmap" className="text-brand underline-offset-4 hover:underline">
-            View remaining work
+          <Link
+            href="/roadmap"
+            className="text-brand underline-offset-4 hover:underline"
+          >
+            {t("nav.roadmap")}
           </Link>
           <a
             href="https://github.com/badjoke-lab/xrpl-group-pay/blob/main/CHANGELOG.md"
             className="text-brand underline-offset-4 hover:underline"
           >
-            Full repository changelog
+            {t("nav.source")}
           </a>
         </div>
       </div>
