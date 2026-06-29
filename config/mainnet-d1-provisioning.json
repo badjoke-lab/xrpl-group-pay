@@ -23,7 +23,8 @@
     "verified_payment_receipts",
     "verified_payment_records",
     "bill_allocations",
-    "bill_allocation_participants"
+    "bill_allocation_participants",
+    "payment_reconciliation_findings"
   ],
   "required_verified_payment_columns": [
     "receipt_id",
