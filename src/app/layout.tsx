@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 
+import { LocalizationProvider } from "@/features/localization/provider";
+import { getRequestLocale } from "@/features/localization/server";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -11,14 +14,20 @@ export const metadata: Metadata = {
     "A non-custodial shared-expense settlement application on the XRP Ledger.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getRequestLocale();
+
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang={locale}>
+      <body>
+        <LocalizationProvider initialLocale={locale}>
+          {children}
+        </LocalizationProvider>
+      </body>
     </html>
   );
 }
