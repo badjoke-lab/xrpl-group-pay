@@ -80,7 +80,7 @@ export function newBillDraft(network: XrplNetwork = "testnet"): BillDraft {
     title: "",
     destinationAddress: "",
     destinationTag: "",
-    settlementAssetId: `xrpl:${network}:xrp`,
+    settlementAssetId: `xrpl:${network}:xrp` as SettlementAssetId,
     totalAmount: "",
     creatorShareAmount: "",
     allocationStrategy: "custom",
