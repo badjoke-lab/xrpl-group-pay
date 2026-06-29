@@ -208,7 +208,7 @@ describe("Xaman provider capabilities", () => {
 
     await expect(provider.createHandoff(intent)).rejects.toMatchObject({
       code: "PROVIDER_UNAVAILABLE",
-      status: 503,
+      providerStatus: 503,
     });
     expect(client.requests).toHaveLength(0);
   });
