@@ -6,13 +6,28 @@ import { z } from "zod";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ZERO_UUID = "00000000-0000-0000-0000-000000000000";
-const SAFE_MAINNET_DEFAULTS = {
+const EXPECTED_MAINNET = Object.freeze({
+  workerName: "xrpl-group-pay-mainnet",
+  origin: "https://xgp.badjoke-lab.com",
+  domain: "xgp.badjoke-lab.com",
+  sourceTag: "2171267705",
+});
+
+const INITIAL_DEFAULTS = Object.freeze({
   ALLOW_MAINNET_RUNTIME: "false",
   MAINNET_GATE_APPROVED: "false",
   MAINNET_SOURCE_TAG_APPROVED: "false",
   MAINNET_RELEASE_MODE: "disabled",
   MAINNET_OPERATIONS_MODE: "halted",
-};
+});
+
+const REVIEWED_HALTED_DEFAULTS = Object.freeze({
+  ALLOW_MAINNET_RUNTIME: "true",
+  MAINNET_GATE_APPROVED: "true",
+  MAINNET_SOURCE_TAG_APPROVED: "true",
+  MAINNET_RELEASE_MODE: "internal",
+  MAINNET_OPERATIONS_MODE: "halted",
+});
 
 const policySchema = z
   .object({
@@ -38,12 +53,62 @@ const databaseSchema = z
   .strict();
 
 function parseJsonc(source) {
-  const withoutBlockComments = source.replace(/\/\*[\s\S]*?\*\//g, "");
-  const withoutLineComments = withoutBlockComments.replace(
-    /(^|[^:])\/\/.*$/gm,
-    "$1",
+  return JSON.parse(
+    source
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1"),
   );
-  return JSON.parse(withoutLineComments);
+}
+
+function matchesVariables(variables, expected) {
+  return Object.entries(expected).every(([name, value]) => variables[name] === value);
+}
+
+export function classifyMainnetD1State(config, policy) {
+  const mainnet = config?.env?.mainnet;
+  const variables = mainnet?.vars ?? {};
+  const bindings = mainnet?.d1_databases?.filter(
+    (database) => database.binding === policy.binding,
+  );
+  if (!mainnet || bindings?.length !== 1) {
+    throw new Error(`Wrangler must define exactly one ${policy.binding} binding.`);
+  }
+
+  const binding = bindings[0];
+  if (binding.database_name !== policy.production_database_name) {
+    throw new Error("Mainnet D1 binding uses an unexpected database name.");
+  }
+
+  if (matchesVariables(variables, INITIAL_DEFAULTS)) {
+    return { kind: "initial-disabled", mainnet, binding };
+  }
+
+  const reviewedRoute = mainnet.routes?.some(
+    (route) =>
+      route.pattern === EXPECTED_MAINNET.domain && route.custom_domain === true,
+  );
+  if (
+    matchesVariables(variables, REVIEWED_HALTED_DEFAULTS) &&
+    mainnet.name === EXPECTED_MAINNET.workerName &&
+    variables.APP_NETWORK === "mainnet" &&
+    variables.NEXT_PUBLIC_APP_NETWORK === "mainnet" &&
+    variables.NEXT_PUBLIC_APP_URL === EXPECTED_MAINNET.origin &&
+    variables.XRPL_MAINNET_SOURCE_TAG === EXPECTED_MAINNET.sourceTag &&
+    variables.PAYMENTS_DATABASE_BINDING === policy.binding &&
+    reviewedRoute &&
+    mainnet.workers_dev === false &&
+    UUID_PATTERN.test(binding.database_id) &&
+    UUID_PATTERN.test(binding.preview_database_id) &&
+    binding.database_id !== ZERO_UUID &&
+    binding.preview_database_id !== ZERO_UUID &&
+    binding.database_id !== binding.preview_database_id
+  ) {
+    return { kind: "reviewed-halted", mainnet, binding };
+  }
+
+  throw new Error(
+    "D1 operation requires the initial disabled state or the reviewed internal halted state.",
+  );
 }
 
 function unwrapJsonPayload(payload) {
@@ -83,7 +148,6 @@ export function resolveDatabasePair(databases, policy, { requireBoth = true } = 
 
   const production = byName.get(policy.production_database_name)?.[0] ?? null;
   const preview = byName.get(policy.preview_database_name)?.[0] ?? null;
-
   if (requireBoth && (!production || !preview)) {
     const missing = [
       !production ? policy.production_database_name : null,
@@ -93,16 +157,14 @@ export function resolveDatabasePair(databases, policy, { requireBoth = true } = 
       .join(", ");
     throw new Error(`Required Mainnet D1 databases are missing: ${missing}.`);
   }
-
   if (production && preview && production.id === preview.id) {
     throw new Error("Production and preview D1 databases must use different IDs.");
   }
-
   return { production, preview };
 }
 
 export function assertProvisioningRequest(policy, { mode, confirmation, location }) {
-  if (!['inspect', 'provision'].includes(mode)) {
+  if (!["inspect", "provision"].includes(mode)) {
     throw new Error("Provisioning mode must be inspect or provision.");
   }
   const expected =
@@ -133,35 +195,17 @@ export function createProvisionedWrangler(
   }
 
   const config = parseJsonc(source);
-  const mainnet = config?.env?.mainnet;
-  if (!mainnet || !Array.isArray(mainnet.d1_databases)) {
-    throw new Error("Wrangler must define env.mainnet.d1_databases.");
+  const state = classifyMainnetD1State(config, policy);
+  if (
+    state.kind === "reviewed-halted" &&
+    (state.binding.database_id !== productionId ||
+      state.binding.preview_database_id !== previewId)
+  ) {
+    throw new Error("Reviewed Mainnet D1 IDs must not change during forward migration.");
   }
 
-  const matches = mainnet.d1_databases.filter(
-    (database) => database.binding === policy.binding,
-  );
-  if (matches.length !== 1) {
-    throw new Error(`Wrangler must define exactly one ${policy.binding} binding.`);
-  }
-
-  const variables = mainnet.vars ?? {};
-  for (const [name, expected] of Object.entries(SAFE_MAINNET_DEFAULTS)) {
-    if (variables[name] !== expected) {
-      throw new Error(
-        `D1 provisioning requires the committed safe default ${name}=${expected}.`,
-      );
-    }
-  }
-
-  const database = matches[0];
-  if (database.database_name !== policy.production_database_name) {
-    throw new Error("Mainnet D1 binding uses an unexpected database name.");
-  }
-
-  database.database_id = productionId;
-  database.preview_database_id = previewId;
-
+  state.binding.database_id = productionId;
+  state.binding.preview_database_id = previewId;
   return `${JSON.stringify(config, null, 2)}\n`;
 }
 
@@ -182,8 +226,9 @@ async function walkSqlFiles(directory, root = directory) {
 export async function listMigrationFiles(
   directory = resolve(process.cwd(), "migrations"),
 ) {
-  const files = await walkSqlFiles(directory);
-  return files.sort((left, right) => left.localeCompare(right));
+  return (await walkSqlFiles(directory)).sort((left, right) =>
+    left.localeCompare(right),
+  );
 }
 
 export function extractD1Rows(payload) {
@@ -217,7 +262,6 @@ export function validateSchemaSnapshot({ tables, columns }, policy) {
       `verified_payment_records is missing columns: ${missingColumns.join(", ")}.`,
     );
   }
-
   return {
     required_tables_present: true,
     verified_payment_columns_present: true,
@@ -261,7 +305,6 @@ export function buildProvisioningReport({
       previewInspection?.schema?.required_tables_present &&
       previewInspection?.schema?.verified_payment_columns_present,
   );
-
   return {
     schema_version: 1,
     network: "mainnet",
@@ -270,10 +313,7 @@ export function buildProvisioningReport({
     git_sha: gitSha,
     location_hint: location,
     state: complete ? "verified" : "incomplete",
-    databases: {
-      production: pair.production,
-      preview: pair.preview,
-    },
+    databases: { production: pair.production, preview: pair.preview },
     migrations: {
       source_count: migrationFiles.length,
       files: migrationFiles,
@@ -301,13 +341,14 @@ export function buildProvisioningReport({
   };
 }
 
-function runCommand(args, { allowFailure = false } = {}) {
+function runCommand(args) {
   const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
   const result = spawnSync(pnpm, ["exec", "wrangler", ...args], {
     encoding: "utf8",
     env: process.env,
   });
-  if (result.status !== 0 && !allowFailure) {
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
     const output = [result.stdout, result.stderr].filter(Boolean).join("\n");
     throw new Error(`Wrangler command failed: wrangler ${args.join(" ")}\n${output}`);
   }
@@ -315,8 +356,7 @@ function runCommand(args, { allowFailure = false } = {}) {
 }
 
 function runJsonCommand(args) {
-  const result = runCommand(args);
-  const source = result.stdout.trim();
+  const source = runCommand(args).stdout.trim();
   if (!source) {
     throw new Error(`Wrangler returned no JSON for: wrangler ${args.join(" ")}`);
   }
@@ -330,7 +370,7 @@ function runJsonCommand(args) {
   }
 }
 
-function wranglerTargetArgs(configPath, preview = false) {
+function targetArgs(configPath, preview = false) {
   return [
     "--remote",
     ...(preview ? ["--preview"] : []),
@@ -355,7 +395,7 @@ function queryDatabase(configPath, sql, preview = false) {
       "d1",
       "execute",
       "PAYMENTS_DB_MAINNET",
-      ...wranglerTargetArgs(configPath, preview),
+      ...targetArgs(configPath, preview),
       "--json",
       "--command",
       sql,
@@ -369,7 +409,7 @@ function applyMigrations(configPath, preview = false) {
     "migrations",
     "apply",
     "PAYMENTS_DB_MAINNET",
-    ...wranglerTargetArgs(configPath, preview),
+    ...targetArgs(configPath, preview),
   ]);
 }
 
@@ -380,9 +420,7 @@ function inspectDatabase(configPath, policy, preview = false) {
     preview,
   );
   assertKnownExistingTables(tables, policy);
-
-  const hasMigrationTable = tables.some((row) => row.name === "d1_migrations");
-  const migrationCount = hasMigrationTable
+  const migrationCount = tables.some((row) => row.name === "d1_migrations")
     ? Number(
         queryDatabase(
           configPath,
@@ -391,18 +429,9 @@ function inspectDatabase(configPath, policy, preview = false) {
         )[0]?.migration_count ?? 0,
       )
     : 0;
-
-  const hasVerifiedRecords = tables.some(
-    (row) => row.name === "verified_payment_records",
-  );
-  const columns = hasVerifiedRecords
-    ? queryDatabase(
-        configPath,
-        "PRAGMA table_info(verified_payment_records);",
-        preview,
-      )
+  const columns = tables.some((row) => row.name === "verified_payment_records")
+    ? queryDatabase(configPath, "PRAGMA table_info(verified_payment_records);", preview)
     : [];
-
   let schema = {
     required_tables_present: false,
     verified_payment_columns_present: false,
@@ -410,9 +439,8 @@ function inspectDatabase(configPath, policy, preview = false) {
   try {
     schema = validateSchemaSnapshot({ tables, columns }, policy);
   } catch {
-    // An inspect run must still emit a useful incomplete report.
+    // Inspect mode must still emit the incomplete state.
   }
-
   return { tables, columns, migration_count: migrationCount, schema };
 }
 
@@ -421,12 +449,11 @@ function parseArguments(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (!argument.startsWith("--")) continue;
-    const name = argument.slice(2);
     const value = argv[index + 1];
     if (!value || value.startsWith("--")) {
-      throw new Error(`Missing value for --${name}.`);
+      throw new Error(`Missing value for ${argument}.`);
     }
-    values.set(name, value);
+    values.set(argument.slice(2), value);
     index += 1;
   }
   return {
@@ -457,8 +484,10 @@ export async function runMainnetD1Provisioning(options = {}) {
   const policyPath =
     options.policyPath ??
     resolve(process.cwd(), "config/mainnet-d1-provisioning.json");
-  const wranglerPath = options.wranglerPath ?? resolve(process.cwd(), "wrangler.jsonc");
-  const output = options.output ?? resolve(process.cwd(), "mainnet-d1-report.json");
+  const wranglerPath =
+    options.wranglerPath ?? resolve(process.cwd(), "wrangler.jsonc");
+  const output =
+    options.output ?? resolve(process.cwd(), "mainnet-d1-report.json");
   const configOutput =
     options.configOutput ??
     resolve(process.cwd(), ".tmp/wrangler.mainnet-provisioned.jsonc");
@@ -466,7 +495,10 @@ export async function runMainnetD1Provisioning(options = {}) {
   const gitSha = options.gitSha ?? process.env.GITHUB_SHA ?? "local";
   const generatedAt = options.generatedAt ?? new Date().toISOString();
 
-  const policy = policySchema.parse(JSON.parse(await readFile(policyPath, "utf8")));
+  const [policy, wranglerSource] = await Promise.all([
+    readFile(policyPath, "utf8").then(JSON.parse).then(policySchema.parse),
+    readFile(wranglerPath, "utf8"),
+  ]);
   const location = options.location ?? policy.default_location;
   assertProvisioningRequest(policy, {
     mode,
@@ -475,10 +507,14 @@ export async function runMainnetD1Provisioning(options = {}) {
   });
   assertCloudflareCredentials();
 
+  const committedState = classifyMainnetD1State(
+    parseJsonc(wranglerSource),
+    policy,
+  );
   let databases = listRemoteDatabases();
   let pair = resolveDatabasePair(databases, policy, { requireBoth: false });
 
-  if (mode === "provision") {
+  if (mode === "provision" && committedState.kind === "initial-disabled") {
     if (!pair.production) {
       createRemoteDatabase(policy.production_database_name, location);
     }
@@ -487,14 +523,20 @@ export async function runMainnetD1Provisioning(options = {}) {
     }
     databases = listRemoteDatabases();
     pair = resolveDatabasePair(databases, policy, { requireBoth: true });
+  } else if (committedState.kind === "reviewed-halted") {
+    pair = resolveDatabasePair(databases, policy, { requireBoth: true });
+    if (
+      pair.production.id !== committedState.binding.database_id ||
+      pair.preview.id !== committedState.binding.preview_database_id
+    ) {
+      throw new Error("Remote protected D1 IDs differ from the reviewed binding.");
+    }
   }
 
   const migrationFiles = await listMigrationFiles();
   let productionInspection = null;
   let previewInspection = null;
-
   if (pair.production && pair.preview) {
-    const wranglerSource = await readFile(wranglerPath, "utf8");
     const provisionedConfig = createProvisionedWrangler(wranglerSource, policy, {
       productionId: pair.production.id,
       previewId: pair.preview.id,
@@ -504,21 +546,20 @@ export async function runMainnetD1Provisioning(options = {}) {
 
     productionInspection = inspectDatabase(configOutput, policy, false);
     previewInspection = inspectDatabase(configOutput, policy, true);
-
     if (mode === "provision") {
-      applyMigrations(configOutput, false);
       applyMigrations(configOutput, true);
-      productionInspection = inspectDatabase(configOutput, policy, false);
       previewInspection = inspectDatabase(configOutput, policy, true);
-
-      if (productionInspection.migration_count !== migrationFiles.length) {
-        throw new Error("Production D1 migration count does not match the repository.");
-      }
       if (previewInspection.migration_count !== migrationFiles.length) {
         throw new Error("Preview D1 migration count does not match the repository.");
       }
-      validateSchemaSnapshot(productionInspection, policy);
       validateSchemaSnapshot(previewInspection, policy);
+
+      applyMigrations(configOutput, false);
+      productionInspection = inspectDatabase(configOutput, policy, false);
+      if (productionInspection.migration_count !== migrationFiles.length) {
+        throw new Error("Production D1 migration count does not match the repository.");
+      }
+      validateSchemaSnapshot(productionInspection, policy);
     }
   }
 
@@ -535,29 +576,26 @@ export async function runMainnetD1Provisioning(options = {}) {
   });
   await mkdir(dirname(output), { recursive: true });
   await writeFile(output, `${JSON.stringify(report, null, 2)}\n`);
-
   if (mode === "provision" && report.state !== "verified") {
     throw new Error("Mainnet D1 provisioning did not produce verified evidence.");
   }
-
   return report;
 }
 
-async function main() {
-  const arguments_ = parseArguments(process.argv.slice(2));
-  const report = await runMainnetD1Provisioning({
-    ...arguments_,
-    gitSha: process.env.GITHUB_SHA,
-  });
-  console.log(
-    `Mainnet D1 provisioning: mode=${report.mode}, state=${report.state}, migrations=${report.migrations.source_count}`,
-  );
-}
-
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((error) => {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`Mainnet D1 provisioning failed: ${message}`);
-    process.exit(1);
-  });
+  runMainnetD1Provisioning({
+    ...parseArguments(process.argv.slice(2)),
+    gitSha: process.env.GITHUB_SHA,
+  })
+    .then((report) => {
+      console.log(
+        `Mainnet D1 provisioning: mode=${report.mode}, state=${report.state}, migrations=${report.migrations.source_count}`,
+      );
+    })
+    .catch((error) => {
+      console.error(
+        `Mainnet D1 provisioning failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      process.exit(1);
+    });
 }
