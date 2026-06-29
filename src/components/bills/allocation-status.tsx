@@ -48,7 +48,7 @@ export function AllocationStatus({
           exact
             ? t("bill.status.matches", { asset: assetSymbol })
             : needsRemainder
-              ? t("bill.status.remainder")
+              ? t("bill.remainder.title")
               : t("bill.status.enterAll")
         }
       />
