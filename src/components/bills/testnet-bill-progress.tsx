@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
   CircleAlert,
-  Copy,
   ExternalLink,
   LoaderCircle,
   RefreshCw,
