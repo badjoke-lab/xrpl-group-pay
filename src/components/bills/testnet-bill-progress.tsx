@@ -176,7 +176,7 @@ function ProgressSnapshot({
                   {progress.bill.asset.symbol}
                 </span>
                 <span className="rounded-pill border border-border px-3 py-1 text-xs font-bold">
-                  XRPL {progress.bill.network === "mainnet" ? "Mainnet" : "Testnet"}
+                  XRPL Testnet
                 </span>
               </div>
               <h2 className="mt-4 font-heading text-3xl font-semibold sm:text-4xl">
