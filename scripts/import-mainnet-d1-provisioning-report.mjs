@@ -9,6 +9,22 @@ const SHA_PATTERN = /^[0-9a-f]{40}$/;
 const ZERO_UUID = "00000000-0000-0000-0000-000000000000";
 const REPOSITORY = "badjoke-lab/xrpl-group-pay";
 
+const INITIAL_DEFAULTS = Object.freeze({
+  ALLOW_MAINNET_RUNTIME: "false",
+  MAINNET_GATE_APPROVED: "false",
+  MAINNET_SOURCE_TAG_APPROVED: "false",
+  MAINNET_RELEASE_MODE: "disabled",
+  MAINNET_OPERATIONS_MODE: "halted",
+});
+
+const REVIEWED_HALTED_DEFAULTS = Object.freeze({
+  ALLOW_MAINNET_RUNTIME: "true",
+  MAINNET_GATE_APPROVED: "true",
+  MAINNET_SOURCE_TAG_APPROVED: "true",
+  MAINNET_RELEASE_MODE: "internal",
+  MAINNET_OPERATIONS_MODE: "halted",
+});
+
 const databaseSchema = z
   .object({
     name: z.string().min(1),
@@ -100,12 +116,11 @@ const evidenceDocumentSchema = z.object({
 });
 
 function parseJsonc(source) {
-  const withoutBlockComments = source.replace(/\/\*[\s\S]*?\*\//g, "");
-  const withoutLineComments = withoutBlockComments.replace(
-    /(^|[^:])\/\/.*$/gm,
-    "$1",
+  return JSON.parse(
+    source
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1"),
   );
-  return JSON.parse(withoutLineComments);
 }
 
 function findOne(items, id, label) {
@@ -116,10 +131,45 @@ function findOne(items, id, label) {
   return matches[0];
 }
 
+function matchesVariables(variables, expected) {
+  return Object.entries(expected).every(([name, value]) => variables[name] === value);
+}
+
 function assertPlaceholderOrSame(current, expected, label) {
   if (current !== ZERO_UUID && current !== expected) {
     throw new Error(`${label} already contains a different non-placeholder D1 ID.`);
   }
+}
+
+function classifyImportState(mainnet, report) {
+  const variables = mainnet?.vars ?? {};
+  if (matchesVariables(variables, INITIAL_DEFAULTS)) {
+    return "initial-disabled";
+  }
+
+  const route = mainnet?.routes?.some(
+    (entry) =>
+      entry.pattern === "xgp.badjoke-lab.com" && entry.custom_domain === true,
+  );
+  if (
+    matchesVariables(variables, REVIEWED_HALTED_DEFAULTS) &&
+    mainnet?.name === "xrpl-group-pay-mainnet" &&
+    variables.APP_NETWORK === "mainnet" &&
+    variables.NEXT_PUBLIC_APP_NETWORK === "mainnet" &&
+    variables.NEXT_PUBLIC_APP_URL === "https://xgp.badjoke-lab.com" &&
+    variables.XRPL_MAINNET_SOURCE_TAG === "2171267705" &&
+    variables.PAYMENTS_DATABASE_BINDING === "PAYMENTS_DB_MAINNET" &&
+    route &&
+    mainnet.workers_dev === false &&
+    mainnet.d1_databases?.[0]?.database_id === report.databases.production.id &&
+    mainnet.d1_databases?.[0]?.preview_database_id === report.databases.preview.id
+  ) {
+    return "reviewed-halted";
+  }
+
+  throw new Error(
+    "Import requires the initial disabled state or the reviewed internal halted state.",
+  );
 }
 
 export function validateWorkflowRunUrl(runUrl) {
@@ -187,8 +237,41 @@ export function validateProvisioningReport(rawReport, expectedGitSha) {
   ) {
     throw new Error("Provisioning report evidence patch does not match the report.");
   }
-
   return report;
+}
+
+function applyAcceptedEvidenceUpdate(current, patch) {
+  for (const key of [
+    "id",
+    "status",
+    "database_name",
+    "database_id",
+    "preview_database_id",
+    "migrations_applied",
+    "receipt_schema_checked",
+  ]) {
+    if (current[key] !== patch[key]) {
+      throw new Error("Existing accepted D1 evidence changes immutable fields.");
+    }
+  }
+
+  if (patch.migration_count < current.migration_count) {
+    throw new Error("Forward migration evidence must not reduce migration_count.");
+  }
+  if (patch.migration_count === current.migration_count) {
+    for (const [key, value] of Object.entries(patch)) {
+      if (current[key] !== value) {
+        throw new Error(
+          "Existing accepted D1 evidence differs from the provisioning report.",
+        );
+      }
+    }
+    return "replay";
+  }
+  if (Date.parse(patch.recorded_at) <= Date.parse(current.recorded_at)) {
+    throw new Error("Forward migration evidence must use a newer recorded_at value.");
+  }
+  return "forward";
 }
 
 export function applyProvisioningReport({
@@ -230,36 +313,35 @@ export function applyProvisioningReport({
     "Wrangler preview binding",
   );
 
-  const safeVariables = {
-    ALLOW_MAINNET_RUNTIME: "false",
-    MAINNET_GATE_APPROVED: "false",
-    MAINNET_SOURCE_TAG_APPROVED: "false",
-    MAINNET_RELEASE_MODE: "disabled",
-    MAINNET_OPERATIONS_MODE: "halted",
-    PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
-  };
-  for (const [name, expected] of Object.entries(safeVariables)) {
-    if (mainnet.vars?.[name] !== expected) {
-      throw new Error(`Import requires safe Mainnet value ${name}=${expected}.`);
-    }
-  }
-
+  const importState = classifyImportState(mainnet, report);
   const evidenceRecord = findOne(
     evidence.records,
     "production-d1-provisioning",
     "Mainnet release evidence",
   );
+  let updateKind = "initial";
   if (evidenceRecord.status === "accepted") {
-    const expected = report.evidence_patch;
-    for (const [key, value] of Object.entries(expected)) {
-      if (evidenceRecord[key] !== value) {
-        throw new Error(
-          "Existing accepted D1 evidence differs from the provisioning report.",
-        );
-      }
-    }
+    updateKind = applyAcceptedEvidenceUpdate(
+      evidenceRecord,
+      report.evidence_patch,
+    );
   } else if (evidenceRecord.status !== "pending") {
-    throw new Error("D1 evidence must be pending or an exact accepted replay.");
+    throw new Error("D1 evidence must be pending or accepted.");
+  }
+
+  if (importState === "reviewed-halted") {
+    const release = findOne(
+      evidence.records,
+      "production-release-configuration",
+      "Mainnet release evidence",
+    );
+    if (
+      release.status !== "accepted" ||
+      release.release_mode !== "internal" ||
+      release.operations_mode !== "halted"
+    ) {
+      throw new Error("Forward import requires accepted halted release evidence.");
+    }
   }
 
   const control = findOne(
@@ -283,7 +365,6 @@ export function applyProvisioningReport({
 
   binding.database_id = report.databases.production.id;
   binding.preview_database_id = report.databases.preview.id;
-
   Object.assign(evidenceRecord, report.evidence_patch);
   evidence.updated_at = report.generated_at.slice(0, 10);
 
@@ -295,9 +376,15 @@ export function applyProvisioningReport({
   control.status = "passed";
   control.evidence = `${evidenceSummary}.`;
   finding.status = "resolved";
-  finding.evidence = `${evidenceSummary}; the committed PAYMENTS_DB_MAINNET IDs now match the verified report.`;
+  finding.evidence = `${evidenceSummary}; the committed PAYMENTS_DB_MAINNET IDs match the verified report.`;
 
-  return { wrangler, evidence, acceptance, runId: run.runId };
+  return {
+    wrangler,
+    evidence,
+    acceptance,
+    runId: run.runId,
+    updateKind,
+  };
 }
 
 function parseArguments(argv) {
@@ -305,19 +392,19 @@ function parseArguments(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (!argument.startsWith("--")) continue;
-    const name = argument.slice(2);
     const value = argv[index + 1];
     if (!value || value.startsWith("--")) {
-      throw new Error(`Missing value for --${name}.`);
+      throw new Error(`Missing value for ${argument}.`);
     }
-    values.set(name, value);
+    values.set(argument.slice(2), value);
     index += 1;
   }
   return {
     reportPath: values.get("report"),
     workflowRunUrl: values.get("workflow-run-url"),
     expectedGitSha: values.get("expected-git-sha"),
-    wranglerPath: values.get("wrangler") ?? resolve(process.cwd(), "wrangler.jsonc"),
+    wranglerPath:
+      values.get("wrangler") ?? resolve(process.cwd(), "wrangler.jsonc"),
     evidencePath:
       values.get("evidence") ??
       resolve(process.cwd(), "config/mainnet-release-evidence.json"),
@@ -334,9 +421,7 @@ function currentGitSha() {
 }
 
 export async function importMainnetD1ProvisioningReport(options) {
-  if (!options.reportPath) {
-    throw new Error("--report is required.");
-  }
+  if (!options.reportPath) throw new Error("--report is required.");
   if (!options.workflowRunUrl) {
     throw new Error("--workflow-run-url is required.");
   }
@@ -366,22 +451,16 @@ export async function importMainnetD1ProvisioningReport(options) {
       `${JSON.stringify(result.acceptance, null, 2)}\n`,
     ),
   ]);
-
   return result;
 }
 
-async function main() {
-  const options = parseArguments(process.argv.slice(2));
-  const result = await importMainnetD1ProvisioningReport(options);
-  console.log(
-    `Imported Mainnet D1 provisioning evidence from workflow run ${result.runId}. Mainnet release remains blocked.`,
-  );
-}
-
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((error) => {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`Mainnet D1 evidence import failed: ${message}`);
-    process.exit(1);
-  });
+  importMainnetD1ProvisioningReport(parseArguments(process.argv.slice(2)))
+    .then((result) =>
+      console.log(`Imported Mainnet D1 evidence (${result.updateKind}).`),
+    )
+    .catch((error) => {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    });
 }
