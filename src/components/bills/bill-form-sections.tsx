@@ -2,15 +2,29 @@
 
 import type { AssetDescriptor } from "@/features/assets/types";
 import type { AllocationFormStrategy } from "@/features/bills/allocation-form";
+import { useLocalization } from "@/features/localization/provider";
 
-import {
-  ALLOCATION_STRATEGIES,
-  type BillDraft,
-} from "./bill-form-model";
-import {
-  BillFormChoiceCard,
-  BillFormField,
-} from "./bill-form-controls";
+import { ALLOCATION_STRATEGIES, type BillDraft } from "./bill-form-model";
+import { BillFormChoiceCard, BillFormField } from "./bill-form-controls";
+
+const STRATEGY_KEYS = {
+  custom: {
+    label: "bill.allocation.custom.label",
+    description: "bill.allocation.custom.description",
+  },
+  equal: {
+    label: "bill.allocation.equal.label",
+    description: "bill.allocation.equal.description",
+  },
+  percentage: {
+    label: "bill.allocation.percentage.label",
+    description: "bill.allocation.percentage.description",
+  },
+  shares: {
+    label: "bill.allocation.shares.label",
+    description: "bill.allocation.shares.description",
+  },
+} as const;
 
 export function AssetSelection({
   assets,
@@ -21,33 +35,39 @@ export function AssetSelection({
   selectedAsset: AssetDescriptor;
   onSelect(asset: AssetDescriptor): void;
 }) {
+  const { t } = useLocalization();
+
   return (
     <fieldset className="mt-8">
-      <legend className="text-sm font-semibold">Settlement Asset</legend>
+      <legend className="text-sm font-semibold">{t("bill.asset.legend")}</legend>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        {assets.map((asset) => (
-          <BillFormChoiceCard
-            key={asset.id}
-            name="settlementAsset"
-            value={asset.id}
-            checked={asset.id === selectedAsset.id}
-            label={asset.symbol}
-            description={
-              asset.assetType === "native"
-                ? "Native XRP on XRPL Testnet"
-                : "Official Ripple USD issued on XRPL Testnet"
-            }
-            detail={
-              asset.assetType === "issued" ? `Issuer ${asset.issuer}` : null
-            }
-            onChange={() => onSelect(asset)}
-          />
-        ))}
+        {assets.map((asset) => {
+          const network = asset.network === "mainnet" ? "Mainnet" : "Testnet";
+          return (
+            <BillFormChoiceCard
+              key={asset.id}
+              name="settlementAsset"
+              value={asset.id}
+              checked={asset.id === selectedAsset.id}
+              label={asset.symbol}
+              description={
+                asset.assetType === "native"
+                  ? t("bill.asset.xrp", { network })
+                  : t("bill.asset.rlusd", { network })
+              }
+              detail={
+                asset.assetType === "issued"
+                  ? t("bill.asset.issuer", { issuer: asset.issuer })
+                  : null
+              }
+              onChange={() => onSelect(asset)}
+            />
+          );
+        })}
       </div>
       {selectedAsset.assetType === "issued" && (
         <p className="mt-3 rounded-lg border border-action/25 bg-action/10 p-4 text-sm leading-6">
-          The destination account must be ready to receive official RLUSD. The
-          issuer and amount will be frozen with every participant slot.
+          {t("bill.asset.rlusdNotice")}
         </p>
       )}
     </fieldset>
@@ -71,17 +91,19 @@ export function BillIdentityFields({
     value: string,
   ): void;
 }) {
+  const { t } = useLocalization();
+
   return (
     <div className="mt-8 grid gap-5 sm:grid-cols-2">
       <BillFormField
-        label="Bill title"
+        label={t("bill.field.title")}
         value={draft.title}
         onChange={(value) => onChange("title", value)}
         placeholder="XRPL Meetup Dinner"
         required
       />
       <BillFormField
-        label="Creator destination address"
+        label={t("bill.field.destination")}
         value={draft.destinationAddress}
         onChange={(value) => onChange("destinationAddress", value)}
         placeholder="r..."
@@ -89,7 +111,7 @@ export function BillIdentityFields({
         mono
       />
       <BillFormField
-        label="Total"
+        label={t("bill.field.total")}
         value={draft.totalAmount}
         onChange={(value) => onChange("totalAmount", value)}
         placeholder="10"
@@ -98,7 +120,7 @@ export function BillIdentityFields({
         inputMode="decimal"
       />
       <BillFormField
-        label="Creator share"
+        label={t("bill.field.creatorShare")}
         value={draft.creatorShareAmount}
         onChange={(value) => onChange("creatorShareAmount", value)}
         placeholder="2"
@@ -107,10 +129,10 @@ export function BillIdentityFields({
         inputMode="decimal"
       />
       <BillFormField
-        label="Destination Tag"
+        label={t("bill.field.destinationTag")}
         value={draft.destinationTag}
         onChange={(value) => onChange("destinationTag", value)}
-        placeholder="Optional"
+        placeholder={t("bill.field.optional")}
         inputMode="numeric"
       />
     </div>
@@ -124,26 +146,31 @@ export function AllocationSelection({
   selected: AllocationFormStrategy;
   onSelect(strategy: AllocationFormStrategy): void;
 }) {
+  const { t } = useLocalization();
+
   return (
     <fieldset className="mt-10">
       <legend className="font-heading text-xl font-semibold">
-        Allocation method
+        {t("bill.allocation.method")}
       </legend>
       <p className="mt-1 text-sm text-muted">
-        The server recomputes the final obligations before the Bill is frozen.
+        {t("bill.allocation.description")}
       </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {ALLOCATION_STRATEGIES.map((strategy) => (
-          <BillFormChoiceCard
-            key={strategy.id}
-            name="allocationStrategy"
-            value={strategy.id}
-            checked={selected === strategy.id}
-            label={strategy.label}
-            description={strategy.description}
-            onChange={() => onSelect(strategy.id)}
-          />
-        ))}
+        {ALLOCATION_STRATEGIES.map((strategy) => {
+          const keys = STRATEGY_KEYS[strategy.id];
+          return (
+            <BillFormChoiceCard
+              key={strategy.id}
+              name="allocationStrategy"
+              value={strategy.id}
+              checked={selected === strategy.id}
+              label={t(keys.label)}
+              description={t(keys.description)}
+              onChange={() => onSelect(strategy.id)}
+            />
+          );
+        })}
       </div>
     </fieldset>
   );
