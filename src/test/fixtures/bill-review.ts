@@ -57,7 +57,7 @@ export const CREATED_BILL_FIXTURE: CreatedBill = {
     adminToken: "2".repeat(64),
   },
   slots: BILL_REVIEW_FIXTURE.participants.map((participant, index) => ({
-    publicId: `00000000-0000-4000-8000-00000000000d{index + 2}`,
+    publicId: `00000000-0000-4000-8000-${String(index + 2).padStart(12, "0")}`,
     participantLabel: participant.participantLabel,
     expectedPayerAddress: participant.expectedPayerAddress,
     asset: XRP,
