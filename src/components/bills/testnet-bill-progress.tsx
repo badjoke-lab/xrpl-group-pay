@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CheckCircle2,
   CircleAlert,
@@ -12,28 +12,27 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import type { BillProgress } from "@/features/bills/progress";
+import {
+  BillProgressRequestError,
+  requestBillProgress,
+} from "@/features/bills/progress-client";
 import { useCapabilityToken } from "@/features/capabilities/use-capability-token";
 import { useProgressLocalization } from "@/features/localization/progress-catalog";
 import { formatMoneyAmount } from "@/features/money/money";
 
-import {
-  BillProgressRequestError,
-  requestBillProgress,
-} from "./bill-progress-client";
-import type {
-  BillProgressAccess,
-  BillProgressSnapshot,
-  BillProgressSlot,
-} from "./bill-progress-types";
-
 export type TestnetBillProgressProps = {
-  progressToken?: string;
+  capabilityToken?: string;
 };
 
 type State =
   | { kind: "loading" }
-  | { kind: "loaded"; snapshot: BillProgressSnapshot }
+  | { kind: "loaded"; progress: BillProgress }
   | { kind: "error"; message: string };
+
+type Slot = BillProgress["slots"][number];
+type SlotStatus = Slot["status"];
+type ProgressTranslator = ReturnType<typeof useProgressLocalization>["gt"];
 
 function shortValue(value: string, start = 12, end = 10) {
   return value.length > start + end + 1
@@ -41,14 +40,18 @@ function shortValue(value: string, start = 12, end = 10) {
     : value;
 }
 
-function amount(value: BillProgressSnapshot["totalAmount"]) {
+function amount(value: BillProgress["bill"]["totalAmount"]) {
   return `${formatMoneyAmount(value)} ${value.code}`;
 }
 
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof BillProgressRequestError ? error.message : fallback;
+}
+
 export function TestnetBillProgress({
-  progressToken,
+  capabilityToken,
 }: TestnetBillProgressProps) {
-  const { capability, resolved } = useCapabilityToken(progressToken);
+  const { capability, resolved } = useCapabilityToken(capabilityToken);
   const { gt } = useProgressLocalization();
 
   if (!resolved) return <Loading />;
@@ -61,45 +64,25 @@ export function TestnetBillProgress({
     );
   }
 
-  return <ProgressLoader key={capability} token={capability} />;
+  return <ProgressLoader key={capability} capability={capability} />;
 }
 
-function ProgressLoader({ token }: { token: string }) {
+function ProgressLoader({ capability }: { capability: string }) {
   const { gt } = useProgressLocalization();
   const [state, setState] = useState<State>({ kind: "loading" });
   const [refreshing, setRefreshing] = useState(false);
 
-  async function load() {
-    setRefreshing(true);
-    try {
-      setState({ kind: "loaded", snapshot: await requestBillProgress(token) });
-    } catch (error) {
-      setState({
-        kind: "error",
-        message:
-          error instanceof BillProgressRequestError
-            ? error.message
-            : gt("fallback"),
-      });
-    } finally {
-      setRefreshing(false);
-    }
-  }
-
   useEffect(() => {
     let active = true;
-    requestBillProgress(token).then(
-      (snapshot) => {
-        if (active) setState({ kind: "loaded", snapshot });
+    requestBillProgress(capability).then(
+      (progress: BillProgress) => {
+        if (active) setState({ kind: "loaded", progress });
       },
       (error: unknown) => {
         if (active) {
           setState({
             kind: "error",
-            message:
-              error instanceof BillProgressRequestError
-                ? error.message
-                : gt("fallback"),
+            message: errorMessage(error, gt("fallback")),
           });
         }
       },
@@ -107,9 +90,26 @@ function ProgressLoader({ token }: { token: string }) {
     return () => {
       active = false;
     };
-    // Token is the only request identity; locale changes update text only.
+    // Capability is the request identity; locale changes update text only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [capability]);
+
+  async function refresh() {
+    setRefreshing(true);
+    try {
+      setState({
+        kind: "loaded",
+        progress: await requestBillProgress(capability),
+      });
+    } catch (error: unknown) {
+      setState({
+        kind: "error",
+        message: errorMessage(error, gt("fallback")),
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   if (state.kind === "loading") return <Loading />;
   if (state.kind === "error") {
@@ -120,7 +120,7 @@ function ProgressLoader({ token }: { token: string }) {
         action={
           <Button
             variant="secondary"
-            onClick={() => void load()}
+            onClick={() => void refresh()}
             disabled={refreshing}
           >
             {refreshing ? (
@@ -137,33 +137,30 @@ function ProgressLoader({ token }: { token: string }) {
 
   return (
     <ProgressSnapshot
-      snapshot={state.snapshot}
+      progress={state.progress}
       refreshing={refreshing}
-      onRefresh={() => void load()}
+      onRefresh={() => void refresh()}
     />
   );
 }
 
 function ProgressSnapshot({
-  snapshot,
+  progress,
   refreshing,
   onRefresh,
 }: {
-  snapshot: BillProgressSnapshot;
+  progress: BillProgress;
   refreshing: boolean;
   onRefresh(): void;
 }) {
   const { gt } = useProgressLocalization();
-  const isAdmin = snapshot.access === "admin";
-  const progress = useMemo(
-    () =>
-      snapshot.payableSlotCount === 0
-        ? 100
-        : Math.round(
-            (snapshot.paidSlotCount / snapshot.payableSlotCount) * 100,
-          ),
-    [snapshot.paidSlotCount, snapshot.payableSlotCount],
-  );
+  const isAdmin = progress.access === "admin";
+  const completion =
+    progress.summary.participantCount === 0
+      ? 0
+      : Math.round(
+          (progress.summary.paidCount / progress.summary.participantCount) * 100,
+        );
 
   return (
     <div className="space-y-7">
@@ -176,21 +173,24 @@ function ProgressSnapshot({
                   {isAdmin ? gt("creatorView") : gt("readOnlyView")}
                 </span>
                 <span className="rounded-pill border border-border px-3 py-1 text-xs font-bold">
-                  {snapshot.asset.symbol}
+                  {progress.bill.asset.symbol}
                 </span>
                 <span className="rounded-pill border border-border px-3 py-1 text-xs font-bold">
-                  XRPL {snapshot.network === "mainnet" ? "Mainnet" : "Testnet"}
+                  XRPL {progress.bill.network === "mainnet" ? "Mainnet" : "Testnet"}
                 </span>
               </div>
               <h2 className="mt-4 font-heading text-3xl font-semibold sm:text-4xl">
-                {snapshot.title}
+                {progress.bill.title}
               </h2>
               <p className="mt-3 max-w-2xl leading-7 text-muted">
-                {gt("exactPayment", { asset: snapshot.asset.symbol })}
+                {gt("exactPayment", { asset: progress.bill.asset.symbol })}
               </p>
-              {snapshot.asset.assetType === "issued" && (
-                <p className="mt-2 break-all font-mono text-xs text-muted">
-                  {gt("issuer", { issuer: snapshot.asset.issuer })}
+              {progress.bill.asset.assetType === "issued" && (
+                <p
+                  className="mt-2 break-all font-mono text-xs text-muted"
+                  title={progress.bill.asset.issuer}
+                >
+                  {gt("issuer", { issuer: progress.bill.asset.issuer })}
                 </p>
               )}
             </div>
@@ -209,39 +209,46 @@ function ProgressSnapshot({
               <span className="font-semibold">{gt("progress")}</span>
               <span className="text-muted">
                 {gt("paidCount", {
-                  paid: snapshot.paidSlotCount,
-                  total: snapshot.payableSlotCount,
+                  paid: progress.summary.paidCount,
+                  total: progress.summary.participantCount,
                 })}
               </span>
             </div>
-            <div className="mt-3 h-3 overflow-hidden rounded-full bg-border">
+            <div
+              role="progressbar"
+              aria-label={gt("progress")}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={completion}
+              className="mt-3 h-3 overflow-hidden rounded-full bg-border"
+            >
               <div
                 className="h-full rounded-full bg-success transition-[width]"
-                style={{ width: `${progress}%` }}
+                style={{ width: `${completion}%` }}
               />
             </div>
           </div>
         </div>
 
         <dl className="grid border-t border-border sm:grid-cols-2 lg:grid-cols-4">
-          <Metric label={gt("billTotal")} value={amount(snapshot.totalAmount)} />
+          <Metric label={gt("billTotal")} value={amount(progress.bill.totalAmount)} />
           <Metric
             label={gt("verified")}
-            value={amount(snapshot.paidAmount)}
+            value={amount(progress.summary.paidAmount)}
           />
           <Metric
             label={gt("pending")}
-            value={String(snapshot.unpaidSlotCount)}
+            value={String(progress.summary.pendingCount)}
           />
           <Metric
             label={gt("review")}
-            value={String(snapshot.needsReviewSlotCount)}
-            alert={snapshot.needsReviewSlotCount > 0}
+            value={String(progress.summary.reviewCount)}
+            alert={progress.summary.reviewCount > 0}
           />
         </dl>
       </section>
 
-      {snapshot.status === "settled" && (
+      {progress.bill.status === "settled" && (
         <section className="rounded-xl border border-success/25 bg-success/10 p-5 text-success sm:p-6">
           <div className="flex items-start gap-3">
             <CheckCircle2
@@ -274,11 +281,11 @@ function ProgressSnapshot({
         </div>
 
         <div className="mt-6 space-y-4">
-          {snapshot.slots.map((slot, index) => (
+          {progress.slots.map((slot: Slot, index: number) => (
             <SlotCard
               key={slot.publicId}
               slot={slot}
-              access={snapshot.access}
+              isAdmin={isAdmin}
               index={index}
             />
           ))}
@@ -290,18 +297,17 @@ function ProgressSnapshot({
 
 function SlotCard({
   slot,
-  access,
+  isAdmin,
   index,
 }: {
-  slot: BillProgressSlot;
-  access: BillProgressAccess;
+  slot: Slot;
+  isAdmin: boolean;
   index: number;
 }) {
   const { gt } = useProgressLocalization();
-  const isAdmin = access === "admin";
   const status = slotStatus(slot.status, gt);
   const proofUrl = slot.proofToken
-    ? `${window.location.origin}/testnet/proof#${slot.proofToken}`
+    ? `/testnet/proof#token=${slot.proofToken}`
     : null;
 
   return (
@@ -360,10 +366,7 @@ function SlotCard({
   );
 }
 
-function slotStatus(
-  status: BillProgressSlot["status"],
-  gt: ReturnType<typeof useProgressLocalization>["gt"],
-) {
+function slotStatus(status: SlotStatus, gt: ProgressTranslator) {
   if (status === "paid") {
     return {
       label: gt("paid"),
