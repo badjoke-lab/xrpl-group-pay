@@ -18,6 +18,7 @@ import {
   requestBillReview,
 } from "@/features/bills/review-bill-client";
 import type { BillReview, CreatedBill } from "@/features/bills/types";
+import { useLocalization } from "@/features/localization/provider";
 
 import { AllocationStatus } from "./allocation-status";
 import {
@@ -47,17 +48,16 @@ const ASSETS = [
   getRlusdAssetDescriptor(NETWORK),
 ] as const;
 
-async function readJson(response: Response) {
+async function readJson(response: Response, fallback: string) {
   const body = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(
-      body?.error?.message ?? "The shared bill could not be created.",
-    );
+    throw new Error(body?.error?.message ?? fallback);
   }
   return body;
 }
 
 export function TestnetBillForm() {
+  const { t } = useLocalization();
   const [draft, setDraft] = useState<BillDraft>(() => newBillDraft(NETWORK));
   const [review, setReview] = useState<BillReview | null>(null);
   const [created, setCreated] = useState<CreatedBill | null>(null);
@@ -223,7 +223,7 @@ export function TestnetBillForm() {
       setError(
         cause instanceof BillReviewRequestError
           ? cause.message
-          : "The bill could not be reviewed.",
+          : t("bill.form.error.review"),
       );
     } finally {
       setReviewing(false);
@@ -240,12 +240,12 @@ export function TestnetBillForm() {
         body: JSON.stringify(activeInput()),
         cache: "no-store",
       });
-      setCreated((await readJson(response)) as CreatedBill);
+      setCreated(
+        (await readJson(response, t("bill.form.error.create"))) as CreatedBill,
+      );
     } catch (cause) {
       setError(
-        cause instanceof Error
-          ? cause.message
-          : "The shared bill could not be created.",
+        cause instanceof Error ? cause.message : t("bill.form.error.create"),
       );
     } finally {
       setCreating(false);
@@ -277,6 +277,8 @@ export function TestnetBillForm() {
     );
   }
 
+  const networkLabel = NETWORK === "mainnet" ? "Mainnet" : "Testnet";
+
   return (
     <form
       onSubmit={submitReview}
@@ -288,15 +290,13 @@ export function TestnetBillForm() {
         </div>
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-action">
-            Shared bill
+            {t("bill.form.eyebrow")}
           </p>
           <h2 className="mt-2 font-heading text-3xl font-semibold">
-            Choose one Settlement Asset for the Bill
+            {t("bill.form.title")}
           </h2>
           <p className="mt-2 leading-7 text-muted">
-            Every participant pays the same frozen Asset on XRPL{" "}
-            {NETWORK === "mainnet" ? "Mainnet" : "Testnet"}. Nothing becomes
-            payable until the review step is confirmed.
+            {t("bill.form.description", { network: networkLabel })}
           </p>
         </div>
       </div>
@@ -391,10 +391,10 @@ export function TestnetBillForm() {
         {reviewing ? (
           <>
             <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-            Validating bill review
+            {t("bill.form.reviewing")}
           </>
         ) : (
-          "Review bill before freezing"
+          t("bill.form.review")
         )}
       </Button>
     </form>
