@@ -46,16 +46,26 @@ The immediate interruption may have been a connectivity failure or wallet proces
 
 XRPL does not make `InvoiceID` unique. Application receipt deduplication after submission is too late to stop the second transfer.
 
-## Required remediation
+## Remediation status
 
-1. Read the expected payer's `Sequence` from one validated-ledger `account_info` response.
-2. Include the exact expected payer as `Account` in the Xaman transaction.
-3. Include that one `Sequence` so repeated signatures compete for the same sequence and at most one can validate.
-4. Include a bounded `LastLedgerSequence` so a stale request fails closed.
-5. Fail handoff creation when validated signing state is unavailable or belongs to another account.
-6. Add pre-replacement reconciliation for a validated transaction matching the PaymentSlot InvoiceID.
-7. Repeat the controlled Mainnet RLUSD ceremony only after the one-shot invariant and reconciliation path are reviewed and deployed.
+The first defense was merged in PR #105:
+
+- the expected payer is pinned as `Account`;
+- one validated-ledger `Sequence` is pinned into the Xaman Payment;
+- a bounded `LastLedgerSequence` makes stale requests fail closed;
+- handoff creation fails when validated signing state cannot be read safely.
+
+The second defense is implemented by the replacement-reconciliation change:
+
+- reconciliation runs before replacing any prior Wallet Handoff;
+- validated `account_tx` history is searched for the exact expected payer and InvoiceID;
+- every candidate is independently verified against the full frozen Payment Intent;
+- one exact match is settled and prevents replacement;
+- multiple exact matches move the PaymentSlot and Bill to `needs_review` with a public-safe finding;
+- unavailable or incomplete history prevents replacement.
+
+A fresh controlled Mainnet RLUSD ceremony remains mandatory after both defenses are deployed.
 
 ## Release decision
 
-The observed transactions are incident evidence, not successful release evidence. Mainnet remains blocked and halted until remediation and a fresh acceptance ceremony are complete.
+The observed transactions are incident evidence, not successful release evidence. Mainnet remains blocked and halted until remediation is deployed, a fresh controlled RLUSD ceremony succeeds, the evidence is accepted, and the final release audit is approved.

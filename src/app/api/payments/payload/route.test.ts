@@ -6,6 +6,10 @@ import {
   PaymentSlotNotFoundError,
   PaymentSlotStateError,
 } from "@/features/bills/payment-slot";
+import {
+  PaymentReconciliationReviewRequiredError,
+  PaymentReconciliationUnavailableError,
+} from "@/features/bills/reconcile-replacement-payment";
 import { XamanApiError } from "@/features/xaman/client";
 
 import {
@@ -106,6 +110,38 @@ describe("POST /api/payments/payload", () => {
         operation: "create",
         mode: "verify-only",
       },
+    });
+  });
+
+  it("returns review-required and retryable reconciliation outcomes", async () => {
+    const reviewDeps = dependencies();
+    reviewDeps.createPayload.mockRejectedValue(
+      new PaymentReconciliationReviewRequiredError(2),
+    );
+    const reviewResponse = await handleCreateSlotPayloadRequest(
+      request(),
+      reviewDeps,
+    );
+    expect(reviewResponse.status).toBe(409);
+    await expect(reviewResponse.json()).resolves.toMatchObject({
+      error: {
+        code: "PAYMENT_REQUIRES_REVIEW",
+        matchCount: 2,
+      },
+    });
+
+    const unavailableDeps = dependencies();
+    unavailableDeps.createPayload.mockRejectedValue(
+      new PaymentReconciliationUnavailableError(),
+    );
+    const unavailableResponse = await handleCreateSlotPayloadRequest(
+      request(),
+      unavailableDeps,
+    );
+    expect(unavailableResponse.status).toBe(503);
+    expect(unavailableResponse.headers.get("retry-after")).toBe("30");
+    await expect(unavailableResponse.json()).resolves.toMatchObject({
+      error: { code: "PAYMENT_RECONCILIATION_UNAVAILABLE" },
     });
   });
 

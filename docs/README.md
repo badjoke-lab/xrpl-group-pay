@@ -2,7 +2,7 @@
 
 **Status:** Active  
 **Scope:** Public documentation map and precedence rules  
-**Last reviewed:** 2026-06-27  
+**Last reviewed:** 2026-06-29  
 **Document class:** Public
 
 ## 1. Purpose
@@ -48,6 +48,7 @@ These documents define approved behavior. They may describe target behavior that
 - `persistence-scope.md` — durable records, compatibility guarantees, and current database scope.
 - `d1-provisioning.md` — local, Testnet, and Mainnet D1 provisioning and migration controls.
 - `transaction-proof.md` — public proof fields, digest contracts, privacy boundary, and integrity checks.
+- `payment-reconciliation.md` — validated-ledger reconciliation required before replacing a prior Wallet Handoff.
 - `mainnet-operational-controls.md` — Mainnet enabled, verify-only, and halted runtime behavior.
 - `mainnet-acceptance-audit.md` — final cross-control audit, current release decision, unresolved findings, and approval procedure.
 - `mainnet-release-evidence.md` — non-secret production evidence contracts, acceptance fields, and update discipline.

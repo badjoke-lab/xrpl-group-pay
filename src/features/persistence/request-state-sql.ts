@@ -10,6 +10,12 @@ export const SELECT_ACTIVE_REQUEST = [
   "LIMIT 1",
 ].join("\n");
 
+export const SELECT_REQUEST_HISTORY = [
+  "SELECT COUNT(*) AS request_count",
+  `FROM ${table}`,
+  "WHERE payment_slot_id = ?1",
+].join("\n");
+
 export const EXPIRE_ACTIVE_REQUEST = [
   "UP" + "DATE",
   table,

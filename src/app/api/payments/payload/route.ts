@@ -19,6 +19,11 @@ import {
   PaymentSlotStateError,
 } from "@/features/bills/payment-slot";
 import {
+  PaymentReconciliationReviewRequiredError,
+  PaymentReconciliationUnavailableError,
+  reconcileReplacementPayment,
+} from "@/features/bills/reconcile-replacement-payment";
+import {
   getPaymentsDatabase,
   PaymentsDatabaseUnavailableError,
 } from "@/features/persistence/cloudflare-d1";
@@ -29,6 +34,7 @@ import {
 import { WalletProviderError } from "@/features/wallet-providers/types";
 import { XamanApiError } from "@/features/xaman/client";
 import { createXamanProvider } from "@/features/xaman/provider";
+import { createXrplAccountTransactionClient } from "@/features/xrpl/account-transaction-client";
 
 export const dynamic = "force-dynamic";
 
@@ -49,9 +55,32 @@ const defaultDependencies: SlotPayloadRouteDependencies = {
     const database = await getPaymentsDatabase();
     const environment = getXamanEnvironment();
     const provider = createXamanProvider(environment);
+    const mainnetAccess =
+      environment.APP_NETWORK === "mainnet" &&
+      environment.MAINNET_GATE_APPROVED === true
+        ? ({
+            network: "mainnet",
+            mainnetGateApproved: true,
+          } as const)
+        : undefined;
+    const history = createXrplAccountTransactionClient(
+      environment.APP_NETWORK,
+      {
+        deploymentNetwork: environment.APP_NETWORK,
+        mainnetAccess,
+      },
+    );
+
     return createPersistedSlotPayload(database, paymentToken, {
       sourceTag: environment.XRPL_SOURCE_TAG,
       createHandoff: (intent) => provider.createHandoff(intent),
+      reconcileReplacement: (targetDatabase, slot, now) =>
+        reconcileReplacementPayment(targetDatabase, slot, {
+          sourceTag: environment.XRPL_SOURCE_TAG,
+          findTransactions: (account, invoiceId) =>
+            history.findByInvoiceId(account, invoiceId),
+          now: () => now,
+        }),
     });
   },
 };
@@ -171,6 +200,30 @@ export async function handleCreateSlotPayloadRequest(
           },
         },
         409,
+      );
+    }
+    if (error instanceof PaymentReconciliationReviewRequiredError) {
+      return json(
+        {
+          error: {
+            code: error.code,
+            matchCount: error.matchCount,
+            message: error.message,
+          },
+        },
+        409,
+      );
+    }
+    if (error instanceof PaymentReconciliationUnavailableError) {
+      return json(
+        {
+          error: {
+            code: error.code,
+            message: error.message,
+          },
+        },
+        503,
+        { "Retry-After": "30" },
       );
     }
     if (
