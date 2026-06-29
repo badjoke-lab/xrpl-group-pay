@@ -4,11 +4,14 @@ import { getRlusdAssetDescriptor } from "@/features/assets/registry";
 import type { PaymentIntent } from "@/features/payment-intents/types";
 import { createRlusdPaymentIntent } from "@/features/payment-intents/rlusd";
 import { createXrpPaymentIntent } from "@/features/payment-intents/xrp";
+import type { XrplSigningState } from "@/features/xrpl/one-shot-payment";
+
 import type { XamanPaymentPayloadRequest } from "./payment-request";
 import {
   XAMAN_PROVIDER_CAPABILITIES,
   XamanProvider,
   type XamanPayloadClient,
+  type XamanSigningStateReader,
 } from "./provider";
 import type { XamanCreatePayloadResponse } from "./schemas";
 
@@ -17,7 +20,9 @@ const PAYER = "rPEPPER7kfTD9w2To4CQk6UCfuHM9c6GDY";
 const INVOICE_ID = "AB".repeat(32);
 const RESPONSE: XamanCreatePayloadResponse = {
   uuid: "00000000-0000-4000-8000-000000000001",
-  next: { always: "https://xaman.app/sign/00000000-0000-4000-8000-000000000001" },
+  next: {
+    always: "https://xaman.app/sign/00000000-0000-4000-8000-000000000001",
+  },
   refs: {
     qr_png: "https://xaman.app/qr.png",
     qr_matrix: "qr-data",
@@ -35,11 +40,36 @@ class Client implements XamanPayloadClient {
   }
 }
 
-function approvedProvider(client: Client) {
-  return new XamanProvider(client, {
-    network: "mainnet",
-    mainnetAccess: { network: "mainnet", mainnetGateApproved: true },
-  });
+class SigningStateReader implements XamanSigningStateReader {
+  accounts: string[] = [];
+
+  constructor(
+    private readonly state: XrplSigningState = {
+      account: PAYER,
+      sequence: 77,
+      validatedLedgerIndex: 9_000_000,
+    },
+  ) {}
+
+  async getSigningState(account: string) {
+    this.accounts.push(account);
+    return this.state;
+  }
+}
+
+function testnetProvider(client: Client, reader = new SigningStateReader()) {
+  return new XamanProvider(client, { network: "testnet" }, reader);
+}
+
+function approvedProvider(client: Client, reader = new SigningStateReader()) {
+  return new XamanProvider(
+    client,
+    {
+      network: "mainnet",
+      mainnetAccess: { network: "mainnet", mainnetGateApproved: true },
+    },
+    reader,
+  );
 }
 
 describe("Xaman provider capabilities", () => {
@@ -54,9 +84,10 @@ describe("Xaman provider capabilities", () => {
     ]);
   });
 
-  it("preserves the Testnet XRP request", async () => {
+  it("pins the Testnet XRP request to one payer sequence", async () => {
     const client = new Client();
-    const provider = new XamanProvider(client);
+    const reader = new SigningStateReader();
+    const provider = testnetProvider(client, reader);
     const intent = createXrpPaymentIntent({
       paymentSlotId: "slot-1",
       network: "testnet",
@@ -71,6 +102,7 @@ describe("Xaman provider capabilities", () => {
 
     const handoff = await provider.createHandoff(intent);
 
+    expect(reader.accounts).toEqual([PAYER]);
     expect(client.requests[0]).toEqual({
       txjson: {
         TransactionType: "Payment",
@@ -79,6 +111,9 @@ describe("Xaman provider capabilities", () => {
         SourceTag: 123456,
         InvoiceID: INVOICE_ID,
         DestinationTag: 9,
+        Account: PAYER,
+        Sequence: 77,
+        LastLedgerSequence: 9_000_060,
       },
       options: { submit: true, expire: 5, force_network: "TESTNET" },
     });
@@ -92,9 +127,10 @@ describe("Xaman provider capabilities", () => {
     });
   });
 
-  it("builds canonical Mainnet XRP and RLUSD requests", async () => {
+  it("pins canonical Mainnet XRP and RLUSD requests", async () => {
     const client = new Client();
-    const provider = approvedProvider(client);
+    const reader = new SigningStateReader();
+    const provider = approvedProvider(client, reader);
     const xrpIntent = createXrpPaymentIntent({
       paymentSlotId: "slot-xrp",
       network: "mainnet",
@@ -120,6 +156,7 @@ describe("Xaman provider capabilities", () => {
     await provider.createHandoff(rlusdIntent);
 
     const asset = getRlusdAssetDescriptor("mainnet");
+    expect(reader.accounts).toEqual([PAYER, PAYER]);
     expect(client.requests).toEqual([
       {
         txjson: {
@@ -128,6 +165,9 @@ describe("Xaman provider capabilities", () => {
           Amount: "2000000",
           SourceTag: 987654,
           InvoiceID: INVOICE_ID,
+          Account: PAYER,
+          Sequence: 77,
+          LastLedgerSequence: 9_000_060,
         },
         options: { submit: true, expire: 5, force_network: "MAINNET" },
       },
@@ -143,15 +183,43 @@ describe("Xaman provider capabilities", () => {
           SourceTag: 987654,
           InvoiceID: INVOICE_ID,
           DestinationTag: 44,
+          Account: PAYER,
+          Sequence: 77,
+          LastLedgerSequence: 9_000_060,
         },
         options: { submit: true, expire: 5, force_network: "MAINNET" },
       },
     ]);
   });
 
+  it("fails closed when no XRPL signing-state reader is configured", async () => {
+    const client = new Client();
+    const provider = new XamanProvider(client, { network: "testnet" });
+    const intent = createXrpPaymentIntent({
+      paymentSlotId: "slot-unpinned",
+      network: "testnet",
+      amountDrops: "1",
+      destination: DESTINATION,
+      destinationTag: null,
+      sourceTag: 1,
+      invoiceId: INVOICE_ID,
+      expectedPayer: PAYER,
+    });
+
+    await expect(provider.createHandoff(intent)).rejects.toMatchObject({
+      code: "PROVIDER_UNAVAILABLE",
+      providerStatus: 503,
+    });
+    expect(client.requests).toHaveLength(0);
+  });
+
   it("rejects an unavailable Mainnet gate and network crossover", async () => {
     const blockedClient = new Client();
-    const blocked = new XamanProvider(blockedClient, { network: "mainnet" });
+    const blocked = new XamanProvider(
+      blockedClient,
+      { network: "mainnet" },
+      new SigningStateReader(),
+    );
     const mainnetIntent = createXrpPaymentIntent({
       paymentSlotId: "slot-mainnet",
       network: "mainnet",
@@ -169,7 +237,7 @@ describe("Xaman provider capabilities", () => {
 
     const testnetClient = new Client();
     await expect(
-      new XamanProvider(testnetClient).createHandoff(mainnetIntent),
+      testnetProvider(testnetClient).createHandoff(mainnetIntent),
     ).rejects.toMatchObject({ code: "UNSUPPORTED_INTENT" });
     expect(testnetClient.requests).toHaveLength(0);
   });

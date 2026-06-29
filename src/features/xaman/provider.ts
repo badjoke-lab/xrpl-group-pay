@@ -23,7 +23,15 @@ import {
   type WalletProvider,
   type WalletProviderCapabilities,
 } from "@/features/wallet-providers/types";
+import {
+  pinOneShotPaymentTransaction,
+  type XrplSigningState,
+} from "@/features/xrpl/one-shot-payment";
 import { XrplPaymentBuildError } from "@/features/xrpl/payment-builder";
+import {
+  createXrplSigningStateClient,
+  XrplSigningStateUnavailableError,
+} from "@/features/xrpl/signing-state-client";
 import { buildXrplPaymentTransaction } from "@/features/xrpl/transaction-builder";
 
 import { XamanApiError, XamanClient } from "./client";
@@ -34,6 +42,10 @@ import {
 import type { XamanCreatePayloadResponse } from "./schemas";
 
 export type XamanPayloadClient = Pick<XamanClient, "createPayload">;
+
+export type XamanSigningStateReader = {
+  getSigningState(account: string): Promise<XrplSigningState>;
+};
 
 export type XamanProviderConfiguration = {
   network: XrplNetwork;
@@ -124,12 +136,18 @@ function requireCanonicalIntent(
 function buildXamanRequest(
   intent: PaymentIntent,
   configuration: XamanProviderConfiguration,
+  signingState: XrplSigningState,
 ): XamanPaymentPayloadRequest {
   const canonicalIntent = requireCanonicalIntent(intent, configuration);
 
   try {
+    const transaction = buildXrplPaymentTransaction(canonicalIntent);
     return {
-      txjson: buildXrplPaymentTransaction(canonicalIntent),
+      txjson: pinOneShotPaymentTransaction(
+        transaction,
+        canonicalIntent.expectedPayer,
+        signingState,
+      ),
       options: {
         submit: true,
         expire: 5,
@@ -190,6 +208,7 @@ export class XamanProvider implements WalletProvider {
     private readonly configuration: XamanProviderConfiguration = {
       network: "testnet",
     },
+    private readonly signingStateReader?: XamanSigningStateReader,
   ) {}
 
   async createPayloadRequest(
@@ -216,7 +235,36 @@ export class XamanProvider implements WalletProvider {
 
   async createHandoff(intent: PaymentIntent): Promise<WalletHandoff> {
     const canonicalIntent = requireCanonicalIntent(intent, this.configuration);
-    const request = buildXamanRequest(canonicalIntent, this.configuration);
+    if (!this.signingStateReader) {
+      throw new WalletProviderError(
+        "xaman",
+        "PROVIDER_UNAVAILABLE",
+        "XRPL signing state is unavailable for this Wallet Handoff.",
+        503,
+      );
+    }
+
+    let signingState: XrplSigningState;
+    try {
+      signingState = await this.signingStateReader.getSigningState(
+        canonicalIntent.expectedPayer,
+      );
+    } catch (error) {
+      throw new WalletProviderError(
+        "xaman",
+        "PROVIDER_UNAVAILABLE",
+        error instanceof XrplSigningStateUnavailableError
+          ? error.message
+          : "XRPL signing state could not be read safely.",
+        503,
+      );
+    }
+
+    const request = buildXamanRequest(
+      canonicalIntent,
+      this.configuration,
+      signingState,
+    );
     return normalizeCreatedHandoff(
       canonicalIntent,
       await this.createPayloadRequest(request),
@@ -233,9 +281,20 @@ export function createXamanProvider(environment: XamanEnvironment) {
           mainnetGateApproved: true,
         } satisfies MainnetAssetAccess)
       : undefined;
+  const signingStateReader = createXrplSigningStateClient(
+    environment.APP_NETWORK,
+    {
+      deploymentNetwork: environment.APP_NETWORK,
+      mainnetAccess,
+    },
+  );
 
-  return new XamanProvider(new XamanClient(environment), {
-    network: environment.APP_NETWORK,
-    mainnetAccess,
-  });
+  return new XamanProvider(
+    new XamanClient(environment),
+    {
+      network: environment.APP_NETWORK,
+      mainnetAccess,
+    },
+    signingStateReader,
+  );
 }
