@@ -1,6 +1,6 @@
-import { xrpl, audit, test, rpc, submit, createdId, entry } from './core.mjs'
+import { xrpl, audit, test, rpc, submit, createdId, entry, mpt } from './core.mjs'
 
-export async function createAndReadLoanBroker(client, wallets, vaultID) {
+export async function createAndReadLoanBroker(client, wallets, vaultID, mptID) {
   const { broker } = wallets
   const response = await submit(client, 'LoanBrokerSet:create all fields', {
     TransactionType: 'LoanBrokerSet',
@@ -37,8 +37,15 @@ export async function createAndReadLoanBroker(client, wallets, vaultID) {
     Data: xrpl.convertStringToHex('audit-broker-v2')
   }, broker)
 
+  await submit(client, 'LoanBrokerCoverDeposit:fund lending tests', {
+    TransactionType: 'LoanBrokerCoverDeposit',
+    Account: broker.address,
+    LoanBrokerID: loanBrokerID,
+    Amount: mpt(mptID, '50000')
+  }, broker)
+
   audit.objects.broker_updated = await test(
-    'read LoanBroker after update',
+    'read LoanBroker after update and cover deposit',
     () => entry(client, loanBrokerID),
     true
   )
