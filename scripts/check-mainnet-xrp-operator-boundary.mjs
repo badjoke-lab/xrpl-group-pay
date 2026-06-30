@@ -45,7 +45,7 @@ function isReviewedPostXrpStage(releasePlan) {
       JSON.stringify([]) &&
     stages.get("live-xrp-acceptance") === "complete" &&
     stages.get("live-rlusd-acceptance") === "complete" &&
-    stages.get("final-release-audit") === "pending";
+    ["pending", "complete"].includes(stages.get("final-release-audit"));
 
   return atRlusdAcceptance || atFinalAudit;
 }
@@ -107,10 +107,17 @@ export function assertMainnetXrpOperatorBoundary({
 
   const atXrpStage = releasePlan?.current_stage === boundary.stage;
   const afterXrpStage = isReviewedPostXrpStage(releasePlan);
+  const approvedFinalAudit =
+    releasePlan?.state === "ready" &&
+    releasePlan?.current_stage === "final-release-audit" &&
+    releasePlan?.release_decision === "approved";
+  const decisionMatches =
+    releasePlan?.release_decision === boundary.final_release_decision ||
+    approvedFinalAudit;
   if (
     releasePlan?.network !== "mainnet" ||
     (!atXrpStage && !afterXrpStage) ||
-    releasePlan?.release_decision !== boundary.final_release_decision
+    !decisionMatches
   ) {
     throw new Error("The release plan does not match the operator boundary.");
   }
@@ -131,7 +138,7 @@ export function assertMainnetXrpOperatorBoundary({
     automaticLiveActions: false,
     baselineMode: "halted",
     restoreMode: "halted",
-    finalReleaseDecision: "blocked",
+    finalReleaseDecision: releasePlan.release_decision,
   };
 }
 

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "network": "mainnet",
+  "state": "approved",
+  "audited_at": "2026-06-30T14:16:57.673Z",
+  "git_sha": "03ca2bd454c71e63166de21192db82f91832736b",
+  "pull_request_url": "https://github.com/badjoke-lab/xrpl-group-pay/pull/117",
+  "ci_run_url": "https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28450369791",
+  "public_url": "https://xgp.badjoke-lab.com",
+  "release_evidence": {
+    "accepted": 7,
+    "total": 7
+  },
+  "acceptance_controls": {
+    "passed": 14,
+    "total": 14
+  },
+  "gate_checks": {
+    "passed": 10,
+    "total": 10
+  },
+  "open_findings": 0,
+  "release_decision": "approved",
+  "gate_state": "ready",
+  "production_target": {
+    "deployment": "deployed",
+    "release_mode": "internal",
+    "operations_mode": "halted"
+  },
+  "checks": {
+    "all_release_evidence_accepted": true,
+    "all_acceptance_controls_passed": true,
+    "all_gate_checks_passed": true,
+    "incident_remediation_reviewed": true,
+    "xrp_evidence_reviewed": true,
+    "rlusd_evidence_reviewed": true,
+    "production_d1_audit_reviewed": true,
+    "halted_target_reviewed": true,
+    "ci_reviewed": true
+  },
+  "incident": {
+    "issue_url": "https://github.com/badjoke-lab/xrpl-group-pay/issues/104",
+    "remediation_prs": [
+      105,
+      108,
+      116
+    ],
+    "acceptance_evidence_pr": 117
+  },
+  "new_transaction_performed": false,
+  "new_handoff_created": false,
+  "production_deployment_performed": false,
+  "public_operating_configuration_applied": false,
+  "sensitive_values_excluded": true
+}

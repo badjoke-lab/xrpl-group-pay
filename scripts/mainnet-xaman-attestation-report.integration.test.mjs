@@ -52,6 +52,19 @@ function report() {
 function pendingProviderState(evidence, acceptance) {
   const pendingEvidence = structuredClone(evidence);
   const pendingAcceptance = structuredClone(acceptance);
+  pendingAcceptance.release_decision = "blocked";
+  Object.assign(
+    pendingAcceptance.controls.find(
+      (control) => control.id === "final-release-audit",
+    ),
+    { status: "pending", evidence: "Final audit pending." },
+  );
+  Object.assign(
+    pendingAcceptance.blocking_findings.find(
+      (finding) => finding.id === "final-release-audit-not-complete",
+    ),
+    { status: "open", evidence: "Final audit pending." },
+  );
 
   Object.assign(
     pendingEvidence.records.find(

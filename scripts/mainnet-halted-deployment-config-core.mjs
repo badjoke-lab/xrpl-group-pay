@@ -130,16 +130,23 @@ export function buildHaltedMainnetWrangler({
     provider.status === "accepted" &&
     release.status === "pending" &&
     isClosedInitialConfiguration(vars);
-  const haltedRedeployment =
+  const approvedFinalAudit =
+    releasePlan?.state === "ready" &&
+    releasePlan?.review_status === "approved" &&
+    releasePlan?.current_stage === "final-release-audit" &&
+    releasePlan?.release_decision === "approved";
+  const blockedRedeployment =
     REDEPLOYMENT_STAGES.has(releasePlan?.current_stage) &&
-    releasePlan?.release_decision === "blocked" &&
+    releasePlan?.release_decision === "blocked";
+  const haltedRedeployment =
+    (blockedRedeployment || approvedFinalAudit) &&
     provider.status === "accepted" &&
     release.status === "accepted" &&
     isReviewedHaltedConfiguration(mainnet, vars, contract);
 
   if (!initialReview && !haltedRedeployment) {
     throw new Error(
-      "Halted deployment requires the halted-deployment-review stage or a reviewed blocked halted redeployment state.",
+      "Halted deployment requires the halted-deployment-review stage, a reviewed blocked redeployment state, or an approved final-audit halted target.",
     );
   }
 

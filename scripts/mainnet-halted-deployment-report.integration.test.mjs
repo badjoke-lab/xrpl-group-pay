@@ -116,9 +116,42 @@ async function repositoryState() {
   };
 }
 
+function blockedFinalAuditState(state) {
+  const blocked = structuredClone(state);
+  blocked.acceptance.release_decision = "blocked";
+  Object.assign(
+    blocked.acceptance.controls.find(
+      (control) => control.id === "final-release-audit",
+    ),
+    { status: "pending", evidence: "Final audit pending." },
+  );
+  Object.assign(
+    blocked.acceptance.blocking_findings.find(
+      (finding) => finding.id === "final-release-audit-not-complete",
+    ),
+    { status: "open", evidence: "final-release-audit-not-complete" },
+  );
+  blocked.gate.state = "blocked";
+  Object.assign(
+    blocked.gate.checks.find(
+      (check) => check.id === "mainnet-acceptance-audit",
+    ),
+    { status: "failed", evidence: "final-release-audit-not-complete" },
+  );
+  Object.assign(blocked.releasePlan, {
+    state: "blocked",
+    review_status: "prepared",
+    release_decision: "blocked",
+  });
+  blocked.releasePlan.stages.find(
+    (stage) => stage.id === "final-release-audit",
+  ).status = "pending";
+  return blocked;
+}
+
 describe("halted Mainnet deployment report import", () => {
   it("replays accepted evidence while keeping operations halted", async () => {
-    const state = await repositoryState();
+    const state = blockedFinalAuditState(await repositoryState());
     const acceptedReleaseConfiguration = state.evidence.records.find(
       (record) => record.id === "production-release-configuration",
     );
@@ -182,7 +215,7 @@ describe("halted Mainnet deployment report import", () => {
   });
 
   it("rejects a report containing protected deployment fields", async () => {
-    const state = await repositoryState();
+    const state = blockedFinalAuditState(await repositoryState());
     expect(() =>
       applyMainnetHaltedDeploymentReport({
         report: { ...report(), cloudflare_api_token: "not-public" },

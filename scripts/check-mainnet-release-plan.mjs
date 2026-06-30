@@ -156,12 +156,19 @@ export function assertMainnetReleasePlan({
   wranglerSource,
   sourceTag,
 }) {
+  const blockedPlan =
+    plan?.state === "blocked" &&
+    plan?.review_status === "prepared" &&
+    plan?.release_decision === "blocked";
+  const approvedPlan =
+    plan?.state === "ready" &&
+    plan?.review_status === "approved" &&
+    plan?.release_decision === "approved";
+
   if (
-    plan.schema_version !== 1 ||
-    plan.network !== "mainnet" ||
-    plan.state !== "blocked" ||
-    plan.review_status !== "prepared" ||
-    plan.release_decision !== "blocked"
+    plan?.schema_version !== 1 ||
+    plan?.network !== "mainnet" ||
+    (!blockedPlan && !approvedPlan)
   ) {
     throw new Error("Mainnet release plan header is invalid.");
   }
@@ -206,8 +213,9 @@ export function assertMainnetReleasePlan({
     if (stage.id !== STAGE_ORDER[index] || stage.position !== index + 1) {
       throw new Error("Mainnet release stages are out of order.");
     }
-    const expectedStatus =
-      index < currentIndex
+    const expectedStatus = approvedPlan
+      ? "complete"
+      : index < currentIndex
         ? "complete"
         : index === currentIndex && currentStage !== "final-release-audit"
           ? "blocked"
@@ -217,53 +225,83 @@ export function assertMainnetReleasePlan({
     }
   });
 
-  if (acceptance.release_decision !== "blocked" || gate.state !== "blocked") {
-    throw new Error("Prepared release plan requires blocked release state.");
-  }
   const auditCheck = gateChecks.get("mainnet-acceptance-audit");
-  if (!auditCheck || auditCheck.status !== "failed") {
-    throw new Error("Blocked release state requires a failed acceptance audit.");
-  }
-
-  const atFinalAudit =
-    currentStage === "final-release-audit" && pendingEvidence.length === 0;
   const finalAuditControl = controls.get(FINAL_AUDIT_CONTROL);
   const finalAuditFinding = acceptance.blocking_findings.find(
     (finding) => finding.id === FINAL_AUDIT_FINDING,
   );
-  if (!finalAuditControl || !finalAuditFinding) {
+  if (!auditCheck || !finalAuditControl || !finalAuditFinding) {
     throw new Error("Mainnet final release audit control is missing.");
   }
-  if (finalAuditControl.status !== "pending") {
-    throw new Error("Blocked release requires the final audit control to remain pending.");
-  }
-  const expectedFinalFindingStatus = atFinalAudit ? "open" : "resolved";
-  if (finalAuditFinding.status !== expectedFinalFindingStatus) {
-    throw new Error(
-      `Final release audit finding must be ${expectedFinalFindingStatus}.`,
-    );
-  }
 
-  const expectedFindings = [
-    ...pendingEvidence.map((id) => FINDING_BY_EVIDENCE[id]),
-    ...(atFinalAudit ? [FINAL_AUDIT_FINDING] : []),
-  ];
-  const actualFindings = acceptance.blocking_findings
-    .filter((finding) => finding.status === "open")
-    .map((finding) => finding.id);
-  assertExactArray(
-    [...actualFindings].sort(),
-    [...expectedFindings].sort(),
-    "Open Mainnet findings do not match the active release stage.",
-  );
-  for (const id of pendingEvidence) {
-    if (controls.get(id)?.status !== "pending") {
-      throw new Error(`Pending evidence requires a pending control: ${id}.`);
+  let expectedFindings = [];
+  if (approvedPlan) {
+    if (currentStage !== "final-release-audit" || pendingEvidence.length !== 0) {
+      throw new Error("Approved release requires every evidence stage to be complete.");
     }
-  }
-  for (const id of expectedFindings) {
-    if (!auditCheck.evidence.includes(id)) {
-      throw new Error(`Acceptance gate evidence is missing ${id}.`);
+    if (
+      acceptance.release_decision !== "approved" ||
+      gate.state !== "ready" ||
+      auditCheck.status !== "passed"
+    ) {
+      throw new Error("Approved release requires a ready acceptance gate.");
+    }
+    if (
+      finalAuditControl.status !== "passed" ||
+      finalAuditFinding.status !== "resolved"
+    ) {
+      throw new Error("Approved release requires the final audit to pass.");
+    }
+    const incompleteControls = acceptance.controls.filter(
+      (control) => control.status !== "passed",
+    );
+    const openFindings = acceptance.blocking_findings.filter(
+      (finding) => finding.status === "open",
+    );
+    if (incompleteControls.length > 0 || openFindings.length > 0) {
+      throw new Error("Approved release cannot contain incomplete controls or open findings.");
+    }
+  } else {
+    if (acceptance.release_decision !== "blocked" || gate.state !== "blocked") {
+      throw new Error("Prepared release plan requires blocked release state.");
+    }
+    if (auditCheck.status !== "failed") {
+      throw new Error("Blocked release state requires a failed acceptance audit.");
+    }
+
+    const atFinalAudit =
+      currentStage === "final-release-audit" && pendingEvidence.length === 0;
+    if (finalAuditControl.status !== "pending") {
+      throw new Error("Blocked release requires the final audit control to remain pending.");
+    }
+    const expectedFinalFindingStatus = atFinalAudit ? "open" : "resolved";
+    if (finalAuditFinding.status !== expectedFinalFindingStatus) {
+      throw new Error(
+        `Final release audit finding must be ${expectedFinalFindingStatus}.`,
+      );
+    }
+
+    expectedFindings = [
+      ...pendingEvidence.map((id) => FINDING_BY_EVIDENCE[id]),
+      ...(atFinalAudit ? [FINAL_AUDIT_FINDING] : []),
+    ];
+    const actualFindings = acceptance.blocking_findings
+      .filter((finding) => finding.status === "open")
+      .map((finding) => finding.id);
+    assertExactArray(
+      [...actualFindings].sort(),
+      [...expectedFindings].sort(),
+      "Open Mainnet findings do not match the active release stage.",
+    );
+    for (const id of pendingEvidence) {
+      if (controls.get(id)?.status !== "pending") {
+        throw new Error(`Pending evidence requires a pending control: ${id}.`);
+      }
+    }
+    for (const id of expectedFindings) {
+      if (!auditCheck.evidence.includes(id)) {
+        throw new Error(`Acceptance gate evidence is missing ${id}.`);
+      }
     }
   }
 
@@ -301,7 +339,7 @@ export function assertMainnetReleasePlan({
   }
 
   return {
-    state: "blocked",
+    state: approvedPlan ? "ready" : "blocked",
     currentStage,
     acceptedEvidence: ALL_EVIDENCE.length - pendingEvidence.length,
     pendingEvidence,

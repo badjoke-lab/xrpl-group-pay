@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "audit_status": "completed",
-  "release_decision": "blocked",
+  "release_decision": "approved",
   "audited_at": "2026-06-30",
   "controls": [
     {
@@ -71,8 +71,8 @@
     },
     {
       "id": "final-release-audit",
-      "status": "pending",
-      "evidence": "All seven release evidence records are accepted. Complete the final release audit before approving the public operating configuration."
+      "status": "passed",
+      "evidence": "Final release audit reviewed all seven accepted Mainnet evidence records, incident remediations in PRs #105, #108, and #116, PR #117 and CI run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28450369791, the validated XRP and RLUSD ledger evidence, the production D1 audit, and the restored production target at internal + halted from merge commit 03ca2bd454c71e63166de21192db82f91832736b."
     }
   ],
   "blocking_findings": [
@@ -113,8 +113,8 @@
     },
     {
       "id": "final-release-audit-not-complete",
-      "status": "open",
-      "evidence": "Review the complete accepted evidence set, incident remediation, CI, the halted production target, and the final ledger and D1 audit before setting the Mainnet gate to ready."
+      "status": "resolved",
+      "evidence": "The final release audit completed after PR #117 CI passed browser smoke, D1 constraints, lint, type checking, 442 tests, Next.js, Storybook, and Cloudflare Worker builds. All acceptance controls now pass and no blocking finding remains; the reviewed Worker continues to operate as internal + halted until a separate public operating deployment."
     }
   ]
 }

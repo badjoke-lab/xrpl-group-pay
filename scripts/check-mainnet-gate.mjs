@@ -64,6 +64,10 @@ async function main() {
   }
 
   const passed = gate.checks.filter((check) => check.status === "passed").length;
+  if (gate.state === "ready" && passed === gate.checks.length) {
+    console.log(`Mainnet gate ready: passed=${passed}/${gate.checks.length}`);
+    return;
+  }
   console.log(
     `Mainnet remains blocked: state=${gate.state}, passed=${passed}/${gate.checks.length}`,
   );

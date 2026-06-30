@@ -99,6 +99,7 @@ async function repositoryState() {
 
 function pendingRlusdState(state) {
   const pending = structuredClone(state);
+  pending.acceptance.release_decision = "blocked";
 
   Object.assign(
     pending.evidence.records.find(

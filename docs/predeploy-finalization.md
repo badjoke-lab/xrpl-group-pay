@@ -1,6 +1,6 @@
 # XRPL Group Pay — Pre-deployment finalization
 
-**Status:** Prepared for operator execution  
+**Status:** Mainnet acceptance approved; public operating deployment pending
 **Scope:** Remaining work after merged application development and before public Mainnet release
 
 ## Work that can be completed without Cloudflare or a local terminal
@@ -24,7 +24,7 @@ No additional feature implementation is required before the production deploymen
 
 ## Release decision
 
-The first public Mainnet product release is approved only when all items above pass. Until then, the production Worker must remain `halted` or `verify-only` according to the reviewed operational procedure.
+All acceptance items above passed. The repository gate is ready, while the deployed production Worker remains `internal + halted` until the separately reviewed public operating configuration is applied.
 
 ## Completion boundary
 
