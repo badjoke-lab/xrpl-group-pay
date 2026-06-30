@@ -11,9 +11,7 @@ import type {
 import type { VerifiedPayment } from "@/features/payment-verification/verified-payment";
 
 import type { ResolvedPaymentSlot } from "./payment-slot";
-import {
-  settleVerifiedIssuedPaymentSlot,
-} from "./settle-issued-slot";
+import { settleVerifiedIssuedPaymentSlot } from "./settle-issued-slot";
 import {
   PaymentSlotSettlementConflictError,
   PaymentSlotSettlementDatabaseError,
@@ -45,6 +43,8 @@ class SettlementDatabase implements D1DatabaseLike {
     readonly receiptChanges = 1,
     readonly fail = false,
     readonly readTransactionId = TXID,
+    readonly slotChanges = 1,
+    readonly readDigest: string | null = null,
   ) {}
 
   prepare(query: string) {
@@ -57,10 +57,11 @@ class SettlementDatabase implements D1DatabaseLike {
     this.statements = statements as Statement[];
     if (this.fail) throw new Error("database failed");
 
-    const digest = this.statements[0].values[20] as string;
+    const digest =
+      this.readDigest ?? (this.statements[0].values[20] as string);
     return [
       { success: true, meta: { changes: this.receiptChanges } },
-      { success: true, meta: { changes: 1 } },
+      { success: true, meta: { changes: this.slotChanges } },
       { success: true, meta: { changes: 1 } },
       {
         success: true,
@@ -179,15 +180,20 @@ describe("settleVerifiedIssuedPaymentSlot", () => {
     });
   });
 
-  it("returns the durable generic receipt as existing on an exact retry", async () => {
+  it("returns the durable receipt as existing when re-verification time changes", async () => {
+    const existingDigest = "D".repeat(64);
     const result = await settleVerifiedIssuedPaymentSlot(
-      new SettlementDatabase(0),
+      new SettlementDatabase(0, false, TXID, 0, existingDigest),
       slot({ slotStatus: "paid", paidTransactionId: TXID }),
-      payment(),
+      payment({ verifiedAt: "2026-06-25T02:01:00.000Z" }),
       new Date("2026-06-25T02:01:01.000Z"),
     );
 
-    expect(result.receipt.status).toBe("existing");
+    expect(result.receipt).toMatchObject({
+      status: "existing",
+      transactionId: TXID,
+      verifiedPaymentDigest: existingDigest,
+    });
   });
 
   it("rejects issued payment facts that differ from the frozen slot", async () => {

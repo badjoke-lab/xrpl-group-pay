@@ -124,6 +124,9 @@ export async function settleVerifiedIssuedPaymentSlot(
   const payment = verifiedPaymentSchema.parse(input);
   assertPaymentMatchesSlot(slot, payment);
 
+  const exactRetry =
+    slot.slotStatus === "paid" &&
+    slot.paidTransactionId === payment.transactionId;
   const recordedAt = now.toISOString();
   const verifiedPaymentDigest = await digestVerifiedPayment(payment);
   const receiptId = payment.idempotencyKey;
@@ -191,6 +194,8 @@ export async function settleVerifiedIssuedPaymentSlot(
     const [receiptWrite, slotWrite, billWrite, read] =
       await database.batch(statements);
     const parsed = rowSchema.safeParse(read?.results?.[0]);
+    const receiptChanges = receiptWrite.meta?.changes ?? 0;
+    const slotChanges = slotWrite.meta?.changes ?? 0;
 
     if (
       parsed.success &&
@@ -207,12 +212,14 @@ export async function settleVerifiedIssuedPaymentSlot(
       !slotWrite?.success ||
       !billWrite?.success ||
       !read?.success ||
-      (slotWrite.meta?.changes ?? 0) !== 1 ||
+      (!exactRetry && slotChanges !== 1) ||
+      (exactRetry && slotChanges !== 0 && slotChanges !== 1) ||
       !parsed.success ||
       parsed.data.transaction_id !== payment.transactionId ||
       parsed.data.invoice_id !== payment.invoiceId ||
       parsed.data.asset_id !== asset.id ||
-      parsed.data.verified_payment_digest !== verifiedPaymentDigest ||
+      ((receiptChanges > 0 || !exactRetry) &&
+        parsed.data.verified_payment_digest !== verifiedPaymentDigest) ||
       parsed.data.legacy_proof_digest !== null
     ) {
       throw new PaymentSlotSettlementDatabaseError();
@@ -221,7 +228,7 @@ export async function settleVerifiedIssuedPaymentSlot(
     return {
       receipt: recordedVerifiedPaymentSchema.parse({
         receiptId: parsed.data.receipt_id,
-        status: (receiptWrite.meta?.changes ?? 0) > 0 ? "recorded" : "existing",
+        status: receiptChanges > 0 ? "recorded" : "existing",
         network: parsed.data.network,
         transactionId: parsed.data.transaction_id,
         invoiceId: parsed.data.invoice_id,
