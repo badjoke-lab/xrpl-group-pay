@@ -30,7 +30,7 @@ try {
   const mptID = await createAuditMpt(client, wallets)
   const { domainID } = await createPermissioning(client, wallets)
   const vaultID = await testPrimaryVault(client, wallets, mptID, domainID)
-  const loanBrokerID = await createAndReadLoanBroker(client, wallets, vaultID)
+  const loanBrokerID = await createAndReadLoanBroker(client, wallets, vaultID, mptID)
   const configuredLoanID = await createConfiguredLoan(client, wallets, loanBrokerID)
   await testLoanManageFlags(client, wallets, configuredLoanID)
   await testLoanPaymentModes(client, wallets, configuredLoanID, mptID)
@@ -52,7 +52,10 @@ try {
     }
     xrpl.validate(transaction)
     audit.objects.iou_vault_schema_probe = transaction
-    return { valid: true, note: 'Schema validation only; live IOU deposit was not required for the lending lifecycle.' }
+    return {
+      valid: true,
+      note: 'Schema validation only; live IOU deposit was not required for the lending lifecycle.'
+    }
   }, true)
 
   await rescanNetwork(client)
