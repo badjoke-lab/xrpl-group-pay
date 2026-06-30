@@ -10,12 +10,33 @@ import {
   sleep
 } from './core.mjs'
 
-function paymentAmount(loan, extra = 0n) {
-  return (
-    BigInt(loan.PeriodicPayment ?? '0') +
-    BigInt(loan.LoanServiceFee ?? '0') +
+function addDecimalStrings(...values) {
+  const parsed = values.map(value => {
+    const text = String(value ?? '0')
+    const negative = text.startsWith('-')
+    const unsigned = negative ? text.slice(1) : text
+    const [whole = '0', fraction = ''] = unsigned.split('.')
+    return { negative, whole, fraction }
+  })
+  const scale = Math.max(...parsed.map(item => item.fraction.length))
+  const total = parsed.reduce((sum, item) => {
+    const digits = `${item.whole}${item.fraction.padEnd(scale, '0')}` || '0'
+    return sum + (item.negative ? -BigInt(digits) : BigInt(digits))
+  }, 0n)
+  const negative = total < 0n
+  const absolute = (negative ? -total : total).toString().padStart(scale + 1, '0')
+  if (scale === 0) return `${negative ? '-' : ''}${absolute}`
+  const whole = absolute.slice(0, -scale) || '0'
+  const fraction = absolute.slice(-scale).replace(/0+$/, '')
+  return `${negative ? '-' : ''}${whole}${fraction ? `.${fraction}` : ''}`
+}
+
+function paymentAmount(loan, extra = '0') {
+  return addDecimalStrings(
+    loan.PeriodicPayment ?? '0',
+    loan.LoanServiceFee ?? '0',
     extra
-  ).toString()
+  )
 }
 
 export async function testLoanPaymentModes(client, wallets, loanID, mptID) {
@@ -38,7 +59,7 @@ export async function testLoanPaymentModes(client, wallets, loanID, mptID) {
     TransactionType: 'LoanPay',
     Account: borrower.address,
     LoanID: loanID,
-    Amount: mpt(mptID, paymentAmount(current, 10n)),
+    Amount: mpt(mptID, paymentAmount(current, '10')),
     Flags: xrpl.LoanPayFlags.tfLoanOverpayment
   }, borrower, false)
   audit.objects.configured_loan_after_overpayment = await test(
