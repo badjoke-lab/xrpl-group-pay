@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "network": "mainnet",
+  "evidence_type": "public-operating-deployment",
+  "recorded_at": "2026-06-30T16:33:12.000Z",
+  "git_sha": "2ff0c192276ebcbbdde1e98a02cb7bbe7ba6253c",
+  "workflow": {
+    "run_id": 28460115824,
+    "run_url": "https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28460115824",
+    "result": "success"
+  },
+  "artifact": {
+    "id": 7987167172,
+    "name": "mainnet-public-deployment-28460115824",
+    "digest": "sha256:d151929b981d3276c93a0294566afacfe01fde8649c3d9ae1d34426399843084",
+    "configuration_digest": "5101c4599f4b204b3460fca281f9a5585fd1d11f2608034e41f291177042ebcd",
+    "expires_at": "2026-07-14T16:33:11Z"
+  },
+  "deployment": {
+    "public_url": "https://xgp.badjoke-lab.com",
+    "worker_name": "xrpl-group-pay-mainnet",
+    "release_mode": "public",
+    "operations_mode": "enabled",
+    "deployment_reachable": true,
+    "custom_domain_https_checked": true,
+    "runtime_configuration_checked": true,
+    "payment_creation_enabled": true,
+    "payment_verification_enabled": true,
+    "callback_route_checked": true,
+    "callback_verification_ready": true
+  },
+  "safety": {
+    "committed_rollback_baseline_release_mode": "internal",
+    "committed_rollback_baseline_operations_mode": "halted",
+    "automatic_halted_rollback_armed": true,
+    "new_transaction_performed": false,
+    "new_handoff_created": false,
+    "production_d1_write_performed": false,
+    "sensitive_values_excluded": true
+  }
+}
