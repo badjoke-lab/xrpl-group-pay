@@ -122,10 +122,13 @@ function acceptance() {
   ]);
   return {
     release_decision: "blocked",
-    controls: evidenceIds.map((id) => ({
-      id,
-      status: pending.has(id) ? "pending" : "passed",
-    })),
+    controls: [
+      ...evidenceIds.map((id) => ({
+        id,
+        status: pending.has(id) ? "pending" : "passed",
+      })),
+      { id: "final-release-audit", status: "pending" },
+    ],
     blocking_findings: [
       { id: "production-d1-not-provisioned", status: "resolved" },
       { id: "production-runtime-not-approved", status: "open" },
@@ -133,7 +136,14 @@ function acceptance() {
       { id: "mainnet-source-tag-not-assigned", status: "resolved" },
       { id: "live-xrp-acceptance-not-recorded", status: "open" },
       { id: "live-rlusd-acceptance-not-recorded", status: "open" },
-      { id: "operational-stop-drill-not-recorded", status: "resolved" },
+      {
+        id: "operational-stop-drill-not-recorded",
+        status: "resolved",
+      },
+      {
+        id: "final-release-audit-not-complete",
+        status: "resolved",
+      },
     ],
   };
 }
@@ -152,20 +162,31 @@ function gate() {
   };
 }
 
-function wrangler(overrides = {}) {
+function wrangler({ committed = false, overrides = {} } = {}) {
   return JSON.stringify({
     env: {
       mainnet: {
         vars: {
-          ALLOW_MAINNET_RUNTIME: "false",
-          MAINNET_GATE_APPROVED: "false",
-          MAINNET_SOURCE_TAG_APPROVED: "false",
-          MAINNET_RELEASE_MODE: "disabled",
+          ALLOW_MAINNET_RUNTIME: committed ? "true" : "false",
+          MAINNET_GATE_APPROVED: committed ? "true" : "false",
+          MAINNET_SOURCE_TAG_APPROVED: committed ? "true" : "false",
+          MAINNET_RELEASE_MODE: committed ? "internal" : "disabled",
           MAINNET_OPERATIONS_MODE: "halted",
           PAYMENTS_DATABASE_BINDING: "PAYMENTS_DB_MAINNET",
           XRPL_MAINNET_SOURCE_TAG: String(SOURCE_TAG),
           ...overrides,
         },
+        ...(committed
+          ? {
+              routes: [
+                {
+                  pattern: "xgp.badjoke-lab.com",
+                  custom_domain: true,
+                },
+              ],
+              workers_dev: false,
+            }
+          : {}),
       },
     },
   });
@@ -183,41 +204,66 @@ function input(overrides = {}) {
   };
 }
 
+function finalAuditInput() {
+  const value = input();
+  value.evidence.records = records(
+    Object.fromEntries(evidenceIds.map((id) => [id, "accepted"])),
+  );
+  value.acceptance.controls.forEach((control) => {
+    control.status =
+      control.id === "final-release-audit" ? "pending" : "passed";
+  });
+  value.acceptance.blocking_findings.forEach((finding) => {
+    finding.status =
+      finding.id === "final-release-audit-not-complete"
+        ? "open"
+        : "resolved";
+  });
+  value.gate.checks[0].evidence =
+    "final-release-audit-not-complete";
+  value.plan.current_stage = "final-release-audit";
+  value.plan.remaining_evidence = [];
+  value.plan.staged_target.committed = true;
+  value.plan.stages.forEach((stage) => {
+    stage.status =
+      stage.id === "final-release-audit" ? "pending" : "complete";
+  });
+  value.wranglerSource = wrangler({ committed: true });
+  return value;
+}
+
 describe("Mainnet release plan", () => {
   it("derives the first unresolved stage in release order", () => {
-    expect(deriveMainnetReleaseStage(records())).toBe("provider-attestation");
-    expect(
-      deriveMainnetReleaseStage(
-        records({ "production-provider-attestation": "accepted" }),
-      ),
-    ).toBe("halted-deployment-review");
+    expect(deriveMainnetReleaseStage(records())).toBe(
+      "provider-attestation",
+    );
     expect(
       deriveMainnetReleaseStage(
         records({
           "production-provider-attestation": "accepted",
           "production-release-configuration": "accepted",
+          "live-mainnet-xrp-acceptance": "accepted",
+          "live-mainnet-rlusd-acceptance": "accepted",
         }),
       ),
-    ).toBe("live-xrp-acceptance");
+    ).toBe("final-release-audit");
   });
 
-  it("accepts the current blocked release plan", () => {
-    expect(assertMainnetReleasePlan(input())).toEqual({
+  it("accepts the current blocked evidence stage", () => {
+    expect(assertMainnetReleasePlan(input())).toMatchObject({
       state: "blocked",
       currentStage: "provider-attestation",
       acceptedEvidence: 3,
-      pendingEvidence: [
-        "production-provider-attestation",
-        "production-release-configuration",
-        "live-mainnet-xrp-acceptance",
-        "live-mainnet-rlusd-acceptance",
-      ],
-      openFindings: [
-        "production-provider-not-attested",
-        "production-runtime-not-approved",
-        "live-xrp-acceptance-not-recorded",
-        "live-rlusd-acceptance-not-recorded",
-      ],
+    });
+  });
+
+  it("accepts a blocked final audit after all evidence is accepted", () => {
+    expect(assertMainnetReleasePlan(finalAuditInput())).toEqual({
+      state: "blocked",
+      currentStage: "final-release-audit",
+      acceptedEvidence: 7,
+      pendingEvidence: [],
+      openFindings: ["final-release-audit-not-complete"],
     });
   });
 
@@ -229,27 +275,33 @@ describe("Mainnet release plan", () => {
     ).toThrow("stage is stale");
 
     const staleGate = gate();
-    staleGate.checks[0].evidence = "production-provider-not-attested";
+    staleGate.checks[0].evidence =
+      "production-provider-not-attested";
     expect(() =>
       assertMainnetReleasePlan(input({ gate: staleGate })),
     ).toThrow("Acceptance gate evidence is missing");
   });
 
-  it("rejects unexpected open findings", () => {
-    const changedAcceptance = acceptance();
-    changedAcceptance.blocking_findings.push({
-      id: "unexpected-finding",
-      status: "open",
-    });
+  it("rejects an unexpected final audit blocker before the final stage", () => {
+    const changed = input();
+    changed.acceptance.blocking_findings.find(
+      (finding) =>
+        finding.id === "final-release-audit-not-complete",
+    ).status = "open";
+
     expect(() =>
-      assertMainnetReleasePlan(input({ acceptance: changedAcceptance })),
-    ).toThrow("do not match remaining evidence");
+      assertMainnetReleasePlan(changed),
+    ).toThrow("Final release audit finding must be resolved");
   });
 
   it("rejects an opened runtime or mismatched Source Tag", () => {
     expect(() =>
       assertMainnetReleasePlan(
-        input({ wranglerSource: wrangler({ ALLOW_MAINNET_RUNTIME: "true" }) }),
+        input({
+          wranglerSource: wrangler({
+            overrides: { ALLOW_MAINNET_RUNTIME: "true" },
+          }),
+        }),
       ),
     ).toThrow("ALLOW_MAINNET_RUNTIME=false");
 

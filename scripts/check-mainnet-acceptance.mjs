@@ -46,6 +46,7 @@ export const REQUIRED_ACCEPTANCE_CONTROL_IDS = [
   "live-mainnet-xrp-acceptance",
   "live-mainnet-rlusd-acceptance",
   "operational-stop-drill",
+  "final-release-audit",
 ];
 
 export const REQUIRED_ACCEPTANCE_FINDING_IDS = [
@@ -56,6 +57,7 @@ export const REQUIRED_ACCEPTANCE_FINDING_IDS = [
   "live-xrp-acceptance-not-recorded",
   "live-rlusd-acceptance-not-recorded",
   "operational-stop-drill-not-recorded",
+  "final-release-audit-not-complete",
 ];
 
 function assertUnique(items, label) {

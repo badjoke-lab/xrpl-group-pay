@@ -4,15 +4,13 @@
   "state": "blocked",
   "review_status": "prepared",
   "release_decision": "blocked",
-  "current_stage": "live-rlusd-acceptance",
+  "current_stage": "final-release-audit",
   "accepted_foundations": [
     "production-d1-provisioning",
     "assigned-mainnet-source-tag",
     "operational-stop-drill"
   ],
-  "remaining_evidence": [
-    "live-mainnet-rlusd-acceptance"
-  ],
+  "remaining_evidence": [],
   "stages": [
     {
       "id": "foundations",
@@ -51,7 +49,7 @@
     {
       "id": "live-rlusd-acceptance",
       "position": 5,
-      "status": "blocked",
+      "status": "complete",
       "requires": [
         "live-mainnet-rlusd-acceptance"
       ]

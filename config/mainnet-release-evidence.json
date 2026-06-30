@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "network": "mainnet",
-  "updated_at": "2026-06-29",
+  "updated_at": "2026-06-30",
   "records": [
     {
       "id": "production-d1-provisioning",
@@ -63,20 +63,20 @@
     },
     {
       "id": "live-mainnet-rlusd-acceptance",
-      "status": "pending",
-      "recorded_at": null,
-      "transaction_hash": null,
-      "ledger_index": null,
-      "validated": false,
-      "transaction_result": null,
+      "status": "accepted",
+      "recorded_at": "2026-06-30T01:02:47.735Z",
+      "transaction_hash": "E68697F19F84E295654BF0EC920150FFD029A979E7B9A49D967995B3F4C10A27",
+      "ledger_index": 105267303,
+      "validated": true,
+      "transaction_result": "tesSUCCESS",
       "currency": "524C555344000000000000000000000000000000",
       "issuer": "rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De",
-      "amount_value": null,
-      "receipt_id": null,
-      "proof_digest": null,
-      "recipient_readiness_checked": false,
-      "duplicate_rejected": false,
-      "replay_rejected": false
+      "amount_value": "0.000001",
+      "receipt_id": "mainnet:E68697F19F84E295654BF0EC920150FFD029A979E7B9A49D967995B3F4C10A27",
+      "proof_digest": "683015FF6AFEF60CB34F7E651DBD9467ABF6EFD1C20BB56C484092E52488420F",
+      "recipient_readiness_checked": true,
+      "duplicate_rejected": true,
+      "replay_rejected": true
     },
     {
       "id": "operational-stop-drill",

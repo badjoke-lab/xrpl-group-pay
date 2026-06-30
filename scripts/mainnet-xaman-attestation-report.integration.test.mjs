@@ -126,7 +126,7 @@ describe("Mainnet Xaman attestation compatibility", () => {
       result.acceptance.blocking_findings
         .filter((finding) => finding.status === "open")
         .map((finding) => finding.id),
-    ).toEqual(["live-rlusd-acceptance-not-recorded"]);
+    ).toEqual(["final-release-audit-not-complete"]);
     expect(
       result.acceptance.blocking_findings.find(
         (finding) => finding.id === "production-runtime-not-approved",

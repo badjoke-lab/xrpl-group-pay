@@ -64,6 +64,38 @@ function fixtures() {
 }
 
 describe("Mainnet XRP operator boundary", () => {
+  it("accepts the reviewed final audit stage after XRP and RLUSD", () => {
+    const input = fixtures();
+
+    input.releasePlan = {
+      network: "mainnet",
+      current_stage: "final-release-audit",
+      release_decision: "blocked",
+      remaining_evidence: [],
+      stages: [
+        {
+          id: "live-xrp-acceptance",
+          status: "complete",
+        },
+        {
+          id: "live-rlusd-acceptance",
+          status: "complete",
+        },
+        {
+          id: "final-release-audit",
+          status: "pending",
+        },
+      ],
+    };
+
+    expect(
+      assertMainnetXrpOperatorBoundary(input),
+    ).toMatchObject({
+      stage: "final-release-audit",
+      finalReleaseDecision: "blocked",
+    });
+  });
+
   it("validates the committed human-operated boundary", async () => {
     await expect(checkMainnetXrpOperatorBoundary()).resolves.toMatchObject({
       executionModel: "human-operated",

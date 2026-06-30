@@ -2,7 +2,7 @@
   "schema_version": 1,
   "audit_status": "completed",
   "release_decision": "blocked",
-  "audited_at": "2026-06-26",
+  "audited_at": "2026-06-30",
   "controls": [
     {
       "id": "repository-gate-controls",
@@ -61,13 +61,18 @@
     },
     {
       "id": "live-mainnet-rlusd-acceptance",
-      "status": "pending",
-      "evidence": "No accepted live Mainnet RLUSD end-to-end evidence is recorded."
+      "status": "passed",
+      "evidence": "Human-operated ceremony controlled-mainnet-rlusd-acceptance-2026-06-30 verified official Mainnet RLUSD transaction E68697F19F84E295654BF0EC920150FFD029A979E7B9A49D967995B3F4C10A27 in validated ledger 105267303, recorded durable receipt mainnet:E68697F19F84E295654BF0EC920150FFD029A979E7B9A49D967995B3F4C10A27, returned the same receipt idempotently on re-verification, confirmed exactly one receipt and one primary handoff, kept the replay-control slot unpaid with zero handoffs and receipts, independently matched the validated XRPL transaction, audited production D1, and restored internal halted operations from commit 1811fd87bc594f7e28cea96ec75958311a67e8f4."
     },
     {
       "id": "operational-stop-drill",
       "status": "passed",
       "evidence": "GitHub Actions run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28217038845 verified production-equivalent verify-only draining, full halt, status reporting, and the reviewed but unapplied restore path from commit 9cd7e7b0efeb07791ed188ac94acbe8e5dea7a93."
+    },
+    {
+      "id": "final-release-audit",
+      "status": "pending",
+      "evidence": "All seven release evidence records are accepted. Complete the final release audit before approving the public operating configuration."
     }
   ],
   "blocking_findings": [
@@ -98,13 +103,18 @@
     },
     {
       "id": "live-rlusd-acceptance-not-recorded",
-      "status": "open",
-      "evidence": "Complete a controlled official RLUSD Mainnet payment and record validated-ledger, receipt, and Bill settlement evidence."
+      "status": "resolved",
+      "evidence": "PRs #105 and #108 implemented one-shot payer sequence bounds and validated-ledger replacement reconciliation; PR #116 fixed durable receipt idempotency across later verification timestamps. The fresh controlled ceremony then completed with one validated transfer, one durable receipt, one primary handoff, no replay-control handoff or receipt, and a verified return to internal halted mode."
     },
     {
       "id": "operational-stop-drill-not-recorded",
       "status": "resolved",
       "evidence": "GitHub Actions run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28217038845 verified production-equivalent verify-only draining, full halt, status reporting, and the reviewed but unapplied restore path from commit 9cd7e7b0efeb07791ed188ac94acbe8e5dea7a93; no Cloudflare, Xaman, XRPL, D1, or production configuration change was performed."
+    },
+    {
+      "id": "final-release-audit-not-complete",
+      "status": "open",
+      "evidence": "Review the complete accepted evidence set, incident remediation, CI, the halted production target, and the final ledger and D1 audit before setting the Mainnet gate to ready."
     }
   ]
 }
