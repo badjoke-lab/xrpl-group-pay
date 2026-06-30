@@ -103,6 +103,36 @@ describe("halted Mainnet deployment configuration", () => {
     expect(generated.env.mainnet.workers_dev).toBe(false);
   });
 
+  it("allows an approved final-audit halted redeployment", () => {
+    const approved = input();
+    const vars = approved.wrangler.env.mainnet.vars;
+    Object.assign(vars, {
+      ALLOW_MAINNET_RUNTIME: "true",
+      MAINNET_GATE_APPROVED: "true",
+      MAINNET_SOURCE_TAG_APPROVED: "true",
+      MAINNET_RELEASE_MODE: "internal",
+      MAINNET_OPERATIONS_MODE: "halted",
+    });
+    approved.wrangler.env.mainnet.routes = [
+      { pattern: "xgp.badjoke-lab.com", custom_domain: true },
+    ];
+    approved.wrangler.env.mainnet.workers_dev = false;
+    approved.releasePlan = {
+      state: "ready",
+      review_status: "approved",
+      current_stage: "final-release-audit",
+      release_decision: "approved",
+    };
+    approved.evidence.records.find(
+      (record) => record.id === "production-release-configuration",
+    ).status = "accepted";
+
+    expect(buildHaltedMainnetWrangler(approved).env.mainnet.vars).toMatchObject({
+      MAINNET_RELEASE_MODE: "internal",
+      MAINNET_OPERATIONS_MODE: "halted",
+    });
+  });
+
   it("leaves the source configuration unchanged", () => {
     const source = sourceConfig();
     buildHaltedMainnetWrangler({ ...input(), wrangler: source });

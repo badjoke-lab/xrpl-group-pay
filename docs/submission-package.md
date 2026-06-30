@@ -1,6 +1,6 @@
 # XRPL Group Pay — Make Waves submission package
 
-**Status:** Content prepared; final production evidence pending
+**Status:** Mainnet acceptance approved; public operating deployment evidence pending
 
 ## Three-minute pitch structure
 

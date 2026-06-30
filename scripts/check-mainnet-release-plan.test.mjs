@@ -232,6 +232,29 @@ function finalAuditInput() {
   return value;
 }
 
+function approvedFinalAuditInput() {
+  const value = finalAuditInput();
+  Object.assign(value.plan, {
+    state: "ready",
+    review_status: "approved",
+    release_decision: "approved",
+  });
+  value.plan.stages.forEach((stage) => {
+    stage.status = "complete";
+  });
+  value.acceptance.release_decision = "approved";
+  value.acceptance.controls.forEach((control) => {
+    control.status = "passed";
+  });
+  value.acceptance.blocking_findings.forEach((finding) => {
+    finding.status = "resolved";
+  });
+  value.gate.state = "ready";
+  value.gate.checks[0].status = "passed";
+  value.gate.checks[0].evidence = "Final Mainnet acceptance audit passed.";
+  return value;
+}
+
 describe("Mainnet release plan", () => {
   it("derives the first unresolved stage in release order", () => {
     expect(deriveMainnetReleaseStage(records())).toBe(
@@ -264,6 +287,17 @@ describe("Mainnet release plan", () => {
       acceptedEvidence: 7,
       pendingEvidence: [],
       openFindings: ["final-release-audit-not-complete"],
+    });
+  });
+
+
+  it("accepts an approved final audit while the staged target remains halted", () => {
+    expect(assertMainnetReleasePlan(approvedFinalAuditInput())).toEqual({
+      state: "ready",
+      currentStage: "final-release-audit",
+      acceptedEvidence: 7,
+      pendingEvidence: [],
+      openFindings: [],
     });
   });
 

@@ -36,7 +36,7 @@ function isReviewedPostRlusdStage(releasePlan) {
   return (
     stages.get("live-xrp-acceptance") === "complete" &&
     stages.get("live-rlusd-acceptance") === "complete" &&
-    stages.get("final-release-audit") === "pending"
+    ["pending", "complete"].includes(stages.get("final-release-audit"))
   );
 }
 
@@ -104,10 +104,17 @@ export function assertMainnetRlusdOperatorBoundary({
 
   const atRlusdStage = releasePlan?.current_stage === boundary.stage;
   const afterRlusdStage = isReviewedPostRlusdStage(releasePlan);
+  const approvedFinalAudit =
+    releasePlan?.state === "ready" &&
+    releasePlan?.current_stage === "final-release-audit" &&
+    releasePlan?.release_decision === "approved";
+  const decisionMatches =
+    releasePlan?.release_decision === boundary.final_release_decision ||
+    approvedFinalAudit;
   if (
     releasePlan?.network !== "mainnet" ||
     (!atRlusdStage && !afterRlusdStage) ||
-    releasePlan?.release_decision !== boundary.final_release_decision
+    !decisionMatches
   ) {
     throw new Error("The release plan does not match the RLUSD operator boundary.");
   }
@@ -129,7 +136,7 @@ export function assertMainnetRlusdOperatorBoundary({
     recipientReadinessHumanApproved: true,
     baselineMode: "halted",
     restoreMode: "halted",
-    finalReleaseDecision: "blocked",
+    finalReleaseDecision: releasePlan.release_decision,
   };
 }
 

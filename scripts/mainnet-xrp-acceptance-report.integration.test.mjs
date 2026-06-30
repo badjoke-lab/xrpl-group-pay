@@ -98,6 +98,19 @@ async function repositoryState() {
 
 function pendingXrpState(state) {
   const pending = structuredClone(state);
+  pending.acceptance.release_decision = "blocked";
+  pending.gate.state = "blocked";
+  Object.assign(pending.releasePlan, {
+    state: "blocked",
+    review_status: "prepared",
+    release_decision: "blocked",
+  });
+  Object.assign(
+    pending.acceptance.controls.find(
+      (control) => control.id === "final-release-audit",
+    ),
+    { status: "pending", evidence: "Final audit pending." },
+  );
 
   Object.assign(
     pending.evidence.records.find(

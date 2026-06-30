@@ -105,6 +105,27 @@ describe("Mainnet XRP operator boundary", () => {
     });
   });
 
+  it("accepts the approved final-audit state", () => {
+    const input = fixtures();
+    input.releasePlan = {
+      network: "mainnet",
+      state: "ready",
+      current_stage: "final-release-audit",
+      release_decision: "approved",
+      remaining_evidence: [],
+      stages: [
+        { id: "live-xrp-acceptance", status: "complete" },
+        { id: "live-rlusd-acceptance", status: "complete" },
+        { id: "final-release-audit", status: "complete" },
+      ],
+    };
+
+    expect(assertMainnetXrpOperatorBoundary(input)).toMatchObject({
+      stage: "final-release-audit",
+      finalReleaseDecision: "approved",
+    });
+  });
+
   it("rejects a non-human execution model", () => {
     const input = fixtures();
     input.boundary.execution_model = "unattended";

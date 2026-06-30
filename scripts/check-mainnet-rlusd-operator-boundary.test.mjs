@@ -106,6 +106,27 @@ describe("Mainnet RLUSD operator boundary", () => {
     });
   });
 
+  it("accepts the approved final-audit state", () => {
+    const input = fixtures();
+    input.releasePlan = {
+      network: "mainnet",
+      state: "ready",
+      current_stage: "final-release-audit",
+      release_decision: "approved",
+      remaining_evidence: [],
+      stages: [
+        { id: "live-xrp-acceptance", status: "complete" },
+        { id: "live-rlusd-acceptance", status: "complete" },
+        { id: "final-release-audit", status: "complete" },
+      ],
+    };
+
+    expect(assertMainnetRlusdOperatorBoundary(input)).toMatchObject({
+      stage: "final-release-audit",
+      finalReleaseDecision: "approved",
+    });
+  });
+
   it("rejects automated readiness approval or signing", () => {
     const readiness = fixtures();
     readiness.boundary.automation_boundary.automatic_recipient_readiness_approval =

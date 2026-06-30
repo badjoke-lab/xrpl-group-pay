@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "blocked",
+  "state": "ready",
   "updated_at": "2026-06-30",
   "checks": [
     {
@@ -50,8 +50,8 @@
     },
     {
       "id": "mainnet-acceptance-audit",
-      "status": "failed",
-      "evidence": "All seven release evidence records are accepted and the live XRP and RLUSD controls passed. The gate remains blocked only by final-release-audit-not-complete while the reviewed production Worker stays internal and halted."
+      "status": "passed",
+      "evidence": "All 14 Mainnet acceptance controls passed, all seven release evidence records are accepted, all blocking findings are resolved, and PR #117 CI run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28450369791 passed. The committed and deployed production target remains internal and halted pending a separate public operating deployment."
     }
   ]
 }
