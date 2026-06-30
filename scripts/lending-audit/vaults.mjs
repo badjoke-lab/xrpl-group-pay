@@ -84,7 +84,7 @@ export async function testPrimaryVault(client, wallets, mptID, domainID) {
 }
 
 export async function testVaultClawback(client, wallets, mptID) {
-  const { broker, issuer } = wallets
+  const { broker, issuer, borrower } = wallets
   const response = await submit(client, 'VaultCreate:clawback', {
     TransactionType: 'VaultCreate',
     Account: broker.address,
@@ -95,15 +95,15 @@ export async function testVaultClawback(client, wallets, mptID) {
   const vaultID = createdId(response, 'Vault')
   await submit(client, 'VaultDeposit:clawback', {
     TransactionType: 'VaultDeposit',
-    Account: issuer.address,
+    Account: borrower.address,
     VaultID: vaultID,
     Amount: mpt(mptID, '10000')
-  }, issuer)
+  }, borrower)
   await submit(client, 'VaultClawback', {
     TransactionType: 'VaultClawback',
     Account: issuer.address,
     VaultID: vaultID,
-    Holder: issuer.address,
+    Holder: borrower.address,
     Amount: mpt(mptID, '1000')
   }, issuer)
   audit.objects.clawback_vault = await test('read Vault after VaultClawback', () => entry(client, vaultID), true)
