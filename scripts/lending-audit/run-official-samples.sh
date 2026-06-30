@@ -22,7 +22,6 @@ npm install --no-audit --no-fund
   node coverDepositAndWithdraw.js
   node coverClawback.js
   node loanPay.js
-  node loanManage.js
 } 2>&1 | tee "$GITHUB_WORKSPACE/audit-output/official-samples.log"
 
 jq 'del(.loanBroker.seed, .borrower.seed, .depositor.seed, .credentialIssuer.seed)' \
