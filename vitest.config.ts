@@ -18,6 +18,8 @@ export default defineConfig({
       "src/**/*.test.{ts,tsx}",
       "tests/**/*.test.{ts,tsx}",
       "scripts/mainnet-*.test.mjs",
+      "scripts/run-mainnet-*.test.mjs",
+      "scripts/verify-mainnet-*.test.mjs",
     ],
   },
 });
