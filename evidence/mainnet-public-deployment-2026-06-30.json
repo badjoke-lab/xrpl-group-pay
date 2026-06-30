@@ -2,7 +2,7 @@
   "schema_version": 1,
   "network": "mainnet",
   "evidence_type": "public-operating-deployment",
-  "recorded_at": "2026-06-30T16:33:12.000Z",
+  "recorded_at": "2026-06-30T16:33:11.279Z",
   "git_sha": "2ff0c192276ebcbbdde1e98a02cb7bbe7ba6253c",
   "workflow": {
     "run_id": 28460115824,
