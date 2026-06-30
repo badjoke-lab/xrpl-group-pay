@@ -1,7 +1,7 @@
 # XRPL Group Pay Roadmap
 
 **Status:** Active  
-**Last reviewed:** 2026-06-29
+**Last reviewed:** 2026-06-30
 
 This roadmap shows product direction, not promised dates. A capability moves to **Available** only after it is merged, tested, and usable in the intended environment.
 
@@ -16,24 +16,24 @@ This roadmap shows product direction, not promised dates. A capability moves to 
 - Durable Asset-aware payment records and atomic Bill progress.
 - Public XRP transaction proof.
 - Direct payer-to-recipient settlement with capability separation.
-- Controlled Mainnet XRP acceptance evidence.
+- Controlled Mainnet XRP and official RLUSD acceptance evidence.
 - One-shot Xaman transaction binding to the expected payer, one XRPL Sequence, and a bounded ledger window.
+- Validated-ledger reconciliation before replacement Wallet Handoff creation.
+- Duplicate settlement and cross-slot replay protection.
 - Deployment-aware Bill creation UI.
+- English, Japanese, and Korean critical creator and payer flows.
 - Public Roadmap and Changelog pages in the application interface.
+- Approved Mainnet release gate and verified public operating deployment.
 
 ## Release blockers
 
-- Validated-ledger reconciliation before any replacement Wallet Handoff is created.
-- Fresh controlled official RLUSD Mainnet acceptance after duplicate-transfer remediation.
-- Accepted RLUSD transaction, receipt, duplicate-control, replay-control, and halted-restoration evidence.
-- Final Mainnet release audit and reviewed public runtime configuration.
+No open v1 runtime release blockers remain. The reviewed halted configuration remains available as the fail-closed production rollback baseline.
 
 ## Make Waves v1 completion
 
-- English, Japanese, and Korean critical creator and payer flows.
-- Final Mainnet post-deployment smoke and operational checks.
 - Source Tag metrics summary for distinct successful signers, transaction count, XRP volume, and RLUSD volume.
 - Submission video and pitch deck.
+- Final submission-form assembly and evidence links.
 
 ## Next
 

@@ -1,6 +1,6 @@
 # XRPL Group Pay — Make Waves submission package
 
-**Status:** Mainnet acceptance approved; public operating deployment evidence pending
+**Status:** Public Mainnet deployment verified; final media and metrics pending
 
 ## Three-minute pitch structure
 
@@ -24,21 +24,34 @@
 7. Why XRPL.
 8. Final release evidence, metrics, repository, and next steps.
 
-## Final evidence placeholders
+## Verified release evidence
 
-Replace only after the fresh Mainnet RLUSD ceremony and final release audit pass:
+- Public URL: `https://xgp.badjoke-lab.com`
+- Approved public deployment commit: `2ff0c192276ebcbbdde1e98a02cb7bbe7ba6253c`
+- Public deployment workflow: `https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28460115824`
+- Public release timestamp: `2026-06-30T16:33:11.279Z`
+- XRP acceptance transaction: `7D4E2C90147C91112655516B96418BF5EB645E233A454F0CD5C23BC3F699EEEB`
+- XRP validated ledger: `105236543`
+- XRP receipt: `mainnet:7D4E2C90147C91112655516B96418BF5EB645E233A454F0CD5C23BC3F699EEEB`
+- Official RLUSD acceptance transaction: `E68697F19F84E295654BF0EC920150FFD029A979E7B9A49D967995B3F4C10A27`
+- Official RLUSD validated ledger: `105267303`
+- Official RLUSD receipt: `mainnet:E68697F19F84E295654BF0EC920150FFD029A979E7B9A49D967995B3F4C10A27`
+- Mainnet release evidence: `7/7 accepted`
+- Mainnet acceptance controls: `14/14 passed`
+- Mainnet gate checks: `10/10 passed`
+- Open release findings: `0`
 
-- approved release commit;
-- production deployment version;
-- accepted XRP transaction hash;
-- accepted RLUSD transaction hash;
-- validated ledger indexes;
-- receipt identifiers and proof digests;
-- distinct successful signer count;
-- verified transaction count;
+The public deployment report is committed at `evidence/mainnet-public-deployment-2026-06-30.json`. Receipt proof digests remain in the accepted release-evidence record and should be shown only where needed.
+
+## Remaining final values
+
+The final submission still needs:
+
+- distinct successful signer count for the approved Source Tag range;
+- verified transaction count for that range;
 - XRP delivered volume;
-- RLUSD delivered volume;
-- public release timestamp.
+- official RLUSD delivered volume;
+- final pitch video and deck links.
 
 ## Source Tag metrics boundary
 
