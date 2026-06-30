@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: xrpl-group-pay-mainnet-production-deployment
+  group: xrpl-group-pay-mainnet-halted-deployment
   cancel-in-progress: false
 
 jobs:
