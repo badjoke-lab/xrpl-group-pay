@@ -10,33 +10,18 @@ import {
   sleep
 } from './core.mjs'
 
-function addDecimalStrings(...values) {
-  const parsed = values.map(value => {
-    const text = String(value ?? '0')
-    const negative = text.startsWith('-')
-    const unsigned = negative ? text.slice(1) : text
-    const [whole = '0', fraction = ''] = unsigned.split('.')
-    return { negative, whole, fraction }
-  })
-  const scale = Math.max(...parsed.map(item => item.fraction.length))
-  const total = parsed.reduce((sum, item) => {
-    const digits = `${item.whole}${item.fraction.padEnd(scale, '0')}` || '0'
-    return sum + (item.negative ? -BigInt(digits) : BigInt(digits))
-  }, 0n)
-  const negative = total < 0n
-  const absolute = (negative ? -total : total).toString().padStart(scale + 1, '0')
-  if (scale === 0) return `${negative ? '-' : ''}${absolute}`
-  const whole = absolute.slice(0, -scale) || '0'
-  const fraction = absolute.slice(-scale).replace(/0+$/, '')
-  return `${negative ? '-' : ''}${whole}${fraction ? `.${fraction}` : ''}`
+function ceilPositiveDecimal(value) {
+  const text = String(value ?? '0')
+  const [whole = '0', fraction = ''] = text.split('.')
+  return (BigInt(whole) + (/[^0]/.test(fraction) ? 1n : 0n)).toString()
 }
 
-function paymentAmount(loan, extra = '0') {
-  return addDecimalStrings(
-    loan.PeriodicPayment ?? '0',
-    loan.LoanServiceFee ?? '0',
+function paymentAmount(loan, extra = 0n) {
+  return (
+    BigInt(ceilPositiveDecimal(loan.PeriodicPayment ?? '0')) +
+    BigInt(loan.LoanServiceFee ?? '0') +
     extra
-  )
+  ).toString()
 }
 
 export async function testLoanPaymentModes(client, wallets, loanID, mptID) {
@@ -59,7 +44,7 @@ export async function testLoanPaymentModes(client, wallets, loanID, mptID) {
     TransactionType: 'LoanPay',
     Account: borrower.address,
     LoanID: loanID,
-    Amount: mpt(mptID, paymentAmount(current, '10')),
+    Amount: mpt(mptID, paymentAmount(current, 10n)),
     Flags: xrpl.LoanPayFlags.tfLoanOverpayment
   }, borrower, false)
   audit.objects.configured_loan_after_overpayment = await test(
@@ -102,8 +87,8 @@ export async function testLoanPaymentModes(client, wallets, loanID, mptID) {
 
   const rippleNow = Math.floor(Date.now() / 1000) - 946684800
   const eligibleAt = Number(impaired.NextPaymentDueDate) + Number(impaired.GracePeriod ?? 0)
-  const waitSeconds = Math.max(0, eligibleAt - rippleNow + 2)
-  if (waitSeconds > 150) throw new Error(`Unexpected default wait: ${waitSeconds}s`)
+  const waitSeconds = Math.max(0, eligibleAt - rippleNow + 10)
+  if (waitSeconds > 160) throw new Error(`Unexpected default wait: ${waitSeconds}s`)
   await test('wait for short loan default eligibility', async () => {
     await sleep(waitSeconds * 1000)
     return { waitSeconds, eligibleAt }
