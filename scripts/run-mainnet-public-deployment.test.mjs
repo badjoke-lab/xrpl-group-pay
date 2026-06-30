@@ -52,6 +52,26 @@ describe("Mainnet public deployment runner", () => {
     ).rejects.toThrow("confirmation is invalid");
   });
 
+  it("records secret validation before rejecting a missing secret", async () => {
+    const deps = dependencies();
+    const input = environment();
+    delete input.MAINNET_XAMAN_API_SECRET;
+
+    await expect(
+      runMainnetPublicDeployment({
+        environment: input,
+        ...deps,
+      }),
+    ).rejects.toThrow("MAINNET_XAMAN_API_SECRET is required");
+
+    expect(deps.writeStageFile).toHaveBeenCalledOnce();
+    expect(deps.writeStageFile.mock.calls[0][1]).toContain(
+      '"stage": "validate-deployment-secrets"',
+    );
+    expect(deps.runCommand).not.toHaveBeenCalled();
+    expect(deps.rollback).not.toHaveBeenCalled();
+  });
+
   it("builds, deploys, verifies, and avoids rollback on success", async () => {
     const deps = dependencies();
     const result = await runMainnetPublicDeployment({

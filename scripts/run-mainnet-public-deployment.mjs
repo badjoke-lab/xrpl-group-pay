@@ -49,10 +49,6 @@ export async function runMainnetPublicDeployment({
     throw new Error("The public Mainnet deployment confirmation is invalid.");
   }
 
-  required(environment, "CLOUDFLARE_API_TOKEN");
-  required(environment, "CLOUDFLARE_ACCOUNT_ID");
-  const xamanApiKey = required(environment, "MAINNET_XAMAN_API_KEY");
-  const xamanApiSecret = required(environment, "MAINNET_XAMAN_API_SECRET");
   const runnerTemp = resolve(required(environment, "RUNNER_TEMP"));
   const workspace = resolve(required(environment, "GITHUB_WORKSPACE"));
   const configPath = join(workspace, "wrangler.mainnet-public.jsonc");
@@ -99,7 +95,16 @@ export async function runMainnetPublicDeployment({
   };
 
   let deploymentStarted = false;
+  let xamanApiKey;
+  let xamanApiSecret;
+
   try {
+    await recordStage("validate-deployment-secrets");
+    required(environment, "CLOUDFLARE_API_TOKEN");
+    required(environment, "CLOUDFLARE_ACCOUNT_ID");
+    xamanApiKey = required(environment, "MAINNET_XAMAN_API_KEY");
+    xamanApiSecret = required(environment, "MAINNET_XAMAN_API_SECRET");
+
     await recordStage("prepare-configuration");
     await prepareConfig({ outputPath: configPath });
     await writeSecretFile(

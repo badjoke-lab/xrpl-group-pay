@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment:
-      name: mainnet-public-deployment
+      name: mainnet-halted-deployment
       url: https://xgp.badjoke-lab.com
     steps:
       - name: Require default branch
