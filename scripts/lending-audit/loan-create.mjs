@@ -14,7 +14,7 @@ export async function createConfiguredLoan(client, wallets, loanBrokerID) {
     OverpaymentInterestRate: 100,
     PaymentTotal: 3,
     PaymentInterval: 60,
-    GracePeriod: 5,
+    GracePeriod: 60,
     LoanOriginationFee: '10',
     LoanServiceFee: '2',
     LatePaymentFee: '3',
