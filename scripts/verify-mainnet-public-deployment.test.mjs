@@ -89,7 +89,7 @@ describe("Mainnet public deployment verification", () => {
   });
 
   it("verifies the public status endpoint and guarded callback", async () => {
-    const { path: _path, environment } = await fixture();
+    const { environment } = await fixture();
     const fetcher = async (url) => {
       if (url.endsWith("/api/status/payments")) {
         return new Response(
