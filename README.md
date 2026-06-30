@@ -32,25 +32,25 @@ The merged application currently provides:
 
 | Area | Available in merged code |
 |---|---|
-| Network | XRPL Testnet and controlled XRPL Mainnet configuration |
+| Network | XRPL Testnet and public XRPL Mainnet |
 | Settlement Asset | XRP or official network-specific RLUSD; one Asset per Bill |
 | Wallet Provider | Xaman |
 | Allocation | Creator share plus Custom Amount, Equal, Percentage, or Shares |
 | Interface language | English, Japanese, and Korean critical flows |
 | Custody | None; payer sends directly to creator |
 
-The production Mainnet Worker remains operationally halted. Merged Mainnet capability is not a public-release claim until the remaining controlled RLUSD acceptance and final audit are completed.
+The production Mainnet Worker is publicly available at `https://xgp.badjoke-lab.com`. The reviewed deployment enables Bill creation and payment verification on Mainnet. The committed `internal + halted` configuration remains the fail-closed rollback baseline and is not a description of the currently deployed public runtime.
 
 ## Remaining Make Waves v1 work
 
-The approved v1 target still requires:
+The product runtime, Mainnet acceptance, final release audit, and reviewed public operating deployment are complete.
 
-- deploy the merged one-shot and replacement-reconciliation defenses;
-- a fresh controlled official RLUSD Mainnet acceptance ceremony;
-- accepted RLUSD release evidence and final Mainnet release audit;
-- final public Mainnet runtime configuration and post-deployment checks.
+Remaining submission work is limited to:
 
-Submission deliverables such as the pitch video, pitch deck, and Source Tag metrics summary are tracked separately from product runtime completion.
+- final pitch video capture;
+- final pitch deck export;
+- Source Tag metrics for the approved measurement range;
+- final submission-form assembly and evidence links.
 
 ## Product direction
 
@@ -131,7 +131,7 @@ pnpm build:worker
 
 Testnet and Mainnet use separate configuration, databases, XRPL endpoints, Source Tag values, and Asset Registry entries. Testnet Bills are not copied automatically to Mainnet.
 
-The internal Mainnet Worker is deployed at `https://xgp.badjoke-lab.com` with the isolated Mainnet D1 binding and payment operations halted. Mainnet creation remains unavailable to public users until the release decision is approved and a reviewed public operations configuration is deployed.
+The public Mainnet Worker is deployed at `https://xgp.badjoke-lab.com` with the isolated Mainnet D1 binding. The public runtime is `public + enabled`; the committed production configuration remains `internal + halted` so the reviewed halted target can be restored without editing the repository during an incident.
 
 ## License
 
