@@ -164,10 +164,8 @@ describe("halted Mainnet deployment report import", () => {
       }),
     ).not.toThrow();
 
-    expect(result.releasePlan.current_stage).toBe("live-rlusd-acceptance");
-    expect(result.releasePlan.remaining_evidence).toEqual([
-      "live-mainnet-rlusd-acceptance",
-    ]);
+    expect(result.releasePlan.current_stage).toBe("final-release-audit");
+    expect(result.releasePlan.remaining_evidence).toEqual([]);
     expect(result.releasePlan.staged_target.committed).toBe(true);
     expect(result.wrangler.env.mainnet.vars).toMatchObject({
       ALLOW_MAINNET_RUNTIME: "true",
@@ -180,7 +178,7 @@ describe("halted Mainnet deployment report import", () => {
       result.acceptance.blocking_findings
         .filter((finding) => finding.status === "open")
         .map((finding) => finding.id),
-    ).toEqual(["live-rlusd-acceptance-not-recorded"]);
+    ).toEqual(["final-release-audit-not-complete"]);
   });
 
   it("rejects a report containing protected deployment fields", async () => {

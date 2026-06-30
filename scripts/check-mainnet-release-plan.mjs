@@ -47,6 +47,9 @@ const FINDING_BY_EVIDENCE = {
   "live-mainnet-rlusd-acceptance": "live-rlusd-acceptance-not-recorded",
 };
 
+const FINAL_AUDIT_CONTROL = "final-release-audit";
+const FINAL_AUDIT_FINDING = "final-release-audit-not-complete";
+
 function parseJsonc(source) {
   return JSON.parse(
     source
@@ -222,16 +225,36 @@ export function assertMainnetReleasePlan({
     throw new Error("Blocked release state requires a failed acceptance audit.");
   }
 
-  const expectedFindings = pendingEvidence.map(
-    (id) => FINDING_BY_EVIDENCE[id],
+  const atFinalAudit =
+    currentStage === "final-release-audit" && pendingEvidence.length === 0;
+  const finalAuditControl = controls.get(FINAL_AUDIT_CONTROL);
+  const finalAuditFinding = acceptance.blocking_findings.find(
+    (finding) => finding.id === FINAL_AUDIT_FINDING,
   );
+  if (!finalAuditControl || !finalAuditFinding) {
+    throw new Error("Mainnet final release audit control is missing.");
+  }
+  if (finalAuditControl.status !== "pending") {
+    throw new Error("Blocked release requires the final audit control to remain pending.");
+  }
+  const expectedFinalFindingStatus = atFinalAudit ? "open" : "resolved";
+  if (finalAuditFinding.status !== expectedFinalFindingStatus) {
+    throw new Error(
+      `Final release audit finding must be ${expectedFinalFindingStatus}.`,
+    );
+  }
+
+  const expectedFindings = [
+    ...pendingEvidence.map((id) => FINDING_BY_EVIDENCE[id]),
+    ...(atFinalAudit ? [FINAL_AUDIT_FINDING] : []),
+  ];
   const actualFindings = acceptance.blocking_findings
     .filter((finding) => finding.status === "open")
     .map((finding) => finding.id);
   assertExactArray(
     [...actualFindings].sort(),
     [...expectedFindings].sort(),
-    "Open Mainnet findings do not match remaining evidence.",
+    "Open Mainnet findings do not match the active release stage.",
   );
   for (const id of pendingEvidence) {
     if (controls.get(id)?.status !== "pending") {

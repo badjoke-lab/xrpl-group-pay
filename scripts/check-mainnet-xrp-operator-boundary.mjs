@@ -24,21 +24,30 @@ const AUTOMATION_KEYS = [
 ];
 
 function isReviewedPostXrpStage(releasePlan) {
-  if (releasePlan?.current_stage !== "live-rlusd-acceptance") return false;
-  if (
-    JSON.stringify(releasePlan.remaining_evidence) !==
-    JSON.stringify(["live-mainnet-rlusd-acceptance"])
-  ) {
-    return false;
-  }
   const stages = new Map(
-    (releasePlan.stages ?? []).map((stage) => [stage.id, stage.status]),
+    (releasePlan?.stages ?? []).map((stage) => [
+      stage.id,
+      stage.status,
+    ]),
   );
-  return (
+
+  const atRlusdAcceptance =
+    releasePlan?.current_stage === "live-rlusd-acceptance" &&
+    JSON.stringify(releasePlan.remaining_evidence) ===
+      JSON.stringify(["live-mainnet-rlusd-acceptance"]) &&
     stages.get("live-xrp-acceptance") === "complete" &&
     stages.get("live-rlusd-acceptance") === "blocked" &&
-    stages.get("final-release-audit") === "pending"
-  );
+    stages.get("final-release-audit") === "pending";
+
+  const atFinalAudit =
+    releasePlan?.current_stage === "final-release-audit" &&
+    JSON.stringify(releasePlan.remaining_evidence) ===
+      JSON.stringify([]) &&
+    stages.get("live-xrp-acceptance") === "complete" &&
+    stages.get("live-rlusd-acceptance") === "complete" &&
+    stages.get("final-release-audit") === "pending";
+
+  return atRlusdAcceptance || atFinalAudit;
 }
 
 export function assertMainnetXrpOperatorBoundary({

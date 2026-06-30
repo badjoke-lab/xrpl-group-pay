@@ -129,6 +129,37 @@ function pendingXrpState(state) {
   );
 
   Object.assign(
+    pending.evidence.records.find(
+      (record) => record.id === "live-mainnet-rlusd-acceptance",
+    ),
+    {
+      status: "pending",
+      recorded_at: null,
+      transaction_hash: null,
+      ledger_index: null,
+      validated: false,
+      transaction_result: null,
+      amount_value: null,
+      receipt_id: null,
+      proof_digest: null,
+      recipient_readiness_checked: false,
+      duplicate_rejected: false,
+      replay_rejected: false,
+    },
+  );
+
+  Object.assign(
+    pending.acceptance.controls.find(
+      (control) => control.id === "live-mainnet-rlusd-acceptance",
+    ),
+    {
+      status: "pending",
+      evidence:
+        "No accepted live Mainnet RLUSD end-to-end evidence is recorded.",
+    },
+  );
+
+  Object.assign(
     pending.acceptance.blocking_findings.find(
       (finding) => finding.id === "live-xrp-acceptance-not-recorded",
     ),
@@ -138,6 +169,35 @@ function pendingXrpState(state) {
         "Complete a controlled Mainnet XRP payment and record validated-ledger, receipt, and Bill settlement evidence.",
     },
   );
+
+  Object.assign(
+    pending.acceptance.blocking_findings.find(
+      (finding) => finding.id === "live-rlusd-acceptance-not-recorded",
+    ),
+    {
+      status: "open",
+      evidence:
+        "Complete a controlled official RLUSD Mainnet payment and record validated-ledger, receipt, and Bill settlement evidence.",
+    },
+  );
+
+  Object.assign(
+    pending.acceptance.blocking_findings.find(
+      (finding) => finding.id === "final-release-audit-not-complete",
+    ),
+    {
+      status: "resolved",
+      evidence:
+        "The final release audit is not active while live evidence remains pending.",
+    },
+  );
+
+  const auditCheck = pending.gate.checks.find(
+    (check) => check.id === "mainnet-acceptance-audit",
+  );
+  auditCheck.status = "failed";
+  auditCheck.evidence =
+    "live-xrp-acceptance-not-recorded live-rlusd-acceptance-not-recorded";
 
   pending.releasePlan.current_stage = "live-xrp-acceptance";
   pending.releasePlan.remaining_evidence = [

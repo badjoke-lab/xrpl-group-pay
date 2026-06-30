@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "state": "blocked",
-  "updated_at": "2026-06-26",
+  "updated_at": "2026-06-30",
   "checks": [
     {
       "id": "network-config-isolation",
@@ -51,7 +51,7 @@
     {
       "id": "mainnet-acceptance-audit",
       "status": "failed",
-      "evidence": "The acceptance audit is complete and the release remains blocked by production-runtime-not-approved, production-provider-not-attested, live-xrp-acceptance-not-recorded, and live-rlusd-acceptance-not-recorded."
+      "evidence": "All seven release evidence records are accepted and the live XRP and RLUSD controls passed. The gate remains blocked only by final-release-audit-not-complete while the reviewed production Worker stays internal and halted."
     }
   ]
 }
