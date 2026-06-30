@@ -55,7 +55,7 @@ export async function testLoanPaymentModes(client, wallets, loanID, mptID) {
     InterestRate: 0,
     PaymentTotal: 1,
     PaymentInterval: 60,
-    GracePeriod: 5,
+    GracePeriod: 60,
     LoanOriginationFee: '0',
     LoanServiceFee: '0',
     LatePaymentFee: '0',
@@ -82,7 +82,7 @@ export async function testLoanPaymentModes(client, wallets, loanID, mptID) {
   const rippleNow = Math.floor(Date.now() / 1000) - 946684800
   const eligibleAt = Number(impaired.NextPaymentDueDate) + Number(impaired.GracePeriod ?? 0)
   const waitSeconds = Math.max(0, eligibleAt - rippleNow + 2)
-  if (waitSeconds > 90) throw new Error(`Unexpected default wait: ${waitSeconds}s`)
+  if (waitSeconds > 150) throw new Error(`Unexpected default wait: ${waitSeconds}s`)
   await test('wait for short loan default eligibility', async () => {
     await sleep(waitSeconds * 1000)
     return { waitSeconds, eligibleAt }
