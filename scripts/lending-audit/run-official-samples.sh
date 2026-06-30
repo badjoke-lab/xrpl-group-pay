@@ -21,5 +21,6 @@ node lendingSetup.js
 node coverDepositAndWithdraw.js
 node coverClawback.js
 node loanPay.js
+node loanManage.js
 
 cp lendingSetup.json "$GITHUB_WORKSPACE/audit-output/official-lending-setup.json"
