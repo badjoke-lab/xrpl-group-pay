@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { audit, test, connect, xrpl } from './core.mjs'
-import { testNetwork, rescanNetwork } from './network.mjs'
+import { testNetwork, rescanNetwork } from './network-fast.mjs'
 import { fundAuditWallets } from './wallets.mjs'
 import { createAuditMpt } from './mpt.mjs'
 import { createPermissioning } from './credentials.mjs'
