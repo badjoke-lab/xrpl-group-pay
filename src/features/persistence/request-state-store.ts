@@ -142,8 +142,6 @@ function shouldApplyLifecycleTransition(
 ) {
   if (current === next) return true;
 
-  // A provider-confirmed submitted transaction is always worth preserving for
-  // ledger verification, even when a delayed terminal observation arrived first.
   if (next === "submitted" && transactionId) return true;
   if (current === "submitted") return false;
 
@@ -153,8 +151,6 @@ function shouldApplyLifecycleTransition(
     return nextRank >= currentRank;
   }
 
-  // Rejected, expired, and failed are terminal unless a later authoritative
-  // submitted observation includes a transaction identifier.
   if (currentRank === undefined) return false;
   return nextRank === undefined;
 }
@@ -186,7 +182,13 @@ export async function loadActiveRequest(
         .bind(timestamp, request.recordId),
       database
         .prepare(UPDATE_SLOT_FROM_REQUEST)
-        .bind("expired", timestamp, slotId),
+        .bind(
+          "expired",
+          timestamp,
+          slotId,
+          request.recordId,
+          "expired",
+        ),
     ]);
     if (!results[0]?.success) throw new RequestPersistenceError();
     return null;
@@ -221,11 +223,12 @@ export async function loadRequestByProviderId(
   };
 }
 
-export async function synchronizeProviderRequest(
+async function synchronizeProviderRequestAttempt(
   database: D1DatabaseLike,
   requestId: string,
   observation: ProviderLifecycleObservation,
-  now = new Date(),
+  now: Date,
+  attempt: number,
 ): Promise<ResumableProviderRequest | null> {
   const existing = await loadRequestByProviderId(database, requestId);
   if (!existing) return null;
@@ -250,6 +253,7 @@ export async function synchronizeProviderRequest(
         transactionId,
         timestamp,
         existing.recordId,
+        existing.status,
       ),
     database
       .prepare(UPDATE_SLOT_FROM_REQUEST)
@@ -257,11 +261,21 @@ export async function synchronizeProviderRequest(
         slotStatusForHandoff(observation.status),
         timestamp,
         existing.slotId,
+        existing.recordId,
+        observation.status,
       ),
   ]);
 
-  if (!results[0]?.success || (results[0].meta?.changes ?? 0) !== 1) {
-    throw new RequestPersistenceError();
+  if (!results[0]?.success) throw new RequestPersistenceError();
+  if ((results[0].meta?.changes ?? 0) !== 1) {
+    if (attempt >= 1) throw new RequestPersistenceError();
+    return synchronizeProviderRequestAttempt(
+      database,
+      requestId,
+      observation,
+      now,
+      attempt + 1,
+    );
   }
 
   return {
@@ -269,6 +283,21 @@ export async function synchronizeProviderRequest(
     status: observation.status,
     transactionId: transactionId ?? existing.transactionId,
   };
+}
+
+export function synchronizeProviderRequest(
+  database: D1DatabaseLike,
+  requestId: string,
+  observation: ProviderLifecycleObservation,
+  now = new Date(),
+): Promise<ResumableProviderRequest | null> {
+  return synchronizeProviderRequestAttempt(
+    database,
+    requestId,
+    observation,
+    now,
+    0,
+  );
 }
 
 export async function hasPriorRequest(
