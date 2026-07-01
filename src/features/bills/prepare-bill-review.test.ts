@@ -26,17 +26,21 @@ const validInput = {
 const asset = getXrpAssetDescriptor("testnet");
 
 describe("prepareBillReview", () => {
-  it("normalizes the Asset conditions that will later be frozen", () => {
+  it("normalizes the role-aware Asset conditions that will later be frozen", () => {
     expect(prepareBillReview(validInput)).toEqual({
       network: "testnet",
       title: "Dinner",
+      paymentMode: "representative",
+      recipientLabel: null,
       destinationAddress: validInput.destinationAddress,
       destinationTag: 7,
       asset,
       totalAmount: { code: "XRP", units: "10000000", scale: 6 },
+      recipientFundedAmount: { code: "XRP", units: "2000000", scale: 6 },
       creatorShareAmount: { code: "XRP", units: "2000000", scale: 6 },
       allocatedAmount: { code: "XRP", units: "10000000", scale: 6 },
       totalDrops: "10000000",
+      recipientFundedDrops: "2000000",
       creatorShareDrops: "2000000",
       allocatedDrops: "10000000",
       participants: [
