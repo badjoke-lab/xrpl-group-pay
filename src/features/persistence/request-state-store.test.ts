@@ -211,11 +211,14 @@ describe("request state persistence", () => {
       null,
       now.toISOString(),
       "record-1",
+      "available",
     ]);
     expect(database.batches[0][1].values).toEqual([
       "awaiting_signature",
       now.toISOString(),
       "slot-1",
+      "record-1",
+      "opened",
     ]);
   });
 
