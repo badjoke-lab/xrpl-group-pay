@@ -19,7 +19,6 @@ function response(body: unknown, status = 200) {
 }
 
 function fillBill() {
-  fireEvent.click(screen.getByLabelText(/Custom Amount/));
   fireEvent.change(screen.getByLabelText("Bill title"), {
     target: { value: "Dinner" },
   });
@@ -29,7 +28,7 @@ function fillBill() {
   fireEvent.change(screen.getByPlaceholderText("10"), {
     target: { value: "10" },
   });
-  fireEvent.change(screen.getByPlaceholderText("0"), {
+  fireEvent.change(screen.getByPlaceholderText("2"), {
     target: { value: "2" },
   });
   const labels = screen.getAllByLabelText("Label");
@@ -53,7 +52,7 @@ function fillBaseWithoutAmounts() {
   fireEvent.change(screen.getByPlaceholderText("10"), {
     target: { value: "10" },
   });
-  fireEvent.change(screen.getByPlaceholderText("0"), {
+  fireEvent.change(screen.getByPlaceholderText("2"), {
     target: { value: "2" },
   });
   const payers = screen.getAllByLabelText("Expected payer address");
@@ -68,11 +67,11 @@ afterEach(() => {
 });
 
 describe("TestnetBillForm", () => {
-  it("starts with Equal and blocks review until required data is complete", () => {
+  it("preserves the Testnet Custom Amount default", () => {
     render(<TestnetBillForm />);
     expect(screen.getByText("Participant 1")).toBeVisible();
     expect(screen.getByText("Participant 2")).toBeVisible();
-    expect(screen.getByLabelText(/^Equal/)).toBeChecked();
+    expect(screen.getByLabelText(/Custom Amount/)).toBeChecked();
     expect(screen.getByText("Allocation incomplete")).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Review bill before freezing" }),
@@ -81,11 +80,10 @@ describe("TestnetBillForm", () => {
 
   it("shows under, exact, and over Custom Amount feedback", () => {
     render(<TestnetBillForm />);
-    fireEvent.click(screen.getByLabelText(/Custom Amount/));
     fireEvent.change(screen.getByPlaceholderText("10"), {
       target: { value: "10" },
     });
-    fireEvent.change(screen.getByPlaceholderText("0"), {
+    fireEvent.change(screen.getByPlaceholderText("2"), {
       target: { value: "2" },
     });
     const amounts = screen.getAllByPlaceholderText("4");
@@ -98,11 +96,12 @@ describe("TestnetBillForm", () => {
     expect(screen.getByText(/allocated above the bill total/)).toBeVisible();
   });
 
-  it("uses Equal and sends a server-authoritative strategy request", async () => {
+  it("switches to Equal and sends a server-authoritative strategy request", async () => {
     const fetcher = vi.fn().mockResolvedValue(response(BILL_REVIEW_FIXTURE));
     vi.stubGlobal("fetch", fetcher);
 
     render(<TestnetBillForm />);
+    fireEvent.click(screen.getByLabelText(/^Equal/));
     fillBaseWithoutAmounts();
 
     expect(screen.queryByLabelText("Assigned amount")).toBeNull();
