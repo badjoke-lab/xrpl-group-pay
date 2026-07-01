@@ -109,7 +109,6 @@ export function RlusdTrustSetFlow({
 
   const load = useCallback(async () => {
     if (!capability) return;
-    setState({ kind: "loading" });
     try {
       setState({
         kind: "loaded",
