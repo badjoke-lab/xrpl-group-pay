@@ -149,3 +149,43 @@ jobs:
           name: e2e-diagnostics
           path: e2e.log
           retention-days: 1
+
+  production_ui_audit:
+    name: Production Bill UI audit
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Capture and inspect production Bill UI
+        env:
+          PRODUCTION_UI_URL: https://xgp.badjoke-lab.com
+        run: node scripts/capture-production-bill-ui.mjs
+
+      - name: Upload production UI audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-ui-audit-${{ github.run_id }}
+          path: artifacts/production-ui-audit
+          if-no-files-found: error
+          retention-days: 7
