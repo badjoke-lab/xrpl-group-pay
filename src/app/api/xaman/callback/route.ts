@@ -1,3 +1,7 @@
+import { getXamanEnvironment } from "@/config/server-env";
+import { getPaymentsDatabase } from "@/features/persistence/cloudflare-d1";
+import { XamanClient } from "@/features/xaman/client";
+import { synchronizeXamanPayload } from "@/features/xaman/payload-lifecycle";
 import {
   parseXamanWebhookNotification,
   requireXamanWebhookSecret,
@@ -20,7 +24,16 @@ export type XamanCallbackRouteDependencies = {
 
 const defaultDependencies: XamanCallbackRouteDependencies = {
   readSecret: () => requireXamanWebhookSecret(),
-  accept: () => undefined,
+  async accept(notification) {
+    const database = await getPaymentsDatabase();
+    const environment = getXamanEnvironment();
+    const client = new XamanClient(environment);
+    await synchronizeXamanPayload(
+      database,
+      notification.meta.payload_uuidv4,
+      (payloadId) => client.getPayload(payloadId),
+    );
+  },
 };
 
 function json(body: unknown, status: number, headers: Record<string, string> = {}) {
