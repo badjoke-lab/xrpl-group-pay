@@ -4,7 +4,11 @@ import {
   assetRegistry,
   getXrpAssetDescriptor,
 } from "@/features/assets/registry";
-import { assetDescriptorSchema } from "@/features/assets/types";
+import {
+  assetDescriptorSchema,
+  xrplNetworkSchema,
+  type XrplNetwork,
+} from "@/features/assets/types";
 import { moneyAmountSchema } from "@/features/money/types";
 import type { D1DatabaseLike } from "@/features/persistence/d1-types";
 
@@ -15,6 +19,7 @@ const billStatusSchema = z.enum([
   "partially_paid",
   "settled",
   "needs_review",
+  "closed_incomplete",
 ]);
 
 export const paymentSlotProgressStatusSchema = z.enum([
@@ -38,7 +43,7 @@ const billRowSchema = z.object({
   id: z.string().min(1),
   public_id: z.string().uuid(),
   title: z.string().min(1).max(100),
-  network: z.literal("testnet"),
+  network: xrplNetworkSchema,
   destination_address: z.string().min(1),
   destination_tag: z.number().int().min(0).max(4_294_967_295).nullable(),
   total_drops: positiveUnitsSchema,
@@ -76,7 +81,7 @@ export const billProgressSchema = z
       .object({
         publicId: z.string().uuid(),
         title: z.string().min(1).max(100),
-        network: z.literal("testnet"),
+        network: xrplNetworkSchema,
         destinationAddress: z.string().min(1),
         destinationTag: z.number().int().min(0).max(4_294_967_295).nullable(),
         asset: assetDescriptorSchema,
@@ -153,7 +158,10 @@ const SELECT_BILL = `
     settlement_asset_id,
     total_amount_units,
     creator_share_amount_units,
-    status,
+    CASE
+      WHEN closure_state = 'closed_incomplete' THEN 'closed_incomplete'
+      ELSE status
+    END AS status,
     revision,
     frozen_at,
     updated_at,
@@ -181,16 +189,12 @@ const SELECT_SLOTS = `
       ELSE NULL
     END AS proof_digest,
     slots.updated_at
-  FROM payment_slots AS slots
+  FROM bills AS bill
+  INNER JOIN payment_slots AS slots ON slots.bill_id = bill.id
   LEFT JOIN verified_payment_records AS records
-    ON records.network = 'testnet'
+    ON records.network = bill.network
     AND records.transaction_id = slots.paid_tx_hash
-  WHERE slots.bill_id = (
-    SELECT id
-    FROM bills
-    WHERE admin_token_hash = ?1 OR public_token_hash = ?1
-    LIMIT 1
-  )
+  WHERE bill.admin_token_hash = ?1 OR bill.public_token_hash = ?1
   ORDER BY slots.created_at ASC, slots.public_id ASC
 `;
 
@@ -198,12 +202,18 @@ function isReviewStatus(status: z.infer<typeof paymentSlotProgressStatusSchema>)
   return status === "needs_review" || status === "verification_failed";
 }
 
-function requireAsset(assetId: string | null | undefined) {
+function requireAsset(
+  assetId: string | null | undefined,
+  network: XrplNetwork,
+) {
   try {
-    return assetId
+    const asset = assetId
       ? assetRegistry.require(assetId)
-      : getXrpAssetDescriptor("testnet");
-  } catch {
+      : getXrpAssetDescriptor(network);
+    if (asset.network !== network) throw new BillProgressDatabaseError();
+    return asset;
+  } catch (error) {
+    if (error instanceof BillProgressDatabaseError) throw error;
     throw new BillProgressDatabaseError();
   }
 }
@@ -238,13 +248,16 @@ export async function loadBillProgressByToken(
     const slots = z.array(slotRowSchema).safeParse(slotsResult.results ?? []);
     if (!slots.success) throw new BillProgressDatabaseError();
 
-    const asset = requireAsset(bill.data.settlement_asset_id);
+    const asset = requireAsset(
+      bill.data.settlement_asset_id,
+      bill.data.network,
+    );
     const totalUnits = bill.data.total_amount_units ?? bill.data.total_drops;
     const creatorShareUnits =
       bill.data.creator_share_amount_units ?? bill.data.creator_share_drops;
 
     const normalizedSlots = slots.data.map((slot) => {
-      const slotAsset = requireAsset(slot.asset_id);
+      const slotAsset = requireAsset(slot.asset_id, bill.data.network);
       if (slotAsset.id !== asset.id) throw new BillProgressDatabaseError();
       const expectedUnits =
         slot.expected_amount_units ?? slot.expected_amount_drops;
