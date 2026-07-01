@@ -58,6 +58,19 @@ function resumeExistingPayload(
   request: Awaited<ReturnType<typeof loadActiveRequest>>,
 ): StoredSlotPayload | null {
   if (!request) return null;
+  const billAcceptsResume = ["open", "partially_paid"].includes(slot.billStatus);
+  const slotAcceptsResume = [
+    "unpaid",
+    "payload_created",
+    "awaiting_signature",
+    "submitted",
+    "validating",
+  ].includes(slot.slotStatus);
+  if (!billAcceptsResume || !slotAcceptsResume) {
+    requirePayableSlot(slot);
+    return null;
+  }
+
   const deepLink = request.mobileUri ?? request.browserUri;
   if (!deepLink || !request.qrImageUrl || !request.statusChannel) {
     throw new ActiveRequestError();
@@ -83,18 +96,20 @@ export async function createPersistedSlotPayload(
   dependencies: PersistedPayloadDependencies,
 ): Promise<StoredSlotPayload> {
   const now = dependencies.now?.() ?? new Date();
-  const slot = requirePayableSlot(
-    await loadPaymentSlotByToken(database, capability),
+  const loadedSlot = await loadPaymentSlotByToken(database, capability);
+  const activeRequest = await loadActiveRequest(
+    database,
+    loadedSlot.slotId,
+    now,
   );
-
-  const activeRequest = await loadActiveRequest(database, slot.slotId, now);
   const resumed = resumeExistingPayload(
-    slot,
+    loadedSlot,
     dependencies.sourceTag,
     activeRequest,
   );
   if (resumed) return resumed;
 
+  const slot = requirePayableSlot(loadedSlot);
   if (await hasPriorRequest(database, slot.slotId)) {
     if (!dependencies.reconcileReplacement) {
       throw new PaymentReconciliationUnavailableError(
