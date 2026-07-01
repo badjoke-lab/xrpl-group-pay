@@ -47,6 +47,7 @@ export const UPDATE_REQUEST_STATE = [
   "updated_at = ?3,",
   "last_provider_sync_at = ?3",
   "WHERE id = ?4",
+  "AND status = ?5",
 ].join("\n");
 
 export const UPDATE_SLOT_FROM_REQUEST = [
@@ -55,6 +56,10 @@ export const UPDATE_SLOT_FROM_REQUEST = [
   "SET status = ?1, updated_at = ?2",
   "WHERE id = ?3",
   "AND status NOT IN ('paid', 'needs_review')",
+  "AND EXISTS (",
+  `SELECT 1 FROM ${table}`,
+  `WHERE ${table}.id = ?4 AND ${table}.status = ?5`,
+  ")",
 ].join("\n");
 
 export const STORE_REQUEST = [
