@@ -38,7 +38,8 @@ External requirements describe obligations imposed on the project. They do not r
 - `architecture.md` — dependency direction and extension boundaries for the Group Pay core, payment domain, adapters, and payment rails.
 - `payment-contracts.md` — logical contracts for assets, Payment Intents, Wallet Providers, verification, receipts, quotes, and rails.
 - `money-and-allocation.md` — fixed-precision money model, Accounting Currency, Settlement Asset, allocation strategies, and future quote behavior.
-- `localization.md` — English, Japanese, and Korean localization contract.
+- `localization.md` — base English, Japanese, and Korean localization contract.
+- `payment-lifecycle-localization.md` — terminology, Guide, help, status, copied-instruction, and recovery coverage for the active revision.
 - `open-decisions.md` — active, blocked, superseded, and decided implementation questions.
 
 These documents define approved behavior. They may describe target behavior that is not yet available. Current availability must be stated separately in the root `README.md`, `ROADMAP.md`, and `CHANGELOG.md`.
@@ -47,6 +48,7 @@ These documents define approved behavior. They may describe target behavior that
 
 - `non-custodial-boundary.md` — capabilities the product may and must not acquire.
 - `threat-model.md` — protected assets, trust boundaries, abuse cases, mitigations, and release gates.
+- `payment-lifecycle-security.md` — added role, retry, TrustSet, Guide, closure, copy, and Mainnet-progress controls for the active revision.
 - `privacy-data-map.md` — data classification, storage, disclosure, retention, and deletion.
 - `state-machine.md` — Bill, PaymentSlot, wallet-handoff, transaction-observation, recovery, and verification states.
 - `persistence-scope.md` — durable records, compatibility guarantees, and current database scope.
