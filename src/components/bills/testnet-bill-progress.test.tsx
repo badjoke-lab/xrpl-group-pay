@@ -97,7 +97,7 @@ describe("TestnetBillProgress compatibility export", () => {
     expect(screen.getByText("Blair")).toBeVisible();
     expect(screen.getByText("Paid")).toBeVisible();
     expect(screen.getByText("Unpaid")).toBeVisible();
-    expect(screen.getByRole("link", { name: "Public proof" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "View public proof" })).toHaveAttribute(
       "href",
       `/proof#token=${"D".repeat(64)}`,
     );
