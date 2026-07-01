@@ -54,6 +54,8 @@ Remaining submission work is limited to:
 
 ## Product direction
 
+The approved payment-lifecycle revision is tracked in [docs/payment-lifecycle-revision-schedule.md](docs/payment-lifecycle-revision-schedule.md). Planned behavior remains separate from the current implementation until the corresponding PRs are merged, tested, and verified.
+
 Later work includes more tested XRPL Wallet Providers, fiat-denominated Bills, participant asset choice, Settlement Quotes, Persistent Groups, Settlement Circles, Event Collection, curated additional XRPL assets, and research into additional Payment Rails.
 
 See [ROADMAP.md](ROADMAP.md) for public status and direction.
@@ -92,6 +94,7 @@ Start with [docs/README.md](docs/README.md).
 - [Non-custodial boundary](docs/non-custodial-boundary.md)
 - [Threat model](docs/threat-model.md)
 - [Make Waves requirements](docs/make-waves-requirements.md)
+- [Payment lifecycle revision schedule](docs/payment-lifecycle-revision-schedule.md)
 - [Mainnet operational controls](docs/mainnet-operational-controls.md)
 - [Mainnet acceptance audit](docs/mainnet-acceptance-audit.md)
 - [Mainnet release evidence](docs/mainnet-release-evidence.md)
