@@ -12,8 +12,8 @@ import { useRouter } from "next/navigation";
 import {
   type Locale,
   type MessageKey,
-  translate,
 } from "./catalog";
+import { translatePublic } from "./public-copy";
 
 const LOCALE_COOKIE = "xgp_locale";
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
@@ -28,7 +28,7 @@ const LocalizationContext = createContext<LocalizationContextValue | null>(null)
 const ENGLISH_FALLBACK: LocalizationContextValue = {
   locale: "en",
   setLocale: () => undefined,
-  t: (key, variables) => translate("en", key, variables),
+  t: (key, variables) => translatePublic("en", key, variables),
 };
 
 export function LocalizationProvider({
@@ -56,7 +56,7 @@ export function LocalizationProvider({
     () => ({
       locale,
       setLocale,
-      t: (key, variables) => translate(locale, key, variables),
+      t: (key, variables) => translatePublic(locale, key, variables),
     }),
     [locale, setLocale],
   );
