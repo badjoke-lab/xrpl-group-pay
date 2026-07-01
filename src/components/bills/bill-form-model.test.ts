@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { billDraftToInput, newBillDraft } from "./bill-form-model";
+import {
+  ALLOCATION_STRATEGIES,
+  billDraftToInput,
+  newBillDraft,
+} from "./bill-form-model";
 
 describe("deployment-aware Bill drafts", () => {
   it("defaults to Testnet XRP for local and Testnet deployments", () => {
@@ -8,16 +12,25 @@ describe("deployment-aware Bill drafts", () => {
     expect(newBillDraft("testnet").settlementAssetId).toBe("xrpl:testnet:xrp");
   });
 
-  it("starts Mainnet drafts with the canonical Mainnet XRP Asset", () => {
+  it("starts Mainnet drafts with XRP and the equal split", () => {
     const draft = newBillDraft("mainnet");
     expect(draft.settlementAssetId).toBe("xrpl:mainnet:xrp");
+    expect(draft.allocationStrategy).toBe("equal");
+    expect(draft.creatorShareAmount).toBe("0");
+    expect(ALLOCATION_STRATEGIES.map((item) => item.id)).toEqual([
+      "equal",
+      "custom",
+      "percentage",
+      "shares",
+    ]);
   });
 
-  it("preserves a canonical Mainnet RLUSD Asset in creation input", () => {
+  it("preserves a canonical Mainnet RLUSD Asset in custom creation input", () => {
     const draft = newBillDraft("mainnet");
     draft.title = "Dinner";
     draft.destinationAddress = "rDestination";
     draft.settlementAssetId = "xrpl:mainnet:rlusd";
+    draft.allocationStrategy = "custom";
     draft.totalAmount = "2";
     draft.creatorShareAmount = "0";
     draft.participants[0].expectedPayerAddress = "rPayerOne";
