@@ -44,11 +44,11 @@ export default async function BillPage() {
       </header>
 
       <div className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-8 sm:pt-14">
-        <div className="mb-7 max-w-3xl sm:mb-9">
+        <div className="mb-7 max-w-4xl sm:mb-9">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-action sm:text-sm sm:tracking-[0.14em]">
             {t("bill.page.eyebrow", { network: networkLabel })}
           </p>
-          <h1 className="mt-3 max-w-2xl font-heading text-[2rem] font-bold leading-[1.08] tracking-tight sm:text-5xl sm:leading-[1.05]">
+          <h1 className="mt-3 max-w-3xl font-heading text-[2rem] font-bold leading-[1.08] tracking-tight sm:text-[2.75rem] sm:leading-[1.06]">
             {t("bill.page.title")}
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-muted sm:mt-5 sm:text-lg sm:leading-8">
