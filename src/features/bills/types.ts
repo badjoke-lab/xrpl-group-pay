@@ -138,7 +138,7 @@ const canonicalCreateBillInputSchema = z
       settlementAssetId: input.settlementAssetId,
       totalAmount: input.totalAmount,
       ...(usesPaymentModeContract ? { recipientFundedAmount } : {}),
-      creatorShareAmount: recipientFundedAmount,
+      creatorShareAmount: input.creatorShareAmount ?? recipientFundedAmount,
       ...(input.allocation === undefined ? {} : { allocation: input.allocation }),
       participants: input.participants,
     };
