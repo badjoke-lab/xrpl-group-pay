@@ -76,7 +76,7 @@ test("renders capability-bound bill progress", async ({ page }) => {
   await expect(page.getByText("Alex", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("link", { name: "View public proof" }),
-  ).toHaveAttribute("href", `/testnet/proof#token=${proofToken}`);
+  ).toHaveAttribute("href", `/proof#token=${proofToken}`);
 });
 
 test("renders a public verified transaction proof", async ({ page }) => {
