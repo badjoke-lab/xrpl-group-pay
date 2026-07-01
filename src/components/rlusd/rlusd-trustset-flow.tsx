@@ -151,7 +151,8 @@ export function RlusdTrustSetFlow({
 
   useEffect(() => {
     if (!resolved || !capability) return;
-    void load();
+    const timeoutId = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timeoutId);
   }, [capability, load, resolved]);
 
   useEffect(() => {
