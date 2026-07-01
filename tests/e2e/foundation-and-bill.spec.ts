@@ -74,7 +74,7 @@ test("reviews a shared bill before freezing it", async ({ page }) => {
           currency: "XRP",
           issuer: null,
           precision: 6,
-          displayName: "XRP",
+          verificationStrategy: "xrpl-xrp-v1",
           receiptContract: "xrpl-xrp-payment-v1",
         },
         totalAmount: { code: "XRP", units: "10000000", scale: 6 },
