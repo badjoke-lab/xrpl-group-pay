@@ -4,10 +4,13 @@ CHECK (payment_mode IN ('representative', 'direct'));
 ALTER TABLE bills ADD COLUMN recipient_label TEXT
 CHECK (recipient_label IS NULL OR length(recipient_label) <= 100);
 
-ALTER TABLE bills ADD COLUMN recipient_funded_amount_units TEXT NOT NULL DEFAULT '0'
+ALTER TABLE bills ADD COLUMN recipient_funded_amount_units TEXT
 CHECK (
-  recipient_funded_amount_units <> ''
-  AND recipient_funded_amount_units NOT GLOB '*[^0-9]*'
+  recipient_funded_amount_units IS NULL
+  OR (
+    recipient_funded_amount_units <> ''
+    AND recipient_funded_amount_units NOT GLOB '*[^0-9]*'
+  )
 );
 
 ALTER TABLE bills ADD COLUMN closure_state TEXT NOT NULL DEFAULT 'active'
