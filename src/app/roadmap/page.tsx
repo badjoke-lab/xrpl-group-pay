@@ -5,65 +5,112 @@ import { BrandMark } from "@/components/brand/brand-mark";
 import { LanguageSwitcher } from "@/components/localization/language-switcher";
 import { NetworkBadge } from "@/components/ui/network-badge";
 import { publicEnv } from "@/config/public-env";
-import { translate } from "@/features/localization/catalog";
+import type { Locale, MessageKey } from "@/features/localization/catalog";
+import { translatePublic } from "@/features/localization/public-copy";
 import { getRequestLocale } from "@/features/localization/server";
 
 export const metadata = {
   title: "Roadmap",
-  description: "Current XRPL Group Pay availability and release work.",
+  description: "Current XRPL Group Pay availability and next work.",
 };
 
-const sections = [
+const EN_SECTIONS = [
   {
-    title: "Available",
+    title: "Available now",
     icon: CheckCircle2,
     items: [
-      "XRP and official RLUSD Bills with one frozen Settlement Asset.",
-      "Custom Amount, Equal, Percentage, and Shares allocation with explicit remainder handling.",
-      "Separate participant capabilities and expected payer addresses.",
-      "Xaman signing handoff for XRP and issued RLUSD Payments.",
-      "Strict validated-ledger verification, durable receipts, Bill progress, and public XRP proof.",
-      "Controlled Mainnet XRP acceptance and one-shot payer Sequence binding.",
+      "Public Mainnet bill creation in XRP or official RLUSD.",
+      "Equal, custom amount, percentage, and shares-based splitting.",
+      "A separate payment link for each participant, signed in Xaman.",
+      "Direct payer-to-recipient settlement; Group Pay never holds funds.",
+      "Validated-ledger verification, duplicate protection, and payment progress.",
     ],
   },
   {
-    title: "Release blockers",
+    title: "RLUSD requirements",
     icon: CircleDot,
     items: [
-      "Deploy the merged replacement-handoff reconciliation and one-shot signing defenses.",
-      "Repeat controlled Mainnet RLUSD acceptance after the duplicate-transfer remediation is deployed.",
-      "Record the accepted RLUSD receipt, duplicate control, replay control, and halted restoration evidence.",
-      "Complete the final Mainnet release audit and publish the reviewed runtime configuration.",
+      "The recipient account needs an RLUSD trust line before it can receive RLUSD.",
+      "Each payer needs enough RLUSD for the payment and a small amount of XRP for network fees.",
+      "The official Mainnet RLUSD issuer is fixed by the application and verified with every payment.",
     ],
   },
   {
-    title: "Make Waves v1 completion",
+    title: "Current work",
     icon: Layers3,
     items: [
-      "English, Japanese, and Korean critical creator and payer flows.",
-      "Public Mainnet creator flow with clear network and real-value warnings.",
-      "Release-aligned README, Roadmap, Changelog, and proof examples.",
-      "Source Tag metrics summary, pitch video, and pitch deck for submission.",
+      "Make RLUSD selection and readiness requirements unmistakable in the creator flow.",
+      "Replace literal Japanese translations with natural product copy.",
+      "Expand production UI checks to cover Japanese and RLUSD, not only the default XRP screen.",
+      "Prepare Source Tag metrics, the pitch video, deck, and final Make Waves submission.",
     ],
   },
   {
-    title: "After v1",
+    title: "Later",
     icon: FlaskConical,
     items: [
-      "Additional tested XRPL Wallet Providers.",
-      "Fiat-denominated accounting currencies and versioned Settlement Quotes.",
-      "Participant asset choice, Persistent Groups, Settlement Circles, and Event Collection.",
-      "Curated additional assets and researched payment rails without custody, swaps, or bridging.",
+      "Additional tested XRPL wallet providers.",
+      "Fiat-denominated accounting and versioned settlement quotes.",
+      "Persistent groups, recurring expenses, settlement circles, and event collection.",
+      "Additional assets only after issuer, liquidity, wallet, and verification reviews.",
     ],
   },
 ] as const;
 
+const JA_SECTIONS = [
+  {
+    title: "現在使える機能",
+    icon: CheckCircle2,
+    items: [
+      "MainnetでXRPまたはRLUSDの請求を作成できます。",
+      "均等、個別金額、割合、比率の4通りで負担額を分けられます。",
+      "参加者ごとに専用の支払いリンクを作成し、各自がXamanで署名します。",
+      "資金は参加者から受取人へ直接送られ、Group Payが預かることはありません。",
+      "XRPL上の着金確認、二重計上防止、支払い状況の確認に対応しています。",
+    ],
+  },
+  {
+    title: "RLUSDを使うための条件",
+    icon: CircleDot,
+    items: [
+      "受取先アカウントには、あらかじめRLUSDのトラストラインが必要です。",
+      "参加者は支払額分のRLUSDと、ネットワーク手数料用の少額のXRPを用意する必要があります。",
+      "Mainnetの公式RLUSD発行元はアプリ側で固定し、支払い確認時にも照合します。",
+    ],
+  },
+  {
+    title: "現在の改善作業",
+    icon: Layers3,
+    items: [
+      "RLUSDを選べることと、利用条件が一目で分かる画面に直します。",
+      "直訳調だった日本語を、一般的なサービスで使われる自然な表現へ置き換えます。",
+      "本番画面の確認対象を、XRPの初期画面だけでなく日本語とRLUSDまで広げます。",
+      "Make Waves提出用の利用実績、動画、資料、証拠リンクをまとめます。",
+    ],
+  },
+  {
+    title: "今後の追加候補",
+    icon: FlaskConical,
+    items: [
+      "Xaman以外のXRPLウォレットへの対応。",
+      "日本円や米ドル表示での請求額入力と、送金時の換算表示。",
+      "固定メンバー、定期的な支払い、期間ごとのまとめ精算。",
+      "発行元や流動性、安全性を確認できた資産だけを追加。",
+    ],
+  },
+] as const;
+
+function sectionsFor(locale: Locale) {
+  return locale === "ja" ? JA_SECTIONS : EN_SECTIONS;
+}
+
 export default async function RoadmapPage() {
   const locale = await getRequestLocale();
   const t = (
-    key: Parameters<typeof translate>[1],
+    key: MessageKey,
     variables?: Record<string, string | number>,
-  ) => translate(locale, key, variables);
+  ) => translatePublic(locale, key, variables);
+  const sections = sectionsFor(locale);
 
   return (
     <main className="min-h-screen bg-background">
@@ -118,7 +165,10 @@ export default async function RoadmapPage() {
 
         <div className="mt-10 flex flex-wrap gap-4 text-sm font-semibold">
           <Link href="/bill" className="text-brand underline-offset-4 hover:underline">
-            {t("home.cta.status")}
+            {t("home.cta.create", {
+              network:
+                publicEnv.NEXT_PUBLIC_APP_NETWORK === "mainnet" ? "Mainnet" : "Testnet",
+            })}
           </Link>
           <Link
             href="/changelog"
