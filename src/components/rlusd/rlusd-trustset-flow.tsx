@@ -151,13 +151,9 @@ export function RlusdTrustSetFlow({
   }, [capability, tt]);
 
   useEffect(() => {
-    if (!resolved) return;
-    if (!capability) {
-      setState({ kind: "error", message: tt("unavailableBody") });
-      return;
-    }
+    if (!resolved || !capability) return;
     void load();
-  }, [capability, load, resolved, tt]);
+  }, [capability, load, resolved]);
 
   useEffect(() => {
     if (state.kind !== "loaded") return;
@@ -193,16 +189,45 @@ export function RlusdTrustSetFlow({
     };
   }, [check, state]);
 
-  if (!resolved || state.kind === "loading") {
-    return <Centered icon={<LoaderCircle className="size-10 animate-spin text-brand" />} title={tt("loading")} />;
+  if (!resolved) {
+    return (
+      <Centered
+        icon={<LoaderCircle className="size-10 animate-spin text-brand" />}
+        title={tt("loading")}
+      />
+    );
   }
+
+  if (!capability) {
+    return (
+      <Centered
+        icon={<CircleAlert className="size-11 text-danger" />}
+        title={tt("unavailableTitle")}
+        body={tt("unavailableBody")}
+      />
+    );
+  }
+
+  if (state.kind === "loading") {
+    return (
+      <Centered
+        icon={<LoaderCircle className="size-10 animate-spin text-brand" />}
+        title={tt("loading")}
+      />
+    );
+  }
+
   if (state.kind === "error") {
     return (
       <Centered
         icon={<CircleAlert className="size-11 text-danger" />}
         title={tt("unavailableTitle")}
         body={state.message}
-        action={<Button variant="secondary" onClick={() => void load()}>{tt("check")}</Button>}
+        action={
+          <Button variant="secondary" onClick={() => void load()}>
+            {tt("check")}
+          </Button>
+        }
       />
     );
   }
@@ -221,7 +246,9 @@ export function RlusdTrustSetFlow({
             <span className="rounded-pill bg-brand-subtle px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
               {purpose}
             </span>
-            <h2 className="mt-4 font-heading text-2xl font-semibold">RLUSD TrustSet</h2>
+            <h2 className="mt-4 font-heading text-2xl font-semibold">
+              RLUSD TrustSet
+            </h2>
           </div>
           <span className="rounded-pill border border-border px-3 py-1 text-xs font-bold uppercase">
             XRPL {launch.network === "mainnet" ? "Mainnet" : "Testnet"}
@@ -229,12 +256,33 @@ export function RlusdTrustSetFlow({
         </div>
 
         <dl className="mt-7 grid gap-4 sm:grid-cols-2">
-          <Field label={tt("account")} value={shortValue(launch.account)} title={launch.account} mono />
+          <Field
+            label={tt("account")}
+            value={shortValue(launch.account)}
+            title={launch.account}
+            mono
+          />
           <Field label={tt("asset")} value="RLUSD" />
-          <Field label={tt("required")} value={`${unitsToDecimal(launch.requiredAmountUnits, launch.amountScale)} RLUSD`} />
-          <Field label={tt("limit")} value={`${launch.trustLimitValue} RLUSD`} />
-          <Field label={tt("issuer")} value={shortValue(launch.issuer)} title={launch.issuer} mono />
-          <Field label={tt("network")} value={launch.network === "mainnet" ? "XRPL Mainnet" : "XRPL Testnet"} />
+          <Field
+            label={tt("required")}
+            value={`${unitsToDecimal(launch.requiredAmountUnits, launch.amountScale)} RLUSD`}
+          />
+          <Field
+            label={tt("limit")}
+            value={`${launch.trustLimitValue} RLUSD`}
+          />
+          <Field
+            label={tt("issuer")}
+            value={shortValue(launch.issuer)}
+            title={launch.issuer}
+            mono
+          />
+          <Field
+            label={tt("network")}
+            value={
+              launch.network === "mainnet" ? "XRPL Mainnet" : "XRPL Testnet"
+            }
+          />
         </dl>
       </section>
 
@@ -275,21 +323,40 @@ function PreparationState({
   onCheck(): void;
 }) {
   if (launch.status === "not_required") {
-    return <Centered icon={<CheckCircle2 className="size-11 text-success" />} title={tt("notRequiredTitle")} body={tt("notRequiredBody")} />;
+    return (
+      <Centered
+        icon={<CheckCircle2 className="size-11 text-success" />}
+        title={tt("notRequiredTitle")}
+        body={tt("notRequiredBody")}
+      />
+    );
   }
+
   if (launch.status === "ready") {
-    return <Centered icon={<CheckCircle2 className="size-11 text-success" />} title={tt("readyTitle")} body={tt("readyBody")} />;
+    return (
+      <Centered
+        icon={<CheckCircle2 className="size-11 text-success" />}
+        title={tt("readyTitle")}
+        body={tt("readyBody")}
+      />
+    );
   }
+
   if (launch.status === "required") {
     return (
       <Centered
         icon={<ShieldCheck className="size-11 text-brand" />}
         title={tt("start")}
         body={tt("noticeBody")}
-        action={<Button onClick={onStart} disabled={working}>{working ? tt("working") : tt("start")}</Button>}
+        action={
+          <Button onClick={onStart} disabled={working}>
+            {working ? tt("working") : tt("start")}
+          </Button>
+        }
       />
     );
   }
+
   if (launch.status === "rejected" || launch.status === "expired") {
     const rejected = launch.status === "rejected";
     return (
@@ -297,27 +364,44 @@ function PreparationState({
         icon={<TriangleAlert className="size-11 text-action" />}
         title={tt(rejected ? "rejectedTitle" : "expiredTitle")}
         body={tt(rejected ? "rejectedBody" : "expiredBody")}
-        action={<Button onClick={onStart} disabled={working}>{working ? tt("working") : tt("retry")}</Button>}
+        action={
+          <Button onClick={onStart} disabled={working}>
+            {working ? tt("working") : tt("retry")}
+          </Button>
+        }
       />
     );
   }
+
   if (launch.status === "submitted" || launch.status === "verifying") {
     return (
       <Centered
         icon={<LoaderCircle className="size-11 animate-spin text-action" />}
         title={tt("verifyingTitle")}
         body={tt("verifyingBody")}
-        action={<Button variant="secondary" onClick={onCheck} disabled={working}><RefreshCw className={`size-4 ${working ? "animate-spin" : ""}`} />{tt("check")}</Button>}
+        action={
+          <Button variant="secondary" onClick={onCheck} disabled={working}>
+            <RefreshCw
+              className={`size-4 ${working ? "animate-spin" : ""}`}
+            />
+            {tt("check")}
+          </Button>
+        }
       />
     );
   }
+
   if (launch.status === "failed") {
     return (
       <Centered
         icon={<CircleAlert className="size-11 text-danger" />}
         title={tt("failedTitle")}
         body={tt("failedBody")}
-        action={<Button onClick={onStart} disabled={working}>{working ? tt("working") : tt("retry")}</Button>}
+        action={
+          <Button onClick={onStart} disabled={working}>
+            {working ? tt("working") : tt("retry")}
+          </Button>
+        }
       />
     );
   }
@@ -330,17 +414,30 @@ function PreparationState({
     return (
       <div className="text-center">
         <LoaderCircle className="mx-auto size-10 animate-spin text-brand" />
-        <h3 className="mt-4 font-heading text-2xl font-semibold">{tt("waitingTitle")}</h3>
-        <p className="mx-auto mt-3 max-w-lg leading-7 text-muted">{tt("waitingBody")}</p>
+        <h3 className="mt-4 font-heading text-2xl font-semibold">
+          {tt("waitingTitle")}
+        </h3>
+        <p className="mx-auto mt-3 max-w-lg leading-7 text-muted">
+          {tt("waitingBody")}
+        </p>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={launch.qrImageUrl} alt={tt("qrAlt")} className="mx-auto mt-6 size-52 rounded-lg border border-border" />
-        <a href={launch.deepLink} className="mt-5 inline-flex items-center gap-2 font-semibold text-brand underline underline-offset-4">
+        <img
+          src={launch.qrImageUrl}
+          alt={tt("qrAlt")}
+          className="mx-auto mt-6 size-52 rounded-lg border border-border"
+        />
+        <a
+          href={launch.deepLink}
+          className="mt-5 inline-flex items-center gap-2 font-semibold text-brand underline underline-offset-4"
+        >
           {tt("open")}
           <ExternalLink className="size-4" />
         </a>
         <div className="mt-6">
           <Button variant="secondary" onClick={onCheck} disabled={working}>
-            <RefreshCw className={`size-4 ${working ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`size-4 ${working ? "animate-spin" : ""}`}
+            />
             {tt("check")}
           </Button>
         </div>
@@ -348,7 +445,13 @@ function PreparationState({
     );
   }
 
-  return <Centered icon={<CircleAlert className="size-11 text-danger" />} title={tt("failedTitle")} body={tt("failedBody")} />;
+  return (
+    <Centered
+      icon={<CircleAlert className="size-11 text-danger" />}
+      title={tt("failedTitle")}
+      body={tt("failedBody")}
+    />
+  );
 }
 
 function Field({
@@ -364,8 +467,15 @@ function Field({
 }) {
   return (
     <div className="rounded-lg border border-border bg-background p-4">
-      <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">{label}</dt>
-      <dd className={`mt-2 break-all text-sm font-semibold ${mono ? "font-mono" : ""}`} title={title ?? value}>{value}</dd>
+      <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+        {label}
+      </dt>
+      <dd
+        className={`mt-2 break-all text-sm font-semibold ${mono ? "font-mono" : ""}`}
+        title={title ?? value}
+      >
+        {value}
+      </dd>
     </div>
   );
 }
