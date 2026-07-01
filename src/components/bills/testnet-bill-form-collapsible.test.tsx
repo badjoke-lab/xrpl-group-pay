@@ -1,0 +1,156 @@
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import {
+  BILL_DESTINATION,
+  BILL_REVIEW_FIXTURE,
+  CREATED_BILL_FIXTURE,
+  PAYER_ONE,
+  PAYER_TWO,
+} from "@/test/fixtures/bill-review";
+
+import { TestnetBillForm } from "./testnet-bill-form";
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+function fillBase() {
+  fireEvent.change(screen.getByLabelText("Bill title"), {
+    target: { value: "Dinner" },
+  });
+  fireEvent.change(screen.getByLabelText("Creator destination address"), {
+    target: { value: BILL_DESTINATION },
+  });
+  fireEvent.change(screen.getByPlaceholderText("10"), {
+    target: { value: "10" },
+  });
+  fireEvent.change(screen.getByPlaceholderText("2"), {
+    target: { value: "2" },
+  });
+  const payers = screen.getAllByLabelText("Expected payer address");
+  fireEvent.change(payers[0], { target: { value: PAYER_ONE } });
+  fireEvent.change(payers[1], { target: { value: PAYER_TWO } });
+}
+
+function fillCustomBill() {
+  fillBase();
+  const labels = screen.getAllByLabelText("Label");
+  const amounts = screen.getAllByPlaceholderText("4");
+  fireEvent.change(labels[0], { target: { value: "Alex" } });
+  fireEvent.change(amounts[0], { target: { value: "3" } });
+  fireEvent.change(labels[1], { target: { value: "Blair" } });
+  fireEvent.change(amounts[1], { target: { value: "5" } });
+}
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+describe("TestnetBillForm with collapsible participants", () => {
+  it("shows three sections and preserves the Testnet default", () => {
+    render(<TestnetBillForm />);
+    expect(screen.getByRole("heading", { name: "Bill details" })).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Split and participants" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Review readiness" }),
+    ).toBeVisible();
+    expect(screen.getByLabelText(/Custom Amount/)).toBeChecked();
+    expect(screen.getByText("Allocation incomplete")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Review bill before freezing" }),
+    ).toBeDisabled();
+  });
+
+  it("shows under, exact, and over Custom Amount feedback", () => {
+    render(<TestnetBillForm />);
+    fireEvent.change(screen.getByPlaceholderText("10"), {
+      target: { value: "10" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("2"), {
+      target: { value: "2" },
+    });
+    const amounts = screen.getAllByPlaceholderText("4");
+    fireEvent.change(amounts[0], { target: { value: "3" } });
+    fireEvent.change(amounts[1], { target: { value: "4" } });
+    expect(screen.getByText("1 XRP remains to allocate.")).toBeVisible();
+    fireEvent.change(amounts[1], { target: { value: "5" } });
+    expect(screen.getByText("Allocation exact")).toBeVisible();
+    fireEvent.change(amounts[1], { target: { value: "6" } });
+    expect(screen.getByText(/allocated above the bill total/)).toBeVisible();
+  });
+
+  it("sends an Equal strategy request without participant amounts", async () => {
+    const fetcher = vi.fn().mockResolvedValue(jsonResponse(BILL_REVIEW_FIXTURE));
+    vi.stubGlobal("fetch", fetcher);
+    render(<TestnetBillForm />);
+    fireEvent.click(screen.getByLabelText(/^Equal/));
+    fillBase();
+
+    expect(screen.queryByLabelText("Assigned amount")).toBeNull();
+    expect(screen.getAllByText("4 XRP", { exact: true })).toHaveLength(4);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Review bill before freezing" }),
+    );
+    await screen.findByRole("heading", { name: "Review before freezing" });
+
+    const request = JSON.parse(
+      (fetcher.mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(request.allocation).toEqual({ strategy: "equal" });
+    expect(request.participants[0]).not.toHaveProperty("amount");
+  });
+
+  it("renders Percentage and Shares calculated obligations", () => {
+    render(<TestnetBillForm />);
+    fillBase();
+    fireEvent.click(screen.getByLabelText(/^Percentage/));
+    const percentages = screen.getAllByPlaceholderText("50");
+    fireEvent.change(percentages[0], { target: { value: "25" } });
+    fireEvent.change(percentages[1], { target: { value: "75" } });
+    expect(screen.getAllByText("2 XRP", { exact: true })).toHaveLength(3);
+    expect(screen.getAllByText("6 XRP", { exact: true })).toHaveLength(2);
+
+    fireEvent.click(screen.getByLabelText(/^Shares/));
+    expect(screen.getAllByText("4 XRP", { exact: true })).toHaveLength(4);
+  });
+
+  it("reviews before creating and preserves edits", async () => {
+    const fetcher = vi.fn().mockImplementation((url: string) =>
+      Promise.resolve(
+        url === "/api/bills/review"
+          ? jsonResponse(BILL_REVIEW_FIXTURE)
+          : jsonResponse(CREATED_BILL_FIXTURE, 201),
+      ),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    render(<TestnetBillForm />);
+    fillCustomBill();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Review bill before freezing" }),
+    );
+    await screen.findByRole("heading", { name: "Review before freezing" });
+    fireEvent.click(screen.getByRole("button", { name: "Back to edit" }));
+    expect(screen.getByLabelText("Bill title")).toHaveValue("Dinner");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Review bill before freezing" }),
+    );
+    await screen.findByRole("heading", { name: "Review before freezing" });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Freeze bill and create payment links",
+      }),
+    );
+    await waitFor(() => expect(screen.getByText("Bill created")).toBeVisible());
+    expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+});
