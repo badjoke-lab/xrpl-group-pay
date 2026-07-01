@@ -2,17 +2,29 @@
 
 import { useEffect, useState } from "react";
 
-type Destination = "/payment" | "/bill/progress" | "/proof";
+export type LegacyRouteDestination = "/payment" | "/bill/progress" | "/proof";
+
+export function legacyRouteTarget(
+  destination: LegacyRouteDestination,
+  search: string,
+  hash: string,
+) {
+  return `${destination}${search}${hash}`;
+}
 
 export function LegacyRouteRedirect({
   destination,
 }: {
-  destination: Destination;
+  destination: LegacyRouteDestination;
 }) {
   const [href, setHref] = useState(destination);
 
   useEffect(() => {
-    const target = `${destination}${window.location.search}${window.location.hash}`;
+    const target = legacyRouteTarget(
+      destination,
+      window.location.search,
+      window.location.hash,
+    );
     setHref(target);
     window.location.replace(target);
   }, [destination]);
