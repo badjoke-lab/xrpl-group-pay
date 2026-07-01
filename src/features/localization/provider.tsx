@@ -5,9 +5,7 @@ import {
   useCallback,
   useContext,
   useMemo,
-  useState,
 } from "react";
-import { useRouter } from "next/navigation";
 
 import {
   type Locale,
@@ -38,18 +36,19 @@ export function LocalizationProvider({
   initialLocale: Locale;
   children: React.ReactNode;
 }) {
-  const router = useRouter();
-  const [locale, setLocaleState] = useState(initialLocale);
+  const locale = initialLocale;
 
   const setLocale = useCallback(
     (nextLocale: Locale) => {
       if (nextLocale === locale) return;
       document.cookie = `${LOCALE_COOKIE}=${nextLocale}; Path=/; Max-Age=${ONE_YEAR_SECONDS}; SameSite=Lax`;
-      document.documentElement.lang = nextLocale;
-      setLocaleState(nextLocale);
-      router.refresh();
+
+      // Server-rendered page copy also depends on this cookie. A full navigation is
+      // required so the public shell and client form never remain in different
+      // languages behind an intermediary cache.
+      window.location.reload();
     },
-    [locale, router],
+    [locale],
   );
 
   const value = useMemo<LocalizationContextValue>(
