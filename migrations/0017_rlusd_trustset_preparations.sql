@@ -26,6 +26,18 @@ CREATE TABLE rlusd_trustset_preparations (
       'failed'
     )
   ),
+  provider_status TEXT CHECK (
+    provider_status IS NULL OR provider_status IN (
+      'created',
+      'available',
+      'opened',
+      'signed',
+      'submitted',
+      'rejected',
+      'expired',
+      'failed'
+    )
+  ),
   xaman_payload_id TEXT UNIQUE,
   mobile_uri TEXT,
   browser_uri TEXT,
@@ -34,6 +46,7 @@ CREATE TABLE rlusd_trustset_preparations (
   expires_at TEXT,
   transaction_id TEXT,
   failure_code TEXT,
+  last_provider_sync_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   verified_at TEXT
