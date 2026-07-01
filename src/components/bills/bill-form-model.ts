@@ -42,14 +42,14 @@ export const ALLOCATION_STRATEGIES: Array<{
   description: string;
 }> = [
   {
-    id: "custom",
-    label: "Custom Amount",
-    description: "Enter each participant obligation directly.",
-  },
-  {
     id: "equal",
     label: "Equal",
     description: "Split the participant portion evenly.",
+  },
+  {
+    id: "custom",
+    label: "Custom Amount",
+    description: "Enter each participant obligation directly.",
   },
   {
     id: "percentage",
@@ -82,8 +82,8 @@ export function newBillDraft(network: XrplNetwork = "testnet"): BillDraft {
     destinationTag: "",
     settlementAssetId: `xrpl:${network}:xrp` as SettlementAssetId,
     totalAmount: "",
-    creatorShareAmount: "",
-    allocationStrategy: "custom",
+    creatorShareAmount: "0",
+    allocationStrategy: "equal",
     remainderMode: "",
     remainderParticipantId: "",
     participants: [newParticipant(), newParticipant()],
@@ -92,8 +92,7 @@ export function newBillDraft(network: XrplNetwork = "testnet"): BillDraft {
 
 export function strategyLabel(strategy: AllocationFormStrategy) {
   return (
-    ALLOCATION_STRATEGIES.find((item) => item.id === strategy)?.label ??
-    strategy
+    ALLOCATION_STRATEGIES.find((item) => item.id === strategy)?.label ?? strategy
   );
 }
 
