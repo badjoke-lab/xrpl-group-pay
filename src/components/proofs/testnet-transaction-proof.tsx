@@ -127,6 +127,8 @@ function ProofLoader({ proofToken }: { proofToken: string }) {
 
 function ProofSnapshot({ proof }: { proof: PublicTransactionProof }) {
   const { pt } = useProofLocalization();
+  const networkLabel = proof.network === "mainnet" ? "Mainnet" : "Testnet";
+
   return (
     <div className="space-y-7">
       <section className="overflow-hidden rounded-xl border border-success/25 bg-surface shadow-sm">
@@ -139,7 +141,7 @@ function ProofSnapshot({ proof }: { proof: PublicTransactionProof }) {
                   {pt("verified")}
                 </span>
                 <span className="rounded-pill bg-brand-subtle px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
-                  Testnet
+                  {networkLabel}
                 </span>
               </div>
               <h2 className="mt-5 font-heading text-3xl font-semibold sm:text-4xl">

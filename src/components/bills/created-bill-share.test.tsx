@@ -28,12 +28,12 @@ describe("CreatedBillShare", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Copy creator progress link" }),
     );
-    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(writeText.mock.calls[0][0]).toContain("/bill/progress#token=");
 
     fireEvent.click(
       screen.getAllByRole("button", { name: "Copy payment link" })[0],
     );
-    expect(writeText).toHaveBeenCalledTimes(2);
+    expect(writeText.mock.calls[1][0]).toContain("/payment#token=");
   });
 
   it("returns to bill creation", () => {

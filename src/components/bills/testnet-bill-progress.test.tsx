@@ -81,14 +81,15 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("TestnetBillProgress", () => {
-  it("renders Asset-aware participant states", async () => {
+describe("TestnetBillProgress compatibility export", () => {
+  it("renders Asset-aware participant states with canonical proof links", async () => {
     const fetcher = vi.fn().mockResolvedValue(response(progress));
     vi.stubGlobal("fetch", fetcher);
     render(<TestnetBillProgress capabilityToken={TOKEN} />);
 
     expect(await screen.findByRole("heading", { name: "XRPL Meetup Dinner" })).toBeVisible();
     expect(screen.getByText("Creator view")).toBeVisible();
+    expect(screen.getByText("XRPL Testnet")).toBeVisible();
     expect(screen.getByText("1/2 paid")).toBeVisible();
     expect(screen.getByText("10 XRP")).toBeVisible();
     expect(screen.getAllByText("3 XRP", { exact: true })).toHaveLength(2);
@@ -96,6 +97,35 @@ describe("TestnetBillProgress", () => {
     expect(screen.getByText("Blair")).toBeVisible();
     expect(screen.getByText("Paid")).toBeVisible();
     expect(screen.getByText("Unpaid")).toBeVisible();
+    expect(screen.getByRole("link", { name: "View public proof" })).toHaveAttribute(
+      "href",
+      `/proof#token=${"D".repeat(64)}`,
+    );
+  });
+
+  it("renders the Mainnet badge from the loaded Bill", async () => {
+    const mainnetAsset = getXrpAssetDescriptor("mainnet");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        response({
+          ...progress,
+          bill: {
+            ...progress.bill,
+            network: "mainnet",
+            asset: mainnetAsset,
+          },
+          slots: progress.slots.map((slot) => ({
+            ...slot,
+            asset: mainnetAsset,
+          })),
+        }),
+      ),
+    );
+
+    render(<TestnetBillProgress capabilityToken={TOKEN} />);
+    expect(await screen.findByText("XRPL Mainnet")).toBeVisible();
+    expect(screen.queryByText("XRPL Testnet")).toBeNull();
   });
 
   it("redacts identities in the read-only view", async () => {

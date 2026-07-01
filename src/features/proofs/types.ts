@@ -1,12 +1,14 @@
 import { z } from "zod";
 
+import { xrplNetworkSchema } from "@/features/assets/types";
+
 const upperHex256Schema = z.string().regex(/^[A-F0-9]{64}$/);
 const dropsSchema = z.string().regex(/^(?:0|[1-9]\d*)$/);
 const uint32Schema = z.number().int().min(0).max(4_294_967_295);
 
 export const publicTransactionProofSchema = z
   .object({
-    network: z.literal("testnet"),
+    network: xrplNetworkSchema,
     validationStatus: z.literal("validated"),
     transactionResult: z.literal("tesSUCCESS"),
     transactionId: upperHex256Schema,

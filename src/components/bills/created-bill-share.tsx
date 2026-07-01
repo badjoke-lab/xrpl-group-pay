@@ -9,11 +9,11 @@ import { useLocalization } from "@/features/localization/provider";
 import { formatMoneyAmount } from "@/features/money/money";
 
 function paymentUrl(token: string) {
-  return `${window.location.origin}/testnet/payment#token=${token}`;
+  return `${window.location.origin}/payment#token=${token}`;
 }
 
 function progressUrl(token: string) {
-  return `${window.location.origin}/testnet/bill/progress#token=${token}`;
+  return `${window.location.origin}/bill/progress#token=${token}`;
 }
 
 function amount(value: CreatedBill["bill"]["totalAmount"]) {

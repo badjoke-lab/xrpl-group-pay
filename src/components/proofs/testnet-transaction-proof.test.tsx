@@ -27,8 +27,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("TestnetTransactionProof", () => {
-  it("shows verified public facts without private bill context", async () => {
+describe("TestnetTransactionProof compatibility export", () => {
+  it("shows verified Testnet facts without private bill context", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(response(PUBLIC_PROOF_FIXTURE)),
@@ -39,12 +39,27 @@ describe("TestnetTransactionProof", () => {
     expect(
       await screen.findByRole("heading", { name: "3 XRP delivered" }),
     ).toBeVisible();
+    expect(screen.getByText("Testnet")).toBeVisible();
     expect(screen.getByText("Ledger verified")).toBeVisible();
     expect(screen.getByText("tesSUCCESS")).toBeVisible();
     expect(screen.getByText("Validated")).toBeVisible();
     expect(screen.getByText(PUBLIC_PROOF_TOKEN)).toBeVisible();
     expect(screen.queryByText("XRPL Meetup Dinner")).toBeNull();
     expect(screen.queryByText("Alex")).toBeNull();
+  });
+
+  it("renders the network stored in a Mainnet proof", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        response({ ...PUBLIC_PROOF_FIXTURE, network: "mainnet" }),
+      ),
+    );
+
+    render(<TestnetTransactionProof proofToken={PUBLIC_PROOF_TOKEN} />);
+
+    expect(await screen.findByText("Mainnet")).toBeVisible();
+    expect(screen.queryByText("Testnet")).toBeNull();
   });
 
   it("shows an invalid-link state without making a request", () => {

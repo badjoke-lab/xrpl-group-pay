@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { xrplNetworkSchema } from "@/features/assets/types";
 import type { D1DatabaseLike } from "@/features/persistence/d1-types";
 import { digestVerifiedProof } from "@/features/persistence/digest-verified-proof";
 
@@ -11,7 +12,7 @@ import {
 const proofTokenSchema = z.string().regex(/^[A-F0-9]{64}$/i);
 
 const receiptRowSchema = z.object({
-  network: z.literal("testnet"),
+  network: xrplNetworkSchema,
   transaction_id: z.string().regex(/^[A-F0-9]{64}$/),
   ledger_index: z.number().int().min(0),
   sender: z.string().min(1),
@@ -86,7 +87,8 @@ export async function loadPublicProofByToken(
       sourceTag: parsedRow.data.source_tag,
       destinationTag: parsedRow.data.destination_tag,
       invoiceId: parsedRow.data.invoice_id,
-      idempotencyKey: `testnet:${parsedRow.data.transaction_id}` as const,
+      idempotencyKey:
+        `${parsedRow.data.network}:${parsedRow.data.transaction_id}` as const,
       verifiedAt: parsedRow.data.verified_at,
     };
     const calculatedDigest = await digestVerifiedProof(verifiedProof);
