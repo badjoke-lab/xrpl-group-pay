@@ -17,6 +17,9 @@ export const xrplSettlementAssetIdSchema = z.enum([
   "xrpl:mainnet:rlusd",
 ]);
 
+export const billPaymentModeSchema = z.enum(["representative", "direct"]);
+export const billClosureStateSchema = z.enum(["active", "closed_incomplete"]);
+
 const decimalAmountSchema = z
   .string()
   .trim()
@@ -100,15 +103,42 @@ export type BillAllocationInput = z.infer<typeof billAllocationInputSchema>;
 const canonicalCreateBillInputSchema = z
   .object({
     title: z.string().trim().min(1).max(100),
+    paymentMode: billPaymentModeSchema.optional().default("representative"),
+    recipientLabel: z.string().trim().max(100).optional(),
     destinationAddress: z.string().trim().min(1),
     destinationTag: destinationTagSchema.optional(),
     settlementAssetId: xrplSettlementAssetIdSchema,
     totalAmount: decimalAmountSchema,
-    creatorShareAmount: decimalAmountSchema,
+    recipientFundedAmount: decimalAmountSchema.optional(),
+    creatorShareAmount: decimalAmountSchema.optional(),
     allocation: billAllocationInputSchema.optional(),
     participants: z.array(participantInputSchema).min(2).max(50),
   })
-  .strict();
+  .strict()
+  .transform((input) => {
+    const recipientFundedAmount =
+      input.recipientFundedAmount ?? input.creatorShareAmount ?? "0";
+    return {
+      title: input.title,
+      paymentMode: input.paymentMode,
+      ...(input.recipientLabel === undefined
+        ? {}
+        : { recipientLabel: input.recipientLabel }),
+      destinationAddress: input.destinationAddress,
+      ...(input.destinationTag === undefined
+        ? {}
+        : { destinationTag: input.destinationTag }),
+      settlementAssetId: input.settlementAssetId,
+      totalAmount: input.totalAmount,
+      recipientFundedAmount,
+      creatorShareAmount: recipientFundedAmount,
+      ...(input.creatorShareAmount === undefined
+        ? {}
+        : { compatibilityCreatorShareAmount: input.creatorShareAmount }),
+      ...(input.allocation === undefined ? {} : { allocation: input.allocation }),
+      participants: input.participants,
+    };
+  });
 
 const legacyXrpCreateBillInputSchema = z
   .object({
@@ -133,13 +163,16 @@ const legacyXrpCreateBillInputSchema = z
   .strict()
   .transform((input) => ({
     title: input.title,
+    paymentMode: "representative" as const,
     destinationAddress: input.destinationAddress,
     ...(input.destinationTag === undefined
       ? {}
       : { destinationTag: input.destinationTag }),
     settlementAssetId: "xrpl:testnet:xrp" as const,
     totalAmount: input.totalXrp,
+    recipientFundedAmount: input.creatorShareXrp,
     creatorShareAmount: input.creatorShareXrp,
+    compatibilityCreatorShareAmount: input.creatorShareXrp,
     participants: input.participants.map((participant) => ({
       ...(participant.label === undefined ? {} : { label: participant.label }),
       expectedPayerAddress: participant.expectedPayerAddress,
@@ -149,11 +182,15 @@ const legacyXrpCreateBillInputSchema = z
 
 export type NormalizedCreateBillInput = {
   title: string;
+  paymentMode: z.infer<typeof billPaymentModeSchema>;
+  recipientLabel?: string;
   destinationAddress: string;
   destinationTag?: string | number;
   settlementAssetId: z.infer<typeof xrplSettlementAssetIdSchema>;
   totalAmount: string;
+  recipientFundedAmount: string;
   creatorShareAmount: string;
+  compatibilityCreatorShareAmount?: string;
   allocation?: BillAllocationInput;
   participants: Array<{
     participantId?: string;
@@ -182,13 +219,17 @@ export const billReviewSchema = z
   .object({
     network: xrplNetworkSchema,
     title: z.string().min(1).max(100),
+    paymentMode: billPaymentModeSchema,
+    recipientLabel: z.string().max(100).nullable(),
     destinationAddress: z.string().min(1),
     destinationTag: z.number().int().min(0).max(4_294_967_295).nullable(),
     asset: assetDescriptorSchema,
     totalAmount: moneyAmountSchema,
+    recipientFundedAmount: moneyAmountSchema,
     creatorShareAmount: moneyAmountSchema,
     allocatedAmount: moneyAmountSchema,
     totalDrops: positiveDropsSchema.nullable(),
+    recipientFundedDrops: dropsSchema.nullable(),
     creatorShareDrops: dropsSchema.nullable(),
     allocatedDrops: positiveDropsSchema.nullable(),
     participants: z.array(reviewedParticipantSchema),
@@ -204,14 +245,19 @@ export const createdBillSchema = z
         publicId: z.string().uuid(),
         title: z.string().min(1).max(100),
         network: xrplNetworkSchema,
+        paymentMode: billPaymentModeSchema,
+        recipientLabel: z.string().max(100).nullable(),
         destinationAddress: z.string().min(1),
         destinationTag: z.number().int().min(0).max(4_294_967_295).nullable(),
         asset: assetDescriptorSchema,
         totalAmount: moneyAmountSchema,
+        recipientFundedAmount: moneyAmountSchema,
         creatorShareAmount: moneyAmountSchema,
         totalDrops: dropsSchema.nullable(),
+        recipientFundedDrops: dropsSchema.nullable(),
         creatorShareDrops: dropsSchema.nullable(),
         status: z.literal("open"),
+        closureState: z.literal("active"),
         revision: z.literal(1),
         frozenAt: z.string().datetime(),
         createdAt: z.string().datetime(),
