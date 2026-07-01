@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { BillInputError, prepareBillReview } from "./create-bill";
 
-const destinationAddress = "rPEPPER7kfTD9w2To4CQk6UCfuHM9c6GDY";
+const destinationAddress = "r9cZA1mLK5R5Am25ArfXFmqgNwjZgnfk59";
 const payers = [
   "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
   "rN7n7otQDd6FczFgLdSqtcsAUxDkw6fzRH",
