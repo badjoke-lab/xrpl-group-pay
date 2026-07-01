@@ -37,6 +37,13 @@ Describe the change and its product or operational outcome.
 - [ ] Existing XRP receipt and proof compatibility preserved or explicitly migrated
 - [ ] Unsupported conditions fail closed
 
+## Public-surface review
+
+- [ ] No secrets, private capability data, or internal credentials are included.
+- [ ] No private strategy, personal constraints, or unpublished pivot or continuation criteria are included.
+- [ ] No unnecessary internal context from other projects is included.
+- [ ] Roadmap and changelog wording describes product direction rather than internal contingency planning.
+
 ## Localization
 
 - [ ] English text reviewed
