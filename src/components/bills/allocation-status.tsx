@@ -23,6 +23,24 @@ const REMAINDER_INSTRUCTION = {
   ko: "남은 최소 자산 단위를 누구에게 배정할지 명확히 선택하세요.",
 } as const;
 
+const STRATEGY_INCOMPLETE = {
+  equal: {
+    en: "Enter the bill total to calculate each participant share.",
+    ja: "請求合計を入力すると、参加者ごとの負担額が計算されます。",
+    ko: "청구 총액을 입력하면 참가자별 부담액이 계산됩니다.",
+  },
+  percentage: {
+    en: "Enter the bill total and percentages that add up to 100%.",
+    ja: "請求合計と、合計100%になる参加者ごとの割合を入力してください。",
+    ko: "청구 총액과 합계가 100%인 참가자별 비율을 입력하세요.",
+  },
+  shares: {
+    en: "Enter the bill total and a positive share for every participant.",
+    ja: "請求合計と、各参加者の正の比率を入力してください。",
+    ko: "청구 총액과 각 참가자의 양수 비율을 입력하세요.",
+  },
+} as const;
+
 export function AllocationStatus({
   strategy,
   customAllocation,
@@ -55,7 +73,7 @@ export function AllocationStatus({
             ? t("bill.status.matches", { asset: assetSymbol })
             : needsRemainder
               ? REMAINDER_INSTRUCTION[locale]
-              : t("bill.status.enterAll")
+              : STRATEGY_INCOMPLETE[strategy][locale]
         }
       />
     );
@@ -129,9 +147,9 @@ function StatusBox({
       ) : (
         <CircleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
       )}
-      <div>
+      <div className="min-w-0">
         <p className="font-semibold">{title}</p>
-        <p className="mt-1 text-sm leading-6">{message}</p>
+        <p className="mt-1 break-words text-sm leading-6">{message}</p>
       </div>
     </div>
   );
