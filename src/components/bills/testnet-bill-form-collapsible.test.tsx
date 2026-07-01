@@ -69,6 +69,31 @@ describe("TestnetBillForm with collapsible participants", () => {
     ).toBeDisabled();
   });
 
+  it("selects RLUSD and sends the RLUSD asset in the review request", async () => {
+    const fetcher = vi.fn().mockResolvedValue(jsonResponse(BILL_REVIEW_FIXTURE));
+    vi.stubGlobal("fetch", fetcher);
+    render(<TestnetBillForm />);
+
+    const rlusd = screen.getByLabelText(/^RLUSD/);
+    fireEvent.click(rlusd);
+    expect(rlusd).toBeChecked();
+    expect(
+      screen.getByText(/destination account must be ready to receive official RLUSD/i),
+    ).toBeVisible();
+    expect(screen.getAllByText("RLUSD", { exact: true }).length).toBeGreaterThan(2);
+
+    fillCustomBill();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Review bill before freezing" }),
+    );
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+
+    const request = JSON.parse(
+      (fetcher.mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(request.settlementAssetId).toBe("xrpl:testnet:rlusd");
+  });
+
   it("shows under, exact, and over Custom Amount feedback", () => {
     render(<TestnetBillForm />);
     fireEvent.change(screen.getByPlaceholderText("10"), {
