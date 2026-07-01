@@ -20,9 +20,12 @@ test("shows natural Japanese copy and allows RLUSD selection", async ({ page }) 
     page.getByRole("heading", { level: 1, name: "割り勘の内容を入力" }),
   ).toBeVisible();
 
-  const rlusd = page.getByLabel(/^RLUSD/);
-  await rlusd.click();
-  await expect(rlusd).toBeChecked();
+  const rlusdInput = page.locator(
+    'input[name="settlementAsset"][value$=":rlusd"]',
+  );
+  const rlusdCard = page.locator("label").filter({ has: rlusdInput });
+  await rlusdCard.click();
+  await expect(rlusdInput).toBeChecked();
   await expect(
     page.getByText(/RLUSDを受け取るアカウントにはRLUSDのトラストラインが必要です/),
   ).toBeVisible();
