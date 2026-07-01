@@ -133,6 +133,21 @@ describe("loadPayablePaymentDetails", () => {
     });
   });
 
+  it("keeps submitted and validating slots readable for safe resume", async () => {
+    for (const slotStatus of ["submitted", "validating"]) {
+      await expect(
+        loadPayablePaymentDetails(
+          new Database({ ...row, slot_status: slotStatus }),
+          token,
+          123456,
+        ),
+      ).resolves.toMatchObject({
+        billTitle: "Dinner",
+        expectedPayerAddress: "rPayer",
+      });
+    }
+  });
+
   it("fails closed for an already-paid slot", async () => {
     await expect(
       loadPayablePaymentDetails(
