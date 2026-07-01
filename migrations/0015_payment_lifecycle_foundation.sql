@@ -37,3 +37,31 @@ ON bills(payment_mode, closure_state, updated_at);
 
 CREATE INDEX payment_slots_review_reason_idx
 ON payment_slots(review_reason_code, updated_at);
+
+CREATE TRIGGER bills_recipient_funded_after_insert
+AFTER INSERT ON bills
+FOR EACH ROW
+WHEN NEW.recipient_funded_amount_units IS NULL
+BEGIN
+  UPDATE bills
+  SET recipient_funded_amount_units = COALESCE(
+    NEW.creator_share_amount_units,
+    NEW.creator_share_drops,
+    '0'
+  )
+  WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER bills_direct_mode_before_insert
+BEFORE INSERT ON bills
+FOR EACH ROW
+WHEN NEW.payment_mode = 'direct'
+  AND COALESCE(
+    NEW.recipient_funded_amount_units,
+    NEW.creator_share_amount_units,
+    NEW.creator_share_drops,
+    '0'
+  ) <> '0'
+BEGIN
+  SELECT RAISE(ABORT, 'direct Bills require zero recipient-funded amount');
+END;
