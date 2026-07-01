@@ -2,7 +2,7 @@
 
 **Status:** Active  
 **Scope:** Public documentation map and precedence rules  
-**Last reviewed:** 2026-06-29  
+**Last reviewed:** 2026-07-01  
 **Document class:** Public
 
 ## 1. Purpose
@@ -18,9 +18,12 @@ When two documents appear inconsistent, use this order and open a corrective doc
 3. safety, state, privacy, and verification boundaries;
 4. feature contracts;
 5. user-experience specifications;
-6. public roadmap and changelog.
+6. implementation schedules;
+7. public roadmap and changelog.
 
 A lower-precedence document cannot silently weaken a higher-precedence safety or product requirement.
+
+Within the product and architecture class, `payment-lifecycle-contract.md` is the specific contract for the PR #132–#149 revision and controls where older general creator-centric wording assumes that the Bill creator is always the recipient.
 
 ## 3. External requirements
 
@@ -31,10 +34,12 @@ External requirements describe obligations imposed on the project. They do not r
 ## 4. Product and architecture
 
 - `product-spec.md` — public product scope, Make Waves v1 target, actors, domain model, acceptance criteria, and post-submission direction.
+- `payment-lifecycle-contract.md` — specific role, payment-mode, lifecycle, recovery, Guide, help, and semantic-status contract for the active revision.
 - `architecture.md` — dependency direction and extension boundaries for the Group Pay core, payment domain, adapters, and payment rails.
 - `payment-contracts.md` — logical contracts for assets, Payment Intents, Wallet Providers, verification, receipts, quotes, and rails.
 - `money-and-allocation.md` — fixed-precision money model, Accounting Currency, Settlement Asset, allocation strategies, and future quote behavior.
-- `localization.md` — English, Japanese, and Korean localization contract.
+- `localization.md` — base English, Japanese, and Korean localization contract.
+- `payment-lifecycle-localization.md` — terminology, Guide, help, status, copied-instruction, and recovery coverage for the active revision.
 - `open-decisions.md` — active, blocked, superseded, and decided implementation questions.
 
 These documents define approved behavior. They may describe target behavior that is not yet available. Current availability must be stated separately in the root `README.md`, `ROADMAP.md`, and `CHANGELOG.md`.
@@ -43,8 +48,9 @@ These documents define approved behavior. They may describe target behavior that
 
 - `non-custodial-boundary.md` — capabilities the product may and must not acquire.
 - `threat-model.md` — protected assets, trust boundaries, abuse cases, mitigations, and release gates.
+- `payment-lifecycle-security.md` — added role, retry, TrustSet, Guide, closure, copy, and Mainnet-progress controls for the active revision.
 - `privacy-data-map.md` — data classification, storage, disclosure, retention, and deletion.
-- `state-machine.md` — Bill, PaymentSlot, wallet-handoff, transaction-observation, and verification states.
+- `state-machine.md` — Bill, PaymentSlot, wallet-handoff, transaction-observation, recovery, and verification states.
 - `persistence-scope.md` — durable records, compatibility guarantees, and current database scope.
 - `d1-provisioning.md` — local, Testnet, and Mainnet D1 provisioning and migration controls.
 - `transaction-proof.md` — public proof fields, digest contracts, privacy boundary, and integrity checks.
@@ -59,21 +65,28 @@ Any change to custody, asset identity, wallet authority, expected payment facts,
 
 ## 6. Feature contracts
 
-- `bill-review.md` — creator review and Bill-freeze boundary.
-- `payment-final-confirmation.md` — participant review before Wallet Handoff creation.
+- `bill-review.md` — Bill-operator review and Bill-freeze boundary.
+- `payment-final-confirmation.md` — payer review before Wallet Handoff creation.
 
-A feature contract documents the exact behavior of a shipped or actively implemented vertical slice. It cannot broaden the product beyond `product-spec.md`.
+A feature contract documents the exact behavior of a shipped or actively implemented vertical slice. It cannot broaden the product beyond the product and architecture specifications.
 
 ## 7. User experience
 
-- `ui-ux-spec.md` — experience principles, content order, error presentation, and wallet/asset display.
+- `ui-ux-spec.md` — experience principles, content order, contextual help, status presentation, and wallet/asset display.
 - `screen-inventory.md` — required screens, actors, priorities, states, and fixtures.
 - `accessibility-spec.md` — WCAG target and critical-flow accessibility requirements.
 - `responsive-behavior.md` — viewport, reflow, navigation, table, and visual-regression behavior.
 - `design-tokens.md` — color, typography, spacing, controls, and semantic visual rules.
 - `motion-spec.md` — permitted, reduced, and prohibited motion.
 
-## 8. Public direction and history
+## 8. Implementation schedules
+
+- `payment-lifecycle-revision-schedule.md` — active PR #132–#149 sequence for the payment-lifecycle revision.
+- `mainnet-release-plan.md` — specialized Mainnet release sequence, not the general product-development schedule.
+
+Schedules order approved work but do not override the documents above. Before each scheduled PR, review all affected higher-precedence documents and correct any conflict before implementation continues.
+
+## 9. Public direction and history
 
 - `../ROADMAP.md` — public direction and current status using Available, In Progress, Next, Later, and Research.
 - `../CHANGELOG.md` — meaningful completed user-facing, security, compatibility, and operational changes.
@@ -81,17 +94,18 @@ A feature contract documents the exact behavior of a shipped or actively impleme
 
 Roadmap items are not implementation promises. Changelog entries must describe completed behavior only.
 
-## 9. Current implementation versus approved target
+## 10. Current implementation versus approved target
 
 Documents use a `Scope` header:
 
 - **Current implementation** describes behavior that exists on `main`.
 - **Approved Make Waves v1 target** describes behavior that implementation PRs must reach before the target release.
+- **Approved implementation sequence** describes ordered work that is not available until merged, tested, and verified.
 - **Post-submission direction** describes an extension boundary or future capability, not current availability.
 
 The root `README.md` must keep current availability and approved target visibly separate.
 
-## 10. Change discipline
+## 11. Change discipline
 
 A major PR must state whether it affects:
 
@@ -104,7 +118,10 @@ A major PR must state whether it affects:
 - privacy or persistence;
 - localization;
 - Mainnet operations, evidence, or acceptance;
+- implementation schedule;
 - Roadmap;
 - Changelog.
 
 A change that affects one of these areas must update the relevant documents in the same documentation sequence or explain why no update is required.
+
+Every scheduled PR must list the higher-precedence documents it reviewed and keep planned behavior separate from shipped availability.

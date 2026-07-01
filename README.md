@@ -54,6 +54,8 @@ Remaining submission work is limited to:
 
 ## Product direction
 
+The approved payment-lifecycle revision is defined by the [payment lifecycle contract](docs/payment-lifecycle-contract.md) and tracked in the [PR #132–#149 implementation schedule](docs/payment-lifecycle-revision-schedule.md). Planned behavior remains separate from the current implementation until the corresponding PRs are merged, tested, and verified.
+
 Later work includes more tested XRPL Wallet Providers, fiat-denominated Bills, participant asset choice, Settlement Quotes, Persistent Groups, Settlement Circles, Event Collection, curated additional XRPL assets, and research into additional Payment Rails.
 
 See [ROADMAP.md](ROADMAP.md) for public status and direction.
@@ -85,13 +87,17 @@ A wallet status or transaction identifier is not payment proof. The server check
 Start with [docs/README.md](docs/README.md).
 
 - [Product specification](docs/product-spec.md)
+- [Payment lifecycle contract](docs/payment-lifecycle-contract.md)
 - [Architecture](docs/architecture.md)
 - [Payment contracts](docs/payment-contracts.md)
 - [Money and allocation](docs/money-and-allocation.md)
 - [Localization](docs/localization.md)
+- [Payment lifecycle localization](docs/payment-lifecycle-localization.md)
 - [Non-custodial boundary](docs/non-custodial-boundary.md)
 - [Threat model](docs/threat-model.md)
+- [Payment lifecycle security](docs/payment-lifecycle-security.md)
 - [Make Waves requirements](docs/make-waves-requirements.md)
+- [Payment lifecycle revision schedule](docs/payment-lifecycle-revision-schedule.md)
 - [Mainnet operational controls](docs/mainnet-operational-controls.md)
 - [Mainnet acceptance audit](docs/mainnet-acceptance-audit.md)
 - [Mainnet release evidence](docs/mainnet-release-evidence.md)

@@ -1,7 +1,7 @@
 # XRPL Group Pay Roadmap
 
 **Status:** Active  
-**Last reviewed:** 2026-06-30
+**Last reviewed:** 2026-07-01
 
 This roadmap shows product direction, not promised dates. A capability moves to **Available** only after it is merged, tested, and usable in the intended environment.
 
@@ -24,6 +24,22 @@ This roadmap shows product direction, not promised dates. A capability moves to 
 - English, Japanese, and Korean critical creator and payer flows.
 - Public Roadmap and Changelog pages in the application interface.
 - Approved Mainnet release gate and verified public operating deployment.
+
+## In Progress
+
+The approved payment-lifecycle revision is scheduled in [`docs/payment-lifecycle-revision-schedule.md`](docs/payment-lifecycle-revision-schedule.md). Planned work includes:
+
+- distinct Bill-operator, recipient, and payer roles;
+- representative-payment and direct-recipient Bill modes;
+- Mainnet-safe progress and durable Xaman lifecycle synchronization;
+- XRP and RLUSD recipient and payer readiness checks;
+- official RLUSD TrustSet preparation assistance;
+- failure classification, safe retry, review, incomplete closure, and copy-to-revise behavior;
+- semantic status badges and restrained state colors;
+- a complete English, Japanese, and Korean Guide with contextual in-flow help;
+- integrated lifecycle, accessibility, privacy, visual, Testnet, and Mainnet-safe audit.
+
+These capabilities remain planned until their individual PRs are merged, tested, and usable in the intended environment.
 
 ## Release blockers
 
