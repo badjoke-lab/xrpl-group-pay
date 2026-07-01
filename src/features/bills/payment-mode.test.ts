@@ -66,6 +66,18 @@ describe("Bill payment modes", () => {
     ).toThrow(BillInputError);
   });
 
+  it("rejects mismatched new and compatibility recipient-funded values", () => {
+    expect(() =>
+      prepareBillReview({
+        ...directInput(),
+        recipientFundedAmount: "0",
+        creatorShareAmount: "1",
+      }),
+    ).toThrow(
+      "Recipient-funded amount and creator-share compatibility amount must match.",
+    );
+  });
+
   it("rejects creator remainder assignment in direct mode", () => {
     expect(() =>
       prepareBillReview({
