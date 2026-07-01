@@ -21,10 +21,11 @@ export function BillFormChoiceCard({
 }) {
   return (
     <label
-      className={`min-w-0 overflow-hidden rounded-xl border p-4 transition-colors sm:p-5 ${
+      data-selected={checked ? "true" : "false"}
+      className={`relative min-w-0 cursor-pointer select-none overflow-hidden rounded-xl border p-4 transition-colors focus-within:outline-none focus-within:ring-3 focus-within:ring-focus/30 sm:p-5 ${
         checked
           ? "border-brand bg-brand-subtle"
-          : "border-border bg-background hover:border-brand/50"
+          : "border-border bg-background hover:border-brand/60 hover:bg-brand-subtle/30"
       }`}
     >
       <input
@@ -33,7 +34,7 @@ export function BillFormChoiceCard({
         value={value}
         checked={checked}
         onChange={onChange}
-        className="sr-only"
+        className="peer sr-only"
       />
       <div className="flex min-w-0 items-start justify-between gap-3 sm:gap-4">
         <div className="min-w-0">
@@ -43,14 +44,17 @@ export function BillFormChoiceCard({
           <p className="mt-1 text-sm leading-6 text-muted">{description}</p>
         </div>
         <div
-          className={`flex size-8 shrink-0 items-center justify-center rounded-full ${
-            checked ? "bg-brand text-white" : "bg-surface text-muted"
+          aria-hidden="true"
+          className={`flex size-8 shrink-0 items-center justify-center rounded-full transition-colors ${
+            checked
+              ? "bg-brand text-white"
+              : "border border-border bg-background text-muted peer-focus-visible:border-brand"
           }`}
         >
           {checked ? (
-            <CheckCircle2 aria-hidden="true" className="size-5" />
+            <CheckCircle2 className="size-5" />
           ) : (
-            <Circle aria-hidden="true" className="size-5" />
+            <Circle className="size-5" />
           )}
         </div>
       </div>
