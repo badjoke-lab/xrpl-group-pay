@@ -23,6 +23,8 @@ When two documents appear inconsistent, use this order and open a corrective doc
 
 A lower-precedence document cannot silently weaken a higher-precedence safety or product requirement.
 
+Within the product and architecture class, `payment-lifecycle-contract.md` is the specific contract for the PR #132–#149 revision and controls where older general creator-centric wording assumes that the Bill creator is always the recipient.
+
 ## 3. External requirements
 
 - `make-waves-requirements.md` — official challenge requirements, unresolved organizer questions, metrics assumptions, and submission gates.
@@ -32,6 +34,7 @@ External requirements describe obligations imposed on the project. They do not r
 ## 4. Product and architecture
 
 - `product-spec.md` — public product scope, Make Waves v1 target, actors, domain model, acceptance criteria, and post-submission direction.
+- `payment-lifecycle-contract.md` — specific role, payment-mode, lifecycle, recovery, Guide, help, and semantic-status contract for the active revision.
 - `architecture.md` — dependency direction and extension boundaries for the Group Pay core, payment domain, adapters, and payment rails.
 - `payment-contracts.md` — logical contracts for assets, Payment Intents, Wallet Providers, verification, receipts, quotes, and rails.
 - `money-and-allocation.md` — fixed-precision money model, Accounting Currency, Settlement Asset, allocation strategies, and future quote behavior.
@@ -45,7 +48,7 @@ These documents define approved behavior. They may describe target behavior that
 - `non-custodial-boundary.md` — capabilities the product may and must not acquire.
 - `threat-model.md` — protected assets, trust boundaries, abuse cases, mitigations, and release gates.
 - `privacy-data-map.md` — data classification, storage, disclosure, retention, and deletion.
-- `state-machine.md` — Bill, PaymentSlot, wallet-handoff, transaction-observation, and verification states.
+- `state-machine.md` — Bill, PaymentSlot, wallet-handoff, transaction-observation, recovery, and verification states.
 - `persistence-scope.md` — durable records, compatibility guarantees, and current database scope.
 - `d1-provisioning.md` — local, Testnet, and Mainnet D1 provisioning and migration controls.
 - `transaction-proof.md` — public proof fields, digest contracts, privacy boundary, and integrity checks.
@@ -60,14 +63,14 @@ Any change to custody, asset identity, wallet authority, expected payment facts,
 
 ## 6. Feature contracts
 
-- `bill-review.md` — creator review and Bill-freeze boundary.
-- `payment-final-confirmation.md` — participant review before Wallet Handoff creation.
+- `bill-review.md` — Bill-operator review and Bill-freeze boundary.
+- `payment-final-confirmation.md` — payer review before Wallet Handoff creation.
 
-A feature contract documents the exact behavior of a shipped or actively implemented vertical slice. It cannot broaden the product beyond `product-spec.md`.
+A feature contract documents the exact behavior of a shipped or actively implemented vertical slice. It cannot broaden the product beyond the product and architecture specifications.
 
 ## 7. User experience
 
-- `ui-ux-spec.md` — experience principles, content order, error presentation, and wallet/asset display.
+- `ui-ux-spec.md` — experience principles, content order, contextual help, status presentation, and wallet/asset display.
 - `screen-inventory.md` — required screens, actors, priorities, states, and fixtures.
 - `accessibility-spec.md` — WCAG target and critical-flow accessibility requirements.
 - `responsive-behavior.md` — viewport, reflow, navigation, table, and visual-regression behavior.
