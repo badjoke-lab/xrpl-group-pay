@@ -76,14 +76,15 @@ export function newParticipant(): ParticipantDraft {
 }
 
 export function newBillDraft(network: XrplNetwork = "testnet"): BillDraft {
+  const mainnet = network === "mainnet";
   return {
     title: "",
     destinationAddress: "",
     destinationTag: "",
     settlementAssetId: `xrpl:${network}:xrp` as SettlementAssetId,
     totalAmount: "",
-    creatorShareAmount: "0",
-    allocationStrategy: "equal",
+    creatorShareAmount: mainnet ? "0" : "",
+    allocationStrategy: mainnet ? "equal" : "custom",
     remainderMode: "",
     remainderParticipantId: "",
     participants: [newParticipant(), newParticipant()],
