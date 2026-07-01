@@ -2,7 +2,7 @@
 
 **Status:** Active  
 **Scope:** Public documentation map and precedence rules  
-**Last reviewed:** 2026-07-01  
+**Last reviewed:** 2026-07-02  
 **Document class:** Public
 
 ## 1. Purpose
@@ -53,6 +53,8 @@ These documents define approved behavior. They may describe target behavior that
 - `state-machine.md` — Bill, PaymentSlot, wallet-handoff, transaction-observation, recovery, and verification states.
 - `persistence-scope.md` — durable records, compatibility guarantees, and current database scope.
 - `payment-mode-persistence.md` — current PR #133 payment-mode, recipient-funded, closure, and review storage contract.
+- `network-progress-and-routes.md` — current PR #134 network-derived progress, canonical routes, and legacy fragment-preserving redirects.
+- `xaman-lifecycle-persistence.md` — current PR #135 durable Xaman state, callback and polling synchronization, resume, and retry boundaries.
 - `d1-provisioning.md` — local, Testnet, and Mainnet D1 provisioning and migration controls.
 - `transaction-proof.md` — public proof fields, digest contracts, privacy boundary, and integrity checks.
 - `payment-reconciliation.md` — validated-ledger reconciliation required before replacing a prior Wallet Handoff.

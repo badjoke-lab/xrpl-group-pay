@@ -1,8 +1,10 @@
 import type { D1DatabaseLike } from "@/features/persistence/d1-types";
+import { ActiveRequestError } from "@/features/persistence/request-state-errors";
 import {
   hasPriorRequest,
+  loadActiveRequest,
   persistRequestState,
-  requireNoActiveRequest,
+  providerRequestStateFromHandoff,
 } from "@/features/persistence/request-state-store";
 import {
   WalletProviderError,
@@ -50,18 +52,64 @@ function requireParticipantHandoffFields(handoff: WalletHandoff) {
   };
 }
 
+function resumeExistingPayload(
+  slot: ResolvedPaymentSlot,
+  sourceTag: number,
+  request: Awaited<ReturnType<typeof loadActiveRequest>>,
+): StoredSlotPayload | null {
+  if (!request) return null;
+  const billAcceptsResume = ["open", "partially_paid"].includes(slot.billStatus);
+  const slotAcceptsResume = [
+    "unpaid",
+    "payload_created",
+    "awaiting_signature",
+    "submitted",
+    "validating",
+  ].includes(slot.slotStatus);
+  if (!billAcceptsResume || !slotAcceptsResume) {
+    requirePayableSlot(slot);
+    return null;
+  }
+
+  const deepLink = request.mobileUri ?? request.browserUri;
+  if (!deepLink || !request.qrImageUrl || !request.statusChannel) {
+    throw new ActiveRequestError();
+  }
+
+  return {
+    payloadId: request.requestId,
+    status: "waiting",
+    deepLink,
+    qrPng: request.qrImageUrl,
+    websocketUrl: request.statusChannel,
+    slot: {
+      publicId: slot.slotPublicId,
+      billPublicId: slot.billPublicId,
+      ...paymentDetailsFromSlot(slot, sourceTag),
+    },
+  };
+}
+
 export async function createPersistedSlotPayload(
   database: D1DatabaseLike,
   capability: string,
   dependencies: PersistedPayloadDependencies,
 ): Promise<StoredSlotPayload> {
   const now = dependencies.now?.() ?? new Date();
-  const slot = requirePayableSlot(
-    await loadPaymentSlotByToken(database, capability),
+  const loadedSlot = await loadPaymentSlotByToken(database, capability);
+  const activeRequest = await loadActiveRequest(
+    database,
+    loadedSlot.slotId,
+    now,
   );
+  const resumed = resumeExistingPayload(
+    loadedSlot,
+    dependencies.sourceTag,
+    activeRequest,
+  );
+  if (resumed) return resumed;
 
-  await requireNoActiveRequest(database, slot.slotId, now);
-
+  const slot = requirePayableSlot(loadedSlot);
   if (await hasPriorRequest(database, slot.slotId)) {
     if (!dependencies.reconcileReplacement) {
       throw new PaymentReconciliationUnavailableError(
@@ -83,13 +131,7 @@ export async function createPersistedSlotPayload(
     database,
     slot.slotId,
     intent,
-    {
-      providerId: handoff.providerId,
-      requestId: handoff.requestId,
-      status: handoff.status,
-      expiresAt: handoff.expiresAt,
-      transactionId: handoff.transactionId,
-    },
+    providerRequestStateFromHandoff(handoff),
     now,
   );
 
