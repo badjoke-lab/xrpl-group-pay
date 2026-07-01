@@ -152,7 +152,6 @@ jobs:
 
   production_ui_audit:
     name: Production Bill UI audit
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
