@@ -13,7 +13,7 @@ export function NetworkBadge({ network, className }: NetworkBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 rounded-pill border px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em]",
+        "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-pill border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] sm:px-3 sm:text-xs sm:tracking-[0.12em]",
         isMainnet
           ? "border-warning/35 bg-warning-subtle text-foreground"
           : "border-brand/15 bg-brand-subtle text-brand",
@@ -23,11 +23,11 @@ export function NetworkBadge({ network, className }: NetworkBadgeProps) {
       <span
         aria-hidden="true"
         className={cn(
-          "size-2 rounded-full",
+          "size-1.5 shrink-0 rounded-full sm:size-2",
           isMainnet ? "bg-warning" : "bg-brand",
         )}
       />
-      {isMainnet ? "Mainnet · real XRP" : "Testnet"}
+      {isMainnet ? "Mainnet · live" : "Testnet"}
     </span>
   );
 }
