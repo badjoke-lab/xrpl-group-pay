@@ -50,7 +50,7 @@ const ASSETS = [
 
 const FORM_TITLE = {
   en: "Create a shared bill",
-  ja: "共同請求を作成",
+  ja: "請求を作成",
   ko: "공동 청구서 만들기",
 } as const;
 
@@ -73,12 +73,13 @@ const SECTION_COPY = {
   },
   ja: {
     detailsTitle: "請求内容",
-    detailsDescription: "決済資産、受取先、合計額を設定します。",
-    splitTitle: "配分と参加者",
-    splitDescription: "参加者負担分の分け方を設定します。",
-    reviewTitle: "確認準備",
-    reviewDescription: "概要と未入力項目を確認します。",
-    asset: "決済資産",
+    detailsDescription: "支払い通貨、受取先、合計額を入力します。",
+    splitTitle: "分け方と参加者",
+    splitDescription:
+      "参加者ごとの負担額と、支払いに使うウォレットを設定します。",
+    reviewTitle: "入力内容の確認",
+    reviewDescription: "内容を確認し、不足している項目を入力します。",
+    asset: "支払い通貨",
     participants: "参加者",
   },
   ko: {

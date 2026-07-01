@@ -19,6 +19,17 @@ test("shows natural Japanese copy and allows RLUSD selection", async ({ page }) 
   await expect(
     page.getByRole("heading", { level: 1, name: "割り勘の内容を入力" }),
   ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "請求を作成" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "請求内容" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "分け方と参加者" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "入力内容の確認" }),
+  ).toBeVisible();
+  await expect(page.getByText("共同請求を作成", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("配分と参加者", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("確認準備", { exact: true })).toHaveCount(0);
 
   const rlusdInput = page.locator(
     'input[name="settlementAsset"][value$=":rlusd"]',
