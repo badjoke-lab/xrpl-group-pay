@@ -55,6 +55,8 @@ test("reviews a shared bill before freezing it", async ({ page }) => {
   await labels.nth(0).fill("Alex");
   await payers.nth(0).fill("rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh");
   await amounts.nth(0).fill("3");
+
+  await page.getByText("Participant 2", { exact: true }).click();
   await labels.nth(1).fill("Blair");
   await payers.nth(1).fill("rN7n7otQDd6FczFgLdSqtcsAUxDkw6fzRH");
   await amounts.nth(1).fill("5");
