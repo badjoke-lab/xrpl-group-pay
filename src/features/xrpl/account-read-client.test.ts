@@ -20,13 +20,18 @@ function rpcResponse(result: unknown) {
 
 function accountInfo(overrides: Record<string, unknown> = {}) {
   return {
-    account_data: { Account: ACCOUNT },
+    account_data: {
+      Account: ACCOUNT,
+      Balance: "50000000",
+      OwnerCount: 2,
+    },
     account_flags: {
       requireDestinationTag: false,
       depositAuth: false,
       globalFreeze: false,
       requireAuthorization: false,
     },
+    ledger_index: 100,
     validated: true,
     ...overrides,
   };
@@ -67,6 +72,9 @@ describe("XrplAccountReadClient", () => {
         requireDestinationTag: true,
         depositAuth: false,
       }),
+      balanceDrops: "50000000",
+      ownerCount: 2,
+      validatedLedgerIndex: 100,
     });
     expect(fetcher).toHaveBeenCalledTimes(2);
 
@@ -82,7 +90,7 @@ describe("XrplAccountReadClient", () => {
           api_version: 2,
         },
       ],
-      id: "xrpl-group-pay-recipient-readiness",
+      id: "xrpl-group-pay-readiness",
     });
   });
 
@@ -130,6 +138,48 @@ describe("XrplAccountReadClient", () => {
       limit: 400,
       marker: { ledger: 1, seq: 2 },
       api_version: 2,
+    });
+  });
+
+  it("reads current validated reserve and open-ledger fee facts", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        rpcResponse({
+          state: {
+            validated_ledger: {
+              base_fee: 10,
+              reserve_base: 10000000,
+              reserve_inc: 2000000,
+              seq: 100,
+            },
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        rpcResponse({
+          drops: {
+            base_fee: "10",
+            minimum_fee: "10",
+            open_ledger_fee: "12",
+          },
+          ledger_current_index: 101,
+        }),
+      );
+    const client = new XrplAccountReadClient(
+      "testnet",
+      ["https://node.test/"],
+      fetcher as unknown as typeof fetch,
+    );
+
+    await expect(client.getNetworkReadinessState()).resolves.toEqual({
+      validatedLedgerIndex: 100,
+      currentLedgerIndex: 101,
+      baseFeeDrops: "10",
+      minimumFeeDrops: "10",
+      openLedgerFeeDrops: "12",
+      reserveBaseDrops: "10000000",
+      reserveIncrementDrops: "2000000",
     });
   });
 
