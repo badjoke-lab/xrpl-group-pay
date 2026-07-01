@@ -82,10 +82,13 @@ try {
     await page.getByRole("combobox", { name: "Language" }).selectOption("ja");
     await page.locator('html[lang="ja"]').waitFor();
 
-    const rlusd = page.getByLabel(/^RLUSD/);
-    await rlusd.check();
+    const rlusdInput = page.locator(
+      'input[name="settlementAsset"][value$=":rlusd"]',
+    );
+    const rlusdCard = page.locator("label").filter({ has: rlusdInput });
+    await rlusdCard.click();
     await page.getByText(/RLUSD/, { exact: false }).first().waitFor();
-    if (!(await rlusd.isChecked())) {
+    if (!(await rlusdInput.isChecked())) {
       throw new Error(`RLUSD selection failed at ${viewport.name}`);
     }
 
