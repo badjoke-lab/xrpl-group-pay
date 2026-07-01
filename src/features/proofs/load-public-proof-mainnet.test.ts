@@ -72,7 +72,7 @@ describe("Mainnet public proof", () => {
       sourceTag: row.source_tag,
       destinationTag: row.destination_tag,
       invoiceId: row.invoice_id,
-      idempotencyKey: `mainnet:${row.transaction_id}`,
+      idempotencyKey: `mainnet:${row.transaction_id}` as const,
       verifiedAt: row.verified_at,
     });
     const database = new Database({ ...row, proof_digest: proofDigest });
