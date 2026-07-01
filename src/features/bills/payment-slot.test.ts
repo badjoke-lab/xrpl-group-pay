@@ -63,6 +63,8 @@ const row = {
   bill_id: "bill-1",
   bill_public_id: "00000000-0000-4000-8000-000000000002",
   bill_title: "Dinner",
+  payment_mode: "representative",
+  recipient_label: "Alex",
   network: "testnet",
   destination_address: "rDestination",
   destination_tag: null,
@@ -80,6 +82,8 @@ const row = {
   slot_status: "unpaid",
   bill_status: "open",
   paid_tx_hash: null,
+  review_reason_code: null,
+  review_details_json: null,
 };
 
 const payable: ResolvedPaymentSlot = {
@@ -88,6 +92,8 @@ const payable: ResolvedPaymentSlot = {
   billId: "bill-1",
   billPublicId: row.bill_public_id,
   billTitle: "Dinner",
+  paymentMode: "representative",
+  recipientLabel: "Alex",
   network: "testnet",
   destinationAddress: "rDestination",
   destinationTag: null,
@@ -98,16 +104,20 @@ const payable: ResolvedPaymentSlot = {
   slotStatus: "unpaid",
   billStatus: "open",
   paidTransactionId: null,
+  reviewReasonCode: null,
+  reviewDetailsJson: null,
 };
 
 describe("payment slot capabilities", () => {
-  it("loads Asset identity and generic units through the capability hash", async () => {
+  it("loads mode, recipient metadata, Asset identity, and generic units", async () => {
     const database = new Database(row);
     const slot = await loadPaymentSlotByToken(database, token);
 
     expect(slot).toMatchObject({
       slotId: "slot-1",
       billTitle: "Dinner",
+      paymentMode: "representative",
+      recipientLabel: "Alex",
       expectedAmountDrops: "1000000",
       expectedAmount: { code: "XRP", units: "1000000", scale: 6 },
       asset: {
@@ -148,7 +158,7 @@ describe("payment slot capabilities", () => {
     }
   });
 
-  it("rejects paid, in-flight, review, and non-payable bill states", () => {
+  it("rejects paid, in-flight, review, settled, and closed Bill states", () => {
     expect(() =>
       requirePayableSlot({
         ...payable,
@@ -163,11 +173,10 @@ describe("payment slot capabilities", () => {
       );
     }
 
-    expect(() =>
-      requirePayableSlot({ ...payable, billStatus: "settled" }),
-    ).toThrow(PaymentSlotStateError);
-    expect(() =>
-      requirePayableSlot({ ...payable, billStatus: "needs_review" }),
-    ).toThrow(PaymentSlotStateError);
+    for (const billStatus of ["settled", "needs_review", "closed_incomplete"] as const) {
+      expect(() => requirePayableSlot({ ...payable, billStatus })).toThrow(
+        PaymentSlotStateError,
+      );
+    }
   });
 });
