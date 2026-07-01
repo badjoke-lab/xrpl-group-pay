@@ -125,6 +125,7 @@ pnpm typecheck
 pnpm test
 pnpm build
 pnpm build:worker
+node scripts/capture-production-bill-ui.mjs
 ```
 
 ## Environment and deployment
