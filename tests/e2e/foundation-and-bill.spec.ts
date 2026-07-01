@@ -29,8 +29,8 @@ test("shows natural Japanese copy and allows RLUSD selection", async ({ page }) 
   await expect(
     page.getByText(/RLUSDを受け取るアカウントにはRLUSDのトラストラインが必要です/),
   ).toBeVisible();
-  await expect(page.getByText("合計額")).toBeVisible();
-  await expect(page.getByText("作成者の負担")).toBeVisible();
+  await expect(page.getByLabel("合計額")).toBeVisible();
+  await expect(page.getByLabel("作成者の負担")).toBeVisible();
   await expect(page.getByText("RLUSD", { exact: true })).toHaveCount(3);
 });
 
