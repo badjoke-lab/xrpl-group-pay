@@ -22,8 +22,8 @@ export type ResolvedPaymentSlot = {
   billId: string;
   billPublicId: string;
   billTitle: string;
-  paymentMode: z.infer<typeof billPaymentModeSchema>;
-  recipientLabel: string | null;
+  paymentMode?: z.infer<typeof billPaymentModeSchema>;
+  recipientLabel?: string | null;
   network: XrplNetwork;
   destinationAddress: string;
   destinationTag: number | null;
@@ -37,8 +37,8 @@ export type ResolvedPaymentSlot = {
   slotStatus: z.infer<typeof slotStatusSchema>;
   billStatus: z.infer<typeof billStatusSchema>;
   paidTransactionId: string | null;
-  reviewReasonCode: string | null;
-  reviewDetailsJson: string | null;
+  reviewReasonCode?: string | null;
+  reviewDetailsJson?: string | null;
 };
 
 export class PaymentSlotNotFoundError extends Error {
