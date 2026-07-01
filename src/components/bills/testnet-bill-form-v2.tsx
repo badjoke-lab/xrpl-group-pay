@@ -48,6 +48,18 @@ const ASSETS = [
   getRlusdAssetDescriptor(NETWORK),
 ] as const;
 
+const FORM_TITLE = {
+  en: "Create a shared bill",
+  ja: "共同請求を作成",
+  ko: "공동 청구서 만들기",
+} as const;
+
+const REQUIRED_FIELDS_TITLE = {
+  en: "Complete the required fields",
+  ja: "必須項目を入力してください",
+  ko: "필수 항목을 입력하세요",
+} as const;
+
 async function readJson(response: Response, fallback: string) {
   const body = await response.json().catch(() => null);
   if (!response.ok) {
@@ -57,7 +69,7 @@ async function readJson(response: Response, fallback: string) {
 }
 
 export function TestnetBillForm() {
-  const { t } = useLocalization();
+  const { locale, t } = useLocalization();
   const [draft, setDraft] = useState<BillDraft>(() => newBillDraft(NETWORK));
   const [review, setReview] = useState<BillReview | null>(null);
   const [created, setCreated] = useState<CreatedBill | null>(null);
@@ -116,10 +128,24 @@ export function TestnetBillForm() {
     draft.allocationStrategy !== "custom" &&
     strategyPreview.remainderUnits !== null &&
     strategyPreview.remainderUnits !== "0";
-  const canReview =
+  const allocationExact =
     draft.allocationStrategy === "custom"
       ? customAllocation.status === "exact"
       : strategyPreview.status === "exact";
+  const missingRequiredFields = [
+    !draft.title.trim() ? t("bill.field.title") : null,
+    !draft.destinationAddress.trim() ? t("bill.field.destination") : null,
+    !draft.totalAmount.trim() ? t("bill.field.total") : null,
+    !draft.creatorShareAmount.trim() ? t("bill.field.creatorShare") : null,
+    ...draft.participants.map((item, index) =>
+      item.expectedPayerAddress.trim()
+        ? null
+        : `${t("bill.participant.number", { number: index + 1 })}: ${t(
+            "bill.participant.payer",
+          )}`,
+    ),
+  ].filter((item): item is string => item !== null);
+  const canReview = allocationExact && missingRequiredFields.length === 0;
   const allocationSummary = useMemo(
     () =>
       createAllocationSummary({
@@ -282,18 +308,18 @@ export function TestnetBillForm() {
   return (
     <form
       onSubmit={submitReview}
-      className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8"
+      className="min-w-0 overflow-hidden rounded-xl border border-border bg-surface p-4 shadow-sm sm:p-8"
     >
-      <div className="flex items-start gap-4">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
         <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-subtle">
           <Users aria-hidden="true" className="size-6 text-brand" />
         </div>
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-action">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-action sm:text-sm sm:tracking-[0.14em]">
             {t("bill.form.eyebrow")}
           </p>
-          <h2 className="mt-2 font-heading text-3xl font-semibold">
-            {t("bill.form.title")}
+          <h2 className="mt-2 max-w-xl font-heading text-2xl font-semibold leading-tight sm:text-3xl">
+            {FORM_TITLE[locale]}
           </h2>
           <p className="mt-2 leading-7 text-muted">
             {t("bill.form.description", { network: networkLabel })}
@@ -373,6 +399,18 @@ export function TestnetBillForm() {
         strategyPreview={strategyPreview}
         assetSymbol={selectedAsset.symbol}
       />
+
+      {allocationExact && missingRequiredFields.length > 0 && (
+        <div
+          role="status"
+          className="mt-4 rounded-lg border border-action/25 bg-action/10 p-4 text-action"
+        >
+          <p className="font-semibold">{REQUIRED_FIELDS_TITLE[locale]}</p>
+          <p className="mt-1 break-words text-sm leading-6">
+            {missingRequiredFields.join(" · ")}
+          </p>
+        </div>
+      )}
 
       {error && (
         <p

@@ -36,9 +36,9 @@ export function ParticipantAllocationEditor({
   const { t } = useLocalization();
 
   return (
-    <section className="mt-10">
-      <div className="flex items-center justify-between gap-4">
-        <div>
+    <section className="mt-10 min-w-0">
+      <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h3 className="font-heading text-xl font-semibold">
             {t("bill.participants.title")}
           </h3>
@@ -51,36 +51,39 @@ export function ParticipantAllocationEditor({
           variant="secondary"
           onClick={() => onAdd(newParticipant())}
           disabled={participants.length >= 50}
+          className="w-full sm:w-auto"
         >
           <Plus aria-hidden="true" className="size-4" />
           {t("bill.participants.add")}
         </Button>
       </div>
 
-      <div className="mt-5 space-y-4">
+      <div className="mt-5 min-w-0 space-y-4">
         {participants.map((item, index) => {
           const number = index + 1;
           return (
             <fieldset
               key={item.id}
-              className="rounded-lg border border-border bg-background p-5"
+              className="min-w-0 max-w-full overflow-hidden rounded-lg border border-border bg-background p-4 sm:p-5"
             >
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <legend className="font-heading font-semibold">
+              <div className="mb-4 flex min-w-0 items-center justify-between gap-3">
+                <legend className="min-w-0 break-words font-heading font-semibold">
                   {t("bill.participant.number", { number })}
                 </legend>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  aria-label={t("bill.participant.remove", { number })}
-                  onClick={() => onRemove(item.id)}
-                  disabled={participants.length <= 2}
-                >
-                  <Trash2 aria-hidden="true" className="size-4" />
-                </Button>
+                {participants.length > 2 && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    aria-label={t("bill.participant.remove", { number })}
+                    onClick={() => onRemove(item.id)}
+                    className="size-11 shrink-0"
+                  >
+                    <Trash2 aria-hidden="true" className="size-4" />
+                  </Button>
+                )}
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
                 <BillFormField
                   label={t("bill.participant.label")}
                   value={item.label}
@@ -134,11 +137,11 @@ export function ParticipantAllocationEditor({
                 )}
 
                 {strategy !== "custom" && calculatedUnits[item.id] && (
-                  <div className="rounded-md border border-border bg-surface p-4">
+                  <div className="min-w-0 overflow-hidden rounded-md border border-border bg-surface p-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
                       {t("bill.participant.calculated")}
                     </p>
-                    <p className="mt-2 font-heading text-lg font-semibold text-brand">
+                    <p className="mt-2 break-words font-heading text-lg font-semibold text-brand">
                       {unitsToDecimal(calculatedUnits[item.id], assetScale)}{" "}
                       {assetSymbol}
                     </p>

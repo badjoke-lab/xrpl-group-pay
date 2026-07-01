@@ -67,7 +67,7 @@ afterEach(() => {
 });
 
 describe("TestnetBillForm", () => {
-  it("starts with Custom Amount and blocks review until allocation is exact", () => {
+  it("preserves the Testnet Custom Amount default", () => {
     render(<TestnetBillForm />);
     expect(screen.getByText("Participant 1")).toBeVisible();
     expect(screen.getByText("Participant 2")).toBeVisible();

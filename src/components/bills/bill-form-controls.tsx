@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Coins } from "lucide-react";
+import { CheckCircle2, Circle } from "lucide-react";
 
 export function BillFormChoiceCard({
   name,
@@ -21,7 +21,7 @@ export function BillFormChoiceCard({
 }) {
   return (
     <label
-      className={`cursor-pointer rounded-xl border p-5 transition-colors ${
+      className={`min-w-0 overflow-hidden rounded-xl border p-4 transition-colors sm:p-5 ${
         checked
           ? "border-brand bg-brand-subtle"
           : "border-border bg-background hover:border-brand/50"
@@ -35,25 +35,27 @@ export function BillFormChoiceCard({
         onChange={onChange}
         className="sr-only"
       />
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="font-heading text-lg font-semibold">{label}</p>
+      <div className="flex min-w-0 items-start justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
+          <p className="break-words font-heading text-base font-semibold sm:text-lg">
+            {label}
+          </p>
           <p className="mt-1 text-sm leading-6 text-muted">{description}</p>
         </div>
         <div
-          className={`flex size-8 items-center justify-center rounded-full ${
+          className={`flex size-8 shrink-0 items-center justify-center rounded-full ${
             checked ? "bg-brand text-white" : "bg-surface text-muted"
           }`}
         >
           {checked ? (
             <CheckCircle2 aria-hidden="true" className="size-5" />
           ) : (
-            <Coins aria-hidden="true" className="size-5" />
+            <Circle aria-hidden="true" className="size-5" />
           )}
         </div>
       </div>
       {detail && (
-        <p className="mt-3 break-all font-mono text-[11px] text-muted">
+        <p className="mt-3 break-all font-mono text-[11px] leading-5 text-muted">
           {detail}
         </p>
       )}
@@ -81,9 +83,9 @@ export function BillFormField({
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
 }) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
       <span className="text-sm font-semibold">{label}</span>
-      <div className="mt-2 flex rounded-md border border-border bg-background focus-within:border-brand focus-within:ring-3 focus-within:ring-focus/20">
+      <div className="mt-2 flex min-w-0 w-full overflow-hidden rounded-md border border-border bg-background focus-within:border-brand focus-within:ring-3 focus-within:ring-focus/20">
         <input
           value={value}
           onChange={(event) => onChange(event.target.value)}
@@ -91,10 +93,10 @@ export function BillFormField({
           placeholder={placeholder}
           inputMode={inputMode}
           autoComplete="off"
-          className={`min-h-12 min-w-0 flex-1 bg-transparent px-4 outline-none ${mono ? "font-mono text-sm" : ""}`}
+          className={`min-h-12 min-w-0 w-full flex-1 bg-transparent px-3 outline-none sm:px-4 ${mono ? "font-mono text-sm" : ""}`}
         />
         {suffix && (
-          <span className="flex items-center border-l border-border px-4 text-sm font-semibold text-brand">
+          <span className="flex shrink-0 items-center border-l border-border px-3 text-sm font-semibold text-brand sm:px-4">
             {suffix}
           </span>
         )}

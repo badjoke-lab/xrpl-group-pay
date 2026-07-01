@@ -25,32 +25,33 @@ export default async function BillPage() {
   const releaseMode = process.env.MAINNET_RELEASE_MODE ?? "disabled";
   const publicCreationEnabled =
     network === "testnet" ||
-    (["limited", "public"].includes(releaseMode) &&
-      operations.creationEnabled);
+    (["limited", "public"].includes(releaseMode) && operations.creationEnabled);
   const networkLabel = network === "mainnet" ? "Mainnet" : "Testnet";
 
   return (
-    <main className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-5 py-6 sm:px-8">
-        <Link href="/" className="flex items-center gap-3">
+    <main className="min-h-screen overflow-x-hidden bg-background">
+      <header className="mx-auto flex w-full max-w-5xl flex-col items-stretch gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-6">
+        <Link href="/" className="flex min-w-0 items-center gap-3">
           <BrandMark />
-          <span className="font-heading font-bold text-brand">XRPL Group Pay</span>
+          <span className="whitespace-nowrap font-heading text-sm font-bold text-brand sm:text-base">
+            XRPL Group Pay
+          </span>
         </Link>
-        <div className="flex flex-wrap items-center justify-end gap-3">
+        <div className="flex items-center justify-between gap-3 sm:justify-end">
           <LanguageSwitcher compact />
           <NetworkBadge network={network} />
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-5xl px-5 pb-20 pt-8 sm:px-8 sm:pt-14">
-        <div className="mb-9 max-w-3xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-action">
+      <div className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-8 sm:pt-14">
+        <div className="mb-7 max-w-3xl sm:mb-9">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-action sm:text-sm sm:tracking-[0.14em]">
             {t("bill.page.eyebrow", { network: networkLabel })}
           </p>
-          <h1 className="mt-3 font-heading text-4xl font-bold tracking-tight sm:text-5xl">
+          <h1 className="mt-3 max-w-2xl font-heading text-[2rem] font-bold leading-[1.08] tracking-tight sm:text-5xl sm:leading-[1.05]">
             {t("bill.page.title")}
           </h1>
-          <p className="mt-5 text-lg leading-8 text-muted">
+          <p className="mt-4 max-w-2xl text-base leading-7 text-muted sm:mt-5 sm:text-lg sm:leading-8">
             {t("bill.page.description")}
           </p>
         </div>
