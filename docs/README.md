@@ -2,7 +2,7 @@
 
 **Status:** Active  
 **Scope:** Public documentation map and precedence rules  
-**Last reviewed:** 2026-06-29  
+**Last reviewed:** 2026-07-01  
 **Document class:** Public
 
 ## 1. Purpose
@@ -18,7 +18,8 @@ When two documents appear inconsistent, use this order and open a corrective doc
 3. safety, state, privacy, and verification boundaries;
 4. feature contracts;
 5. user-experience specifications;
-6. public roadmap and changelog.
+6. implementation schedules;
+7. public roadmap and changelog.
 
 A lower-precedence document cannot silently weaken a higher-precedence safety or product requirement.
 
@@ -73,7 +74,14 @@ A feature contract documents the exact behavior of a shipped or actively impleme
 - `design-tokens.md` — color, typography, spacing, controls, and semantic visual rules.
 - `motion-spec.md` — permitted, reduced, and prohibited motion.
 
-## 8. Public direction and history
+## 8. Implementation schedules
+
+- `payment-lifecycle-revision-schedule.md` — active PR #132–#149 sequence for the payment-lifecycle revision.
+- `mainnet-release-plan.md` — specialized Mainnet release sequence, not the general product-development schedule.
+
+Schedules order approved work but do not override the documents above. Before each scheduled PR, review all affected higher-precedence documents and correct any conflict before implementation continues.
+
+## 9. Public direction and history
 
 - `../ROADMAP.md` — public direction and current status using Available, In Progress, Next, Later, and Research.
 - `../CHANGELOG.md` — meaningful completed user-facing, security, compatibility, and operational changes.
@@ -81,17 +89,18 @@ A feature contract documents the exact behavior of a shipped or actively impleme
 
 Roadmap items are not implementation promises. Changelog entries must describe completed behavior only.
 
-## 9. Current implementation versus approved target
+## 10. Current implementation versus approved target
 
 Documents use a `Scope` header:
 
 - **Current implementation** describes behavior that exists on `main`.
 - **Approved Make Waves v1 target** describes behavior that implementation PRs must reach before the target release.
+- **Approved implementation sequence** describes ordered work that is not available until merged, tested, and verified.
 - **Post-submission direction** describes an extension boundary or future capability, not current availability.
 
 The root `README.md` must keep current availability and approved target visibly separate.
 
-## 10. Change discipline
+## 11. Change discipline
 
 A major PR must state whether it affects:
 
@@ -104,7 +113,10 @@ A major PR must state whether it affects:
 - privacy or persistence;
 - localization;
 - Mainnet operations, evidence, or acceptance;
+- implementation schedule;
 - Roadmap;
 - Changelog.
 
 A change that affects one of these areas must update the relevant documents in the same documentation sequence or explain why no update is required.
+
+Every scheduled PR must list the higher-precedence documents it reviewed and keep planned behavior separate from shipped availability.
