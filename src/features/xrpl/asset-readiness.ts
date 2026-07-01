@@ -16,6 +16,7 @@ import {
 
 export type AssetReadinessRole = "recipient" | "payer";
 export type AssetReadinessStatus = "ready" | "blocked" | "unavailable";
+export type AssetReadinessFact = string | number | boolean | null;
 
 export type AssetReadinessCheck = {
   code: string;
@@ -36,7 +37,7 @@ export type AssetReadinessAssessment = {
   unavailableCode: string | null;
   userMessageKey: string;
   observedAt: string;
-  facts: Record<string, string | number | boolean | null>;
+  facts: Record<string, AssetReadinessFact>;
 };
 
 type RecipientInput = {
@@ -139,7 +140,9 @@ function normalizeRecipient(
   };
 }
 
-function payerFacts(result: PayerReadinessResult) {
+function payerFacts(
+  result: PayerReadinessResult,
+): Record<string, AssetReadinessFact> {
   if (result.status === "unavailable") return {};
   return {
     balanceDrops: result.balanceDrops ?? null,
