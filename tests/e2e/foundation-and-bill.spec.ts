@@ -12,6 +12,25 @@ test("renders the product foundation", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("shows natural Japanese copy and allows RLUSD selection", async ({ page }) => {
+  await page.goto("/bill");
+  await page.getByRole("combobox", { name: "Language" }).selectOption("ja");
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: "割り勘の内容を入力" }),
+  ).toBeVisible();
+
+  const rlusd = page.getByLabel(/^RLUSD/);
+  await rlusd.click();
+  await expect(rlusd).toBeChecked();
+  await expect(
+    page.getByText(/RLUSDを受け取るアカウントにはRLUSDのトラストラインが必要です/),
+  ).toBeVisible();
+  await expect(page.getByText("合計額")).toBeVisible();
+  await expect(page.getByText("作成者の負担")).toBeVisible();
+  await expect(page.getByText("RLUSD", { exact: true })).toHaveCount(3);
+});
+
 test("reviews a shared bill before freezing it", async ({ page }) => {
   await page.route("**/api/bills/review", async (route) => {
     await route.fulfill({
