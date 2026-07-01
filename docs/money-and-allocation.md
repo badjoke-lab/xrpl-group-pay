@@ -1,8 +1,8 @@
 # XRPL Group Pay — Money and Allocation
 
 **Status:** Active  
-**Scope:** Approved Make Waves v1 money model and later settlement-quote boundary  
-**Last reviewed:** 2026-06-24  
+**Scope:** Approved payment-mode-aware money model and later settlement-quote boundary  
+**Last reviewed:** 2026-07-01  
 **Document class:** Public
 
 ## 1. Core rule
@@ -23,7 +23,7 @@ The separation remains explicit so later versions can support fiat-denominated B
 
 ### Accounting Currency
 
-The unit used for the Bill total and participant obligations.
+The unit used for the Bill total and payer obligations.
 
 Make Waves v1:
 
@@ -43,7 +43,7 @@ EUR
 
 ### Obligation Amount
 
-The frozen amount one participant is expected to settle, expressed in Accounting Currency.
+The frozen amount one payer is expected to settle, expressed in Accounting Currency.
 
 ### Settlement Asset
 
@@ -94,19 +94,88 @@ Rules:
 - XRP units are ledger drops;
 - issued-asset integer units are converted to a canonical decimal string only at transaction and verification boundaries.
 
-## 4. Exact-total invariant
+## 4. Payment modes
 
-Every valid Bill satisfies:
+A Bill freezes one payment mode:
 
 ```text
-creator_share_units
+representative
+direct
+```
+
+### Representative mode
+
+Participants pay a representative recipient. The Bill may contain a recipient-funded amount that is not assigned to a payer.
+
+### Direct mode
+
+Participants pay an external recipient directly. The Bill operator may be included as a normal payer. The recipient-funded amount is always zero.
+
+The mode is part of the frozen Bill and cannot change after publication.
+
+## 5. Recipient-funded amount
+
+The recipient-funded amount is the portion of a representative-mode Bill that is not collected from payer PaymentSlots.
+
+It is not:
+
+- a self-payment instruction;
+- a fee;
+- an application balance;
+- a payer Payment Intent;
+- an on-ledger transfer.
+
+The physical schema may temporarily retain `creator_share_units` for compatibility. Public copy and current domain documentation use `recipient_funded_units` or **recipient-funded amount**.
+
+## 6. Exact-total invariants
+
+### Representative mode
+
+```text
+recipient_funded_units
 + sum(payment_slot.obligation_units)
 = bill.total_obligation_units
 ```
 
-The client previews this invariant. The server independently enforces it before review and again before freezing the Bill.
+### Direct mode
 
-## 5. Allocation strategies
+```text
+recipient_funded_units = 0
+sum(payment_slot.obligation_units)
+= bill.total_obligation_units
+```
+
+The client previews the applicable invariant. The server independently enforces it before review and again before freezing the Bill.
+
+## 7. Display totals
+
+The interface distinguishes:
+
+```text
+Bill total
+recipient-funded amount, when applicable
+amount expected from payers
+verified amount
+remaining amount
+```
+
+For representative mode:
+
+```text
+expected_from_payers
+= bill.total_obligation_units - recipient_funded_units
+```
+
+For direct mode:
+
+```text
+expected_from_payers
+= bill.total_obligation_units
+```
+
+The recipient-funded amount is labeled **No transfer** where a user could mistake it for another PaymentSlot.
+
+## 8. Allocation strategies
 
 ### Equal
 
@@ -122,7 +191,7 @@ Allocate in proportion to positive weights, such as `2 : 1 : 1`.
 
 ### Custom Amount
 
-The creator enters each final participant obligation directly.
+The Bill operator enters each final payer obligation directly.
 
 All strategies produce the same normalized result:
 
@@ -130,38 +199,49 @@ All strategies produce the same normalized result:
 AllocationResult
 - strategy
 - totalUnits
-- creatorShareUnits
+- recipientFundedUnits
 - participantObligations
 - remainderUnits
 - remainderAssignment
 - metadata
 ```
 
-The frozen participant obligation units are authoritative. Wallet and verification services do not recalculate the allocation strategy.
+The frozen payer obligation units are authoritative. Wallet and verification services do not recalculate the allocation strategy.
 
-## 6. Remainder handling
+## 9. Remainder handling
 
-Equal, Percentage, and Shares calculations may produce remainder units. Make Waves v1 allows explicit assignment to:
+Equal, Percentage, and Shares calculations may produce remainder units.
+
+Representative mode allows explicit assignment to:
 
 ```text
-creator
-first normalized participant
-selected participant
+recipient-funded amount
+first normalized payer
+selected payer
 manual final allocation
 ```
 
-The policy and final assignment are stored as allocation metadata and shown during creator review. Random or hidden remainder assignment is prohibited.
+Direct mode allows assignment to:
 
-## 7. Creator share
+```text
+first normalized payer
+selected payer
+manual final allocation
+```
 
-The creator share records the creator's portion of the expense. It is not:
+Direct mode cannot assign a remainder to the recipient-funded amount because that amount must remain zero.
 
-- a self-payment instruction;
-- a fee;
-- an application balance;
-- a participant Payment Intent.
+The policy and final assignment are stored as allocation metadata and shown during Bill-operator review. Random or hidden remainder assignment is prohibited.
 
-## 8. Make Waves v1 asset behavior
+## 10. Payer and recipient address invariants
+
+- Each PaymentSlot has one expected payer address.
+- The same expected payer address cannot appear in multiple slots in one Bill.
+- The frozen recipient address cannot also be an expected payer address in the same Bill.
+- In direct mode, the Bill operator participates by being added as a normal payer with an explicit address and amount.
+- Role labels do not change the on-ledger sender or recipient facts.
+
+## 11. Make Waves v1 asset behavior
 
 ### XRP Bill
 
@@ -185,31 +265,60 @@ The interface displays `RLUSD`, not a generic dollar symbol alone. Asset details
 
 Every PaymentSlot inherits the Bill Settlement Asset. A published Bill cannot switch between XRP and RLUSD.
 
-## 9. Input and display
+## 12. Input and display
 
 - Amount inputs always show their unit.
 - Excess precision is rejected rather than rounded.
 - Server requests use canonical numeric strings or integer units.
 - Locale controls grouping, decimal presentation, and currency placement only.
 - Locale never changes asset identity, units, Payment Intents, receipts, or proof digests.
+- Group progress never adds XRP and RLUSD as if they were the same unit.
 
-## 10. Freeze boundary
+## 13. Freeze boundary
 
-Before freezing, the creator reviews:
+Before freezing, the Bill operator reviews:
 
+- payment mode;
 - Accounting Currency;
 - Settlement Asset;
-- total;
-- creator share;
+- recipient and optional Destination Tag;
+- Bill total;
+- recipient-funded amount when applicable;
+- amount expected from payers;
 - Allocation Strategy;
 - remainder policy;
-- every participant obligation;
+- every payer obligation and expected address;
 - network;
 - recipient readiness where applicable.
 
-At freeze time, the application stores the strategy, metadata, final units, currency, asset, scale, and Bill revision. Later editing cannot modify already-issued PaymentSlots.
+At freeze time, the application stores the mode, strategy, metadata, final units, currency, asset, scale, recipient, payer facts, and Bill revision. Later editing cannot modify already-issued PaymentSlots.
 
-## 11. Later fiat-denominated Bills
+## 14. Independent settlement and progress
+
+Each payer obligation settles independently.
+
+- A verified PaymentSlot contributes its frozen obligation amount to verified progress.
+- A failed or unpaid slot does not subtract another slot's verified amount.
+- A review-required slot is not counted as paid.
+- Closing incomplete preserves verified totals and records the remaining amount.
+- Automatic refund, rollback, waiver, and redistribution are outside this revision.
+
+## 15. Copy-to-revise
+
+Changing payment mode, recipient, payer, or amount requires a new Bill.
+
+Copy-to-revise may copy human-entered labels and allocation inputs into a new browser-local draft, but the new Bill receives new:
+
+- Bill identity;
+- revision identity;
+- PaymentSlots;
+- InvoiceIDs;
+- capability tokens;
+- Wallet Handoffs.
+
+The original Bill, allocation, and receipts remain unchanged.
+
+## 16. Later fiat-denominated Bills
 
 A later Bill may use JPY, USD, KRW, or EUR as Accounting Currency while settlement remains XRP or RLUSD.
 
@@ -222,7 +331,7 @@ C: 8,000 JPY
 
 A Settlement Quote then defines each exact Settlement Amount. Fiat denomination is an accounting and display function; Group Pay still does not hold fiat or user funds.
 
-## 12. Later Settlement Quotes
+## 17. Later Settlement Quotes
 
 A quote records:
 
@@ -249,11 +358,11 @@ Rules:
 - suggested and final values are retained separately;
 - any adjustment is shown before wallet handoff;
 - a replaced or expired quote cannot remain signable;
-- a changed quote requires participant re-confirmation;
+- a changed quote requires payer re-confirmation;
 - quote failure never substitutes another asset or amount silently;
 - Group Pay does not become an exchange, custodian, or bridge.
 
-## 13. Later mixed-asset settlement
+## 18. Later mixed-asset settlement
 
 A future Bill may allow each PaymentSlot to select from approved assets.
 
@@ -268,19 +377,19 @@ Bill progress remains denominated in JPY. XRP and RLUSD quantities are never add
 
 Each slot stores its allowed assets, selected asset, active quote, final Settlement Amount, and verified receipt.
 
-## 14. Later manual quote adjustment
+## 19. Later manual quote adjustment
 
-A creator may later adjust a suggested Settlement Amount only when:
+A Bill operator may later adjust a suggested Settlement Amount only when:
 
 - the suggestion remains recorded;
 - the final amount and difference are explicit;
 - an adjustment reason is stored;
-- the participant reviews the final value;
+- the payer reviews the final value;
 - prior wallet handoffs are invalidated.
 
 The adjustment changes the settlement quote, not the underlying obligation, unless a separate Bill revision changes the obligation.
 
-## 15. Proof and export
+## 20. Proof and export
 
 A payment proof distinguishes:
 
@@ -295,7 +404,7 @@ quote reference when applicable
 
 Make Waves v1 XRP and RLUSD Bills have no quote reference. Machine-readable exports use stable language-independent fields and canonical numeric strings.
 
-## 16. Required tests
+## 21. Required tests
 
 - exact decimal parsing;
 - excess-precision rejection;
@@ -304,8 +413,13 @@ Make Waves v1 XRP and RLUSD Bills have no quote reference. Machine-readable expo
 - Percentage total validation;
 - Shares with uneven division;
 - Custom under, exact, and over states;
-- creator-share invariant;
+- representative-mode recipient-funded invariant;
+- direct-mode zero recipient-funded invariant;
+- payer-address uniqueness and recipient separation;
 - deterministic remainder assignment;
+- independent partial progress;
+- closed-incomplete totals;
+- copy-to-revise identity separation;
 - XRP drops compatibility;
 - RLUSD canonical decimal serialization;
 - locale-independent stored values;
