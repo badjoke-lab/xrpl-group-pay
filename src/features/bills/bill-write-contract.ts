@@ -15,6 +15,8 @@ export const INSERT_ASSET_AWARE_BILL = `
     admin_token_hash,
     title,
     network,
+    payment_mode,
+    recipient_label,
     destination_address,
     destination_tag,
     total_drops,
@@ -27,7 +29,9 @@ export const INSERT_ASSET_AWARE_BILL = `
     settlement_amount_scale,
     total_amount_units,
     creator_share_amount_units,
+    recipient_funded_amount_units,
     status,
+    closure_state,
     revision,
     frozen_at,
     expires_at,
@@ -35,8 +39,8 @@ export const INSERT_ASSET_AWARE_BILL = `
     updated_at
   ) VALUES (
     ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
-    ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
-    'open', 1, ?19, NULL, ?19, ?19
+    ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20,
+    ?21, 'open', 'active', 1, ?22, NULL, ?22, ?22
   )
 `;
 
