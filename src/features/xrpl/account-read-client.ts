@@ -130,6 +130,9 @@ export type XrplTrustLine = z.infer<typeof trustLineSchema>;
 export type XrplAccountInfo = {
   account: string;
   flags: XrplAccountFlags;
+};
+
+export type XrplReadinessAccountInfo = XrplAccountInfo & {
   balanceDrops: string;
   ownerCount: number;
   validatedLedgerIndex: number;
@@ -152,6 +155,7 @@ export interface XrplRecipientReadClient {
 }
 
 export interface XrplReadinessClient extends XrplRecipientReadClient {
+  getAccountInfo(account: string): Promise<XrplReadinessAccountInfo | null>;
   getNetworkReadinessState(): Promise<XrplNetworkReadinessState>;
 }
 
@@ -278,7 +282,9 @@ export class XrplAccountReadClient implements XrplReadinessClient {
     throw new XrplAccountReadUnavailableError();
   }
 
-  async getAccountInfo(account: string): Promise<XrplAccountInfo | null> {
+  async getAccountInfo(
+    account: string,
+  ): Promise<XrplReadinessAccountInfo | null> {
     const normalizedAccount = requireClassicAddress(account);
     const result = await this.request("account_info", {
       account: normalizedAccount,
