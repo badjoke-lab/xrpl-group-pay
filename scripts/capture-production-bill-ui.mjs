@@ -17,6 +17,45 @@ await mkdir(outputDir, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const results = [];
 
+async function capture(page, viewport, variant) {
+  const screenshot = `${viewport.name}-${variant}-bill-full.png`;
+  await page.screenshot({
+    path: resolve(outputDir, screenshot),
+    fullPage: true,
+    animations: "disabled",
+  });
+
+  const metrics = await page.evaluate(() => {
+    const documentElement = document.documentElement;
+    const body = document.body;
+    const selectedAsset = document.querySelector(
+      'input[name="settlementAsset"]:checked',
+    );
+    return {
+      documentClientWidth: documentElement.clientWidth,
+      documentScrollWidth: documentElement.scrollWidth,
+      bodyClientWidth: body.clientWidth,
+      bodyScrollWidth: body.scrollWidth,
+      title: document.title,
+      language: document.documentElement.lang,
+      selectedAssetId:
+        selectedAsset instanceof HTMLInputElement ? selectedAsset.value : null,
+    };
+  });
+  const horizontalOverflow =
+    metrics.documentScrollWidth > metrics.documentClientWidth + 1 ||
+    metrics.bodyScrollWidth > metrics.bodyClientWidth + 1;
+
+  results.push({
+    viewport,
+    variant,
+    url: page.url(),
+    screenshot,
+    horizontalOverflow,
+    metrics,
+  });
+}
+
 try {
   for (const viewport of viewports) {
     const context = await browser.newContext({
@@ -37,35 +76,25 @@ try {
     }
 
     await page.getByRole("heading", { name: "Create a shared bill" }).waitFor();
-    const screenshot = `${viewport.name}-bill-full.png`;
-    await page.screenshot({
-      path: resolve(outputDir, screenshot),
-      fullPage: true,
-      animations: "disabled",
-    });
+    await capture(page, viewport, "en-xrp");
 
-    const metrics = await page.evaluate(() => {
-      const documentElement = document.documentElement;
-      const body = document.body;
-      return {
-        documentClientWidth: documentElement.clientWidth,
-        documentScrollWidth: documentElement.scrollWidth,
-        bodyClientWidth: body.clientWidth,
-        bodyScrollWidth: body.scrollWidth,
-        title: document.title,
-      };
-    });
-    const horizontalOverflow =
-      metrics.documentScrollWidth > metrics.documentClientWidth + 1 ||
-      metrics.bodyScrollWidth > metrics.bodyClientWidth + 1;
+    await page.getByRole("combobox", { name: "Language" }).selectOption("ja");
+    await page
+      .getByRole("heading", { level: 1, name: "割り勘の内容を入力" })
+      .waitFor();
 
-    results.push({
-      viewport,
-      url: page.url(),
-      screenshot,
-      horizontalOverflow,
-      metrics,
-    });
+    const rlusd = page.getByLabel(/^RLUSD/);
+    await rlusd.check();
+    await page
+      .getByText(
+        /RLUSDを受け取るアカウントにはRLUSDのトラストラインが必要です/,
+      )
+      .waitFor();
+    if (!(await rlusd.isChecked())) {
+      throw new Error(`RLUSD selection failed at ${viewport.name}`);
+    }
+
+    await capture(page, viewport, "ja-rlusd");
     await context.close();
   }
 } finally {
@@ -73,7 +102,7 @@ try {
 }
 
 const report = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   capturedAt: new Date().toISOString(),
   baseUrl,
   page: "/bill",
@@ -88,10 +117,12 @@ await writeFile(
 const failures = results.filter((result) => result.horizontalOverflow);
 if (failures.length > 0) {
   throw new Error(
-    `Horizontal overflow detected: ${failures.map((item) => item.viewport.name).join(", ")}`,
+    `Horizontal overflow detected: ${failures
+      .map((item) => `${item.viewport.name}/${item.variant}`)
+      .join(", ")}`,
   );
 }
 
 console.log(
-  `Production UI audit captured ${results.length} viewports without horizontal overflow.`,
+  `Production UI audit captured ${results.length} XRP and RLUSD views without horizontal overflow.`,
 );
