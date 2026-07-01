@@ -36,8 +36,8 @@ export const paymentSlotRecordSchema = z.object({
   bill_id: z.string().min(1),
   bill_public_id: z.string().uuid(),
   bill_title: z.string().min(1).max(100),
-  payment_mode: billPaymentModeSchema,
-  recipient_label: z.string().max(100).nullable(),
+  payment_mode: billPaymentModeSchema.optional().default("representative"),
+  recipient_label: z.string().max(100).nullable().optional().default(null),
   network: xrplNetworkSchema,
   destination_address: z.string().min(1),
   destination_tag: z.number().int().min(0).max(4_294_967_295).nullable(),
@@ -58,8 +58,8 @@ export const paymentSlotRecordSchema = z.object({
   slot_status: slotStatusSchema,
   bill_status: billStatusSchema,
   paid_tx_hash: z.string().nullable(),
-  review_reason_code: z.string().min(1).nullable(),
-  review_details_json: z.string().min(1).nullable(),
+  review_reason_code: z.string().min(1).nullable().optional().default(null),
+  review_details_json: z.string().min(1).nullable().optional().default(null),
 });
 
 export const SELECT_PAYMENT_SLOT = `
