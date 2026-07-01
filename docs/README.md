@@ -56,6 +56,7 @@ These documents define approved behavior. They may describe target behavior that
 - `network-progress-and-routes.md` — current PR #134 network-derived progress, canonical routes, and legacy fragment-preserving redirects.
 - `xaman-lifecycle-persistence.md` — current PR #135 durable Xaman state, callback and polling synchronization, resume, and retry boundaries.
 - `asset-readiness.md` — current PR #136 recipient and payer XRP/RLUSD preflight, reserve, fee, trust-line, and balance contract.
+- `rlusd-trustset-preparation.md` — current PR #137 official RLUSD TrustSet planning, shareable capability flow, Xaman lifecycle, and validated-ledger readiness contract.
 - `d1-provisioning.md` — local, Testnet, and Mainnet D1 provisioning and migration controls.
 - `transaction-proof.md` — public proof fields, digest contracts, privacy boundary, and integrity checks.
 - `payment-reconciliation.md` — validated-ledger reconciliation required before replacing a prior Wallet Handoff.
