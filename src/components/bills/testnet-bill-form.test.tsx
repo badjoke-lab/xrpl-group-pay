@@ -67,8 +67,15 @@ afterEach(() => {
 });
 
 describe("TestnetBillForm", () => {
-  it("preserves the Testnet Custom Amount default", () => {
+  it("shows the three creation sections and preserves the Testnet default", () => {
     render(<TestnetBillForm />);
+    expect(screen.getByRole("heading", { name: "Bill details" })).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Split and participants" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Review readiness" }),
+    ).toBeVisible();
     expect(screen.getByText("Participant 1")).toBeVisible();
     expect(screen.getByText("Participant 2")).toBeVisible();
     expect(screen.getByLabelText(/Custom Amount/)).toBeChecked();
