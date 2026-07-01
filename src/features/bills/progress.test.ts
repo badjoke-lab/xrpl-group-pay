@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { getRlusdAssetDescriptor } from "@/features/assets/registry";
+import {
+  getRlusdAssetDescriptor,
+  getXrpAssetDescriptor,
+} from "@/features/assets/registry";
+import type { XrplNetwork } from "@/features/assets/types";
 import type {
   D1DatabaseLike,
   D1PreparedStatementLike,
@@ -65,17 +69,21 @@ const TOKEN = "a".repeat(64);
 const BILL_PUBLIC_ID = "00000000-0000-4000-8000-000000000001";
 const PROOF_TOKEN = "D".repeat(64);
 
-function bill(access: "public" | "admin") {
+function bill(
+  access: "public" | "admin",
+  network: XrplNetwork = "testnet",
+  assetId = getXrpAssetDescriptor(network).id,
+) {
   return {
     id: "bill-1",
     public_id: BILL_PUBLIC_ID,
     title: "XRPL Meetup Dinner",
-    network: "testnet",
+    network,
     destination_address: "rDestination",
     destination_tag: 7,
     total_drops: "10000000",
     creator_share_drops: "2000000",
-    settlement_asset_id: "xrpl:testnet:xrp",
+    settlement_asset_id: assetId,
     total_amount_units: "10000000",
     creator_share_amount_units: "2000000",
     status: "partially_paid",
@@ -86,48 +94,52 @@ function bill(access: "public" | "admin") {
   };
 }
 
-const slots = [
-  {
-    public_id: "00000000-0000-4000-8000-000000000002",
-    participant_label: "Alex",
-    expected_payer_address: "rAlex",
-    expected_amount_drops: "3000000",
-    asset_id: "xrpl:testnet:xrp",
-    expected_amount_units: "3000000",
-    invoice_id: "A".repeat(64),
-    status: "paid",
-    paid_tx_hash: "C".repeat(64),
-    paid_ledger_index: 12345,
-    paid_at: "2026-06-24T00:05:00.000Z",
-    proof_digest: PROOF_TOKEN,
-    updated_at: "2026-06-24T00:05:00.000Z",
-  },
-  {
-    public_id: "00000000-0000-4000-8000-000000000003",
-    participant_label: "Blair",
-    expected_payer_address: "rBlair",
-    expected_amount_drops: "5000000",
-    asset_id: "xrpl:testnet:xrp",
-    expected_amount_units: "5000000",
-    invoice_id: "B".repeat(64),
-    status: "needs_review",
-    paid_tx_hash: null,
-    paid_ledger_index: null,
-    paid_at: null,
-    proof_digest: null,
-    updated_at: "2026-06-24T00:04:00.000Z",
-  },
-];
+function slots(network: XrplNetwork = "testnet", assetId?: string) {
+  const resolvedAssetId = assetId ?? getXrpAssetDescriptor(network).id;
+  return [
+    {
+      public_id: "00000000-0000-4000-8000-000000000002",
+      participant_label: "Alex",
+      expected_payer_address: "rAlex",
+      expected_amount_drops: "3000000",
+      asset_id: resolvedAssetId,
+      expected_amount_units: "3000000",
+      invoice_id: "A".repeat(64),
+      status: "paid",
+      paid_tx_hash: "C".repeat(64),
+      paid_ledger_index: 12345,
+      paid_at: "2026-06-24T00:05:00.000Z",
+      proof_digest: resolvedAssetId.endsWith(":xrp") ? PROOF_TOKEN : null,
+      updated_at: "2026-06-24T00:05:00.000Z",
+    },
+    {
+      public_id: "00000000-0000-4000-8000-000000000003",
+      participant_label: "Blair",
+      expected_payer_address: "rBlair",
+      expected_amount_drops: "5000000",
+      asset_id: resolvedAssetId,
+      expected_amount_units: "5000000",
+      invoice_id: "B".repeat(64),
+      status: "needs_review",
+      paid_tx_hash: null,
+      paid_ledger_index: null,
+      paid_at: null,
+      proof_digest: null,
+      updated_at: "2026-06-24T00:04:00.000Z",
+    },
+  ];
+}
 
 describe("loadBillProgressByToken", () => {
   it("returns full Asset details and proof tokens for management", async () => {
-    const database = new ProgressDatabase(bill("admin"), slots);
+    const database = new ProgressDatabase(bill("admin"), slots());
     const progress = await loadBillProgressByToken(database, TOKEN);
 
     expect(progress).toMatchObject({
       access: "admin",
       bill: {
         publicId: BILL_PUBLIC_ID,
+        network: "testnet",
         asset: { id: "xrpl:testnet:xrp" },
         totalAmount: { code: "XRP", units: "10000000", scale: 6 },
         status: "partially_paid",
@@ -167,48 +179,67 @@ describe("loadBillProgressByToken", () => {
     expect(database.statements[1].values).toEqual([expectedHash]);
     expect(database.statements[0].values).not.toContain(TOKEN);
     expect(database.statements[1].query).toContain(
-      "LEFT JOIN verified_payment_records",
+      "records.network = bill.network",
+    );
+    expect(database.statements[1].query).not.toContain(
+      "records.network = 'testnet'",
     );
   });
 
-  it("returns RLUSD progress without mislabeling generic units as XRP drops", async () => {
-    const asset = getRlusdAssetDescriptor("testnet");
+  it("loads Mainnet XRP progress from the Bill network", async () => {
+    const network = "mainnet" as const;
+    const asset = getXrpAssetDescriptor(network);
     const progress = await loadBillProgressByToken(
       new ProgressDatabase(
-        {
-          ...bill("admin"),
-          settlement_asset_id: asset.id,
-          total_amount_units: "10000000",
-          creator_share_amount_units: "2000000",
-        },
-        slots.map((slot) => ({
-          ...slot,
-          asset_id: asset.id,
-          proof_digest: null,
-        })),
+        bill("admin", network, asset.id),
+        slots(network, asset.id),
       ),
       TOKEN,
     );
 
     expect(progress.bill).toMatchObject({
+      network,
       asset,
-      totalAmount: { code: "RLUSD", units: "10000000", scale: 6 },
-      totalDrops: null,
+      totalAmount: { code: "XRP", units: "10000000", scale: 6 },
     });
     expect(progress.summary).toMatchObject({
-      paidAmount: { code: "RLUSD", units: "3000000", scale: 6 },
-      paidDrops: null,
-    });
-    expect(progress.slots[0]).toMatchObject({
-      expectedAmount: { code: "RLUSD", units: "3000000", scale: 6 },
-      expectedAmountDrops: null,
-      proofToken: null,
+      paidAmount: { code: "XRP", units: "3000000", scale: 6 },
+      paidDrops: "3000000",
     });
   });
 
+  for (const network of ["testnet", "mainnet"] as const) {
+    it(`returns ${network} RLUSD progress without labeling units as XRP drops`, async () => {
+      const asset = getRlusdAssetDescriptor(network);
+      const progress = await loadBillProgressByToken(
+        new ProgressDatabase(
+          bill("admin", network, asset.id),
+          slots(network, asset.id),
+        ),
+        TOKEN,
+      );
+
+      expect(progress.bill).toMatchObject({
+        network,
+        asset,
+        totalAmount: { code: "RLUSD", units: "10000000", scale: 6 },
+        totalDrops: null,
+      });
+      expect(progress.summary).toMatchObject({
+        paidAmount: { code: "RLUSD", units: "3000000", scale: 6 },
+        paidDrops: null,
+      });
+      expect(progress.slots[0]).toMatchObject({
+        expectedAmount: { code: "RLUSD", units: "3000000", scale: 6 },
+        expectedAmountDrops: null,
+        proofToken: null,
+      });
+    });
+  }
+
   it("redacts private participant details but retains public proof access", async () => {
     const progress = await loadBillProgressByToken(
-      new ProgressDatabase(bill("public"), slots),
+      new ProgressDatabase(bill("public"), slots()),
       TOKEN,
     );
 
@@ -231,9 +262,21 @@ describe("loadBillProgressByToken", () => {
     });
   });
 
+  it("fails closed when Bill and Asset networks disagree", async () => {
+    await expect(
+      loadBillProgressByToken(
+        new ProgressDatabase(
+          bill("admin", "mainnet", "xrpl:testnet:xrp"),
+          slots("testnet", "xrpl:testnet:xrp"),
+        ),
+        TOKEN,
+      ),
+    ).rejects.toBeInstanceOf(BillProgressDatabaseError);
+  });
+
   it("returns one not-found boundary for malformed and unknown capabilities", async () => {
     await expect(
-      loadBillProgressByToken(new ProgressDatabase(bill("admin"), slots), "bad"),
+      loadBillProgressByToken(new ProgressDatabase(bill("admin"), slots()), "bad"),
     ).rejects.toBeInstanceOf(BillProgressNotFoundError);
     await expect(
       loadBillProgressByToken(new ProgressDatabase(null, []), TOKEN),
@@ -243,14 +286,14 @@ describe("loadBillProgressByToken", () => {
   it("fails closed when D1 cannot return a complete snapshot", async () => {
     await expect(
       loadBillProgressByToken(
-        new ProgressDatabase(bill("admin"), slots, false),
+        new ProgressDatabase(bill("admin"), slots(), false),
         TOKEN,
       ),
     ).rejects.toBeInstanceOf(BillProgressDatabaseError);
     await expect(
       loadBillProgressByToken(
         new ProgressDatabase(bill("admin"), [
-          { ...slots[0], expected_amount_units: "invalid" },
+          { ...slots()[0], expected_amount_units: "invalid" },
         ]),
         TOKEN,
       ),
@@ -261,7 +304,7 @@ describe("loadBillProgressByToken", () => {
     await expect(
       loadBillProgressByToken(
         new ProgressDatabase(bill("admin"), [
-          { ...slots[0], proof_digest: null },
+          { ...slots()[0], proof_digest: null },
         ]),
         TOKEN,
       ),
