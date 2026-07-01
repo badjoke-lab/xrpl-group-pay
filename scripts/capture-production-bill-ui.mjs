@@ -31,6 +31,7 @@ async function capture(page, viewport, variant) {
     const selectedAsset = document.querySelector(
       'input[name="settlementAsset"]:checked',
     );
+    const text = body.textContent ?? "";
     return {
       documentClientWidth: documentElement.clientWidth,
       documentScrollWidth: documentElement.scrollWidth,
@@ -40,7 +41,18 @@ async function capture(page, viewport, variant) {
       language: document.documentElement.lang,
       selectedAssetId:
         selectedAsset instanceof HTMLInputElement ? selectedAsset.value : null,
-      reviewedJapaneseCopy: body.textContent?.includes("割り勘の内容を入力") ?? false,
+      reviewedJapaneseCopy: text.includes("割り勘の内容を入力"),
+      reviewedJapaneseSections:
+        text.includes("請求を作成") &&
+        text.includes("分け方と参加者") &&
+        text.includes("入力内容の確認"),
+      staleJapaneseCopy:
+        text.includes("共同請求を作成") ||
+        text.includes("配分と参加者") ||
+        text.includes("確認準備"),
+      mixedEnglishShell:
+        text.includes("Create one bill. Send each person their exact share.") ||
+        text.includes("Creator flow · XRPL Mainnet"),
     };
   });
   const horizontalOverflow =
@@ -81,6 +93,18 @@ try {
 
     await page.getByRole("combobox", { name: "Language" }).selectOption("ja");
     await page.locator('html[lang="ja"]').waitFor();
+    await page
+      .getByRole("heading", { level: 1, name: "割り勘の内容を入力" })
+      .waitFor({ timeout: 15_000 });
+    await page
+      .getByRole("heading", { name: "請求を作成", exact: true })
+      .waitFor({ timeout: 15_000 });
+    await page
+      .getByRole("heading", { name: "分け方と参加者", exact: true })
+      .waitFor({ timeout: 15_000 });
+    await page
+      .getByRole("heading", { name: "入力内容の確認", exact: true })
+      .waitFor({ timeout: 15_000 });
 
     const rlusdInput = page.locator(
       'input[name="settlementAsset"][value$=":rlusd"]',
@@ -100,7 +124,7 @@ try {
 }
 
 const report = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   capturedAt: new Date().toISOString(),
   baseUrl,
   page: "/bill",
@@ -112,15 +136,24 @@ await writeFile(
   "utf8",
 );
 
-const failures = results.filter((result) => result.horizontalOverflow);
+const failures = results.filter(
+  (result) =>
+    result.horizontalOverflow ||
+    (result.variant === "ja-rlusd" &&
+      (!result.metrics.reviewedJapaneseCopy ||
+        !result.metrics.reviewedJapaneseSections ||
+        result.metrics.staleJapaneseCopy ||
+        result.metrics.mixedEnglishShell ||
+        result.metrics.selectedAssetId !== "xrpl:mainnet:rlusd")),
+);
 if (failures.length > 0) {
   throw new Error(
-    `Horizontal overflow detected: ${failures
+    `Production UI audit failed: ${failures
       .map((item) => `${item.viewport.name}/${item.variant}`)
       .join(", ")}`,
   );
 }
 
 console.log(
-  `Production UI audit captured ${results.length} XRP and RLUSD views without horizontal overflow.`,
+  `Production UI audit captured ${results.length} complete XRP and Japanese RLUSD views without horizontal overflow or mixed-language copy.`,
 );
