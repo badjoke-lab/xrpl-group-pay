@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { LoaderCircle, Users } from "lucide-react";
+import { Check, LoaderCircle, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { publicEnv } from "@/config/public-env";
@@ -59,6 +59,73 @@ const REQUIRED_FIELDS_TITLE = {
   ja: "必須項目を入力してください",
   ko: "필수 항목을 입력하세요",
 } as const;
+
+const SECTION_COPY = {
+  en: {
+    detailsTitle: "Bill details",
+    detailsDescription: "Choose the asset, recipient, and total amount.",
+    splitTitle: "Split and participants",
+    splitDescription: "Choose how the participant portion is divided.",
+    reviewTitle: "Review readiness",
+    reviewDescription: "Check the summary and complete any remaining fields.",
+    asset: "Settlement asset",
+    participants: "Participants",
+  },
+  ja: {
+    detailsTitle: "請求内容",
+    detailsDescription: "決済資産、受取先、合計額を設定します。",
+    splitTitle: "配分と参加者",
+    splitDescription: "参加者負担分の分け方を設定します。",
+    reviewTitle: "確認準備",
+    reviewDescription: "概要と未入力項目を確認します。",
+    asset: "決済資産",
+    participants: "参加者",
+  },
+  ko: {
+    detailsTitle: "청구 내용",
+    detailsDescription: "결제 자산, 수취인, 총액을 설정합니다.",
+    splitTitle: "분할 및 참가자",
+    splitDescription: "참가자 부담액의 분할 방식을 설정합니다.",
+    reviewTitle: "검토 준비",
+    reviewDescription: "요약과 남은 필수 항목을 확인합니다.",
+    asset: "결제 자산",
+    participants: "참가자",
+  },
+} as const;
+
+function FormSection({
+  step,
+  title,
+  description,
+  complete,
+  children,
+}: {
+  step: number;
+  title: string;
+  description: string;
+  complete: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="mt-5 min-w-0 rounded-xl border border-border bg-background p-4 sm:p-6">
+      <div className="flex min-w-0 items-start gap-3">
+        <div
+          className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+            complete ? "bg-brand text-white" : "bg-brand-subtle text-brand"
+          }`}
+          aria-hidden="true"
+        >
+          {complete ? <Check className="size-4" /> : step}
+        </div>
+        <div className="min-w-0">
+          <h3 className="font-heading text-lg font-semibold sm:text-xl">{title}</h3>
+          <p className="mt-1 text-sm leading-6 text-muted">{description}</p>
+        </div>
+      </div>
+      <div className="min-w-0">{children}</div>
+    </section>
+  );
+}
 
 async function readJson(response: Response, fallback: string) {
   const body = await response.json().catch(() => null);
@@ -132,6 +199,16 @@ export function TestnetBillForm() {
     draft.allocationStrategy === "custom"
       ? customAllocation.status === "exact"
       : strategyPreview.status === "exact";
+  const participantAddressesComplete = draft.participants.every((item) =>
+    item.expectedPayerAddress.trim(),
+  );
+  const detailsComplete = Boolean(
+    draft.title.trim() &&
+      draft.destinationAddress.trim() &&
+      draft.totalAmount.trim() &&
+      draft.creatorShareAmount.trim(),
+  );
+  const splitComplete = allocationExact && participantAddressesComplete;
   const missingRequiredFields = [
     !draft.title.trim() ? t("bill.field.title") : null,
     !draft.destinationAddress.trim() ? t("bill.field.destination") : null,
@@ -161,6 +238,7 @@ export function TestnetBillForm() {
       }),
     [draft, strategyPreview],
   );
+  const sectionCopy = SECTION_COPY[locale];
 
   function updateBill(
     field:
@@ -327,114 +405,167 @@ export function TestnetBillForm() {
         </div>
       </div>
 
-      <AssetSelection
-        assets={ASSETS}
-        selectedAsset={selectedAsset}
-        onSelect={selectAsset}
-      />
-      <BillIdentityFields
-        draft={draft}
-        assetSymbol={selectedAsset.symbol}
-        onChange={updateBill}
-      />
-      <AllocationSelection
-        selected={draft.allocationStrategy}
-        onSelect={selectStrategy}
-      />
-      <ParticipantAllocationEditor
-        strategy={draft.allocationStrategy}
-        participants={draft.participants}
-        assetSymbol={selectedAsset.symbol}
-        assetScale={selectedAsset.precision}
-        calculatedUnits={
-          strategyPreview.status === "exact"
-            ? strategyPreview.participantUnits
-            : {}
-        }
-        onChange={updateParticipant}
-        onAdd={(participant) =>
-          setDraft((current) => ({
-            ...current,
-            participants: [...current.participants, participant],
-          }))
-        }
-        onRemove={removeParticipant}
-      />
-
-      {hasRemainder && strategyPreview.remainderUnits && (
-        <RemainderControls
-          remainderUnits={strategyPreview.remainderUnits}
-          mode={draft.remainderMode}
-          selectedParticipantId={draft.remainderParticipantId}
-          participants={draft.participants.map((item) => ({
-            participantId: item.id,
-            label: item.label,
-            manualUnits: item.remainderUnits,
-          }))}
-          onModeChange={(mode) =>
-            setDraft((current) => ({
-              ...current,
-              remainderMode: mode,
-              remainderParticipantId:
-                mode === "selected_participant"
-                  ? current.remainderParticipantId
-                  : "",
-            }))
-          }
-          onSelectedParticipantChange={(participantId) =>
-            setDraft((current) => ({
-              ...current,
-              remainderParticipantId: participantId,
-            }))
-          }
-          onManualUnitsChange={(participantId, units) =>
-            updateParticipant(participantId, "remainderUnits", units)
-          }
-        />
-      )}
-
-      <AllocationStatus
-        strategy={draft.allocationStrategy}
-        customAllocation={customAllocation}
-        strategyPreview={strategyPreview}
-        assetSymbol={selectedAsset.symbol}
-      />
-
-      {allocationExact && missingRequiredFields.length > 0 && (
-        <div
-          role="status"
-          className="mt-4 rounded-lg border border-action/25 bg-action/10 p-4 text-action"
-        >
-          <p className="font-semibold">{REQUIRED_FIELDS_TITLE[locale]}</p>
-          <p className="mt-1 break-words text-sm leading-6">
-            {missingRequiredFields.join(" · ")}
-          </p>
-        </div>
-      )}
-
-      {error && (
-        <p
-          role="alert"
-          className="mt-5 rounded-md bg-danger/10 px-4 py-3 text-sm text-danger"
-        >
-          {error}
-        </p>
-      )}
-
-      <Button
-        type="submit"
-        className="mt-7 w-full"
-        disabled={reviewing || !canReview}
+      <FormSection
+        step={1}
+        title={sectionCopy.detailsTitle}
+        description={sectionCopy.detailsDescription}
+        complete={detailsComplete}
       >
-        {reviewing ? (
-          <>
-            <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-            {t("bill.form.reviewing")}
-          </>
-        ) : (
-          t("bill.form.review")
+        <AssetSelection
+          assets={ASSETS}
+          selectedAsset={selectedAsset}
+          onSelect={selectAsset}
+        />
+        <BillIdentityFields
+          draft={draft}
+          assetSymbol={selectedAsset.symbol}
+          onChange={updateBill}
+        />
+      </FormSection>
+
+      <FormSection
+        step={2}
+        title={sectionCopy.splitTitle}
+        description={sectionCopy.splitDescription}
+        complete={splitComplete}
+      >
+        <AllocationSelection
+          selected={draft.allocationStrategy}
+          onSelect={selectStrategy}
+        />
+        <ParticipantAllocationEditor
+          strategy={draft.allocationStrategy}
+          participants={draft.participants}
+          assetSymbol={selectedAsset.symbol}
+          assetScale={selectedAsset.precision}
+          calculatedUnits={
+            strategyPreview.status === "exact"
+              ? strategyPreview.participantUnits
+              : {}
+          }
+          onChange={updateParticipant}
+          onAdd={(participant) =>
+            setDraft((current) => ({
+              ...current,
+              participants: [...current.participants, participant],
+            }))
+          }
+          onRemove={removeParticipant}
+        />
+
+        {hasRemainder && strategyPreview.remainderUnits && (
+          <RemainderControls
+            remainderUnits={strategyPreview.remainderUnits}
+            mode={draft.remainderMode}
+            selectedParticipantId={draft.remainderParticipantId}
+            participants={draft.participants.map((item) => ({
+              participantId: item.id,
+              label: item.label,
+              manualUnits: item.remainderUnits,
+            }))}
+            onModeChange={(mode) =>
+              setDraft((current) => ({
+                ...current,
+                remainderMode: mode,
+                remainderParticipantId:
+                  mode === "selected_participant"
+                    ? current.remainderParticipantId
+                    : "",
+              }))
+            }
+            onSelectedParticipantChange={(participantId) =>
+              setDraft((current) => ({
+                ...current,
+                remainderParticipantId: participantId,
+              }))
+            }
+            onManualUnitsChange={(participantId, units) =>
+              updateParticipant(participantId, "remainderUnits", units)
+            }
+          />
         )}
-      </Button>
+      </FormSection>
+
+      <FormSection
+        step={3}
+        title={sectionCopy.reviewTitle}
+        description={sectionCopy.reviewDescription}
+        complete={canReview}
+      >
+        <div className="mt-6 grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="min-w-0 rounded-lg border border-border bg-surface p-3">
+            <p className="text-xs font-semibold text-muted">{t("bill.field.total")}</p>
+            <p className="mt-1 break-words font-semibold">
+              {draft.totalAmount ? `${draft.totalAmount} ${selectedAsset.symbol}` : "—"}
+            </p>
+          </div>
+          <div className="min-w-0 rounded-lg border border-border bg-surface p-3">
+            <p className="text-xs font-semibold text-muted">
+              {t("bill.field.creatorShare")}
+            </p>
+            <p className="mt-1 break-words font-semibold">
+              {draft.creatorShareAmount
+                ? `${draft.creatorShareAmount} ${selectedAsset.symbol}`
+                : "—"}
+            </p>
+          </div>
+          <div className="min-w-0 rounded-lg border border-border bg-surface p-3">
+            <p className="text-xs font-semibold text-muted">{sectionCopy.asset}</p>
+            <p className="mt-1 break-words font-semibold">{selectedAsset.symbol}</p>
+          </div>
+          <div className="min-w-0 rounded-lg border border-border bg-surface p-3">
+            <p className="text-xs font-semibold text-muted">
+              {sectionCopy.participants}
+            </p>
+            <p className="mt-1 font-semibold">{draft.participants.length}</p>
+          </div>
+        </div>
+
+        <AllocationStatus
+          strategy={draft.allocationStrategy}
+          customAllocation={customAllocation}
+          strategyPreview={strategyPreview}
+          assetSymbol={selectedAsset.symbol}
+        />
+
+        {allocationExact && missingRequiredFields.length > 0 && (
+          <div
+            role="status"
+            className="mt-4 rounded-lg border border-action/25 bg-action/10 p-4 text-action"
+          >
+            <p className="font-semibold">{REQUIRED_FIELDS_TITLE[locale]}</p>
+            <p className="mt-1 break-words text-sm leading-6">
+              {missingRequiredFields.join(" · ")}
+            </p>
+          </div>
+        )}
+
+        {error && (
+          <p
+            role="alert"
+            className="mt-5 rounded-md bg-danger/10 px-4 py-3 text-sm text-danger"
+          >
+            {error}
+          </p>
+        )}
+
+        <div className="sticky bottom-3 z-10 mt-5 rounded-xl border border-border bg-surface p-3 shadow-lg sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={reviewing || !canReview}
+          >
+            {reviewing ? (
+              <>
+                <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+                {t("bill.form.reviewing")}
+              </>
+            ) : (
+              t("bill.form.review")
+            )}
+          </Button>
+        </div>
+      </FormSection>
     </form>
   );
 }
