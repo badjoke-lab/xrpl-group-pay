@@ -159,9 +159,12 @@ function parseDestinationTag(value: string | number | undefined) {
   return parsed;
 }
 
-function assertModeAllocationCompatibility(input: NormalizedCreateBillInput) {
+function assertModeAllocationCompatibility(
+  input: NormalizedCreateBillInput,
+  paymentMode: "representative" | "direct",
+) {
   if (
-    input.paymentMode === "direct" &&
+    paymentMode === "direct" &&
     input.allocation &&
     "remainderAssignment" in input.allocation &&
     input.allocation.remainderAssignment?.kind === "creator"
@@ -177,6 +180,7 @@ function prepareBill(
   expectedNetwork: XrplNetwork = "testnet",
 ): PreparedBill {
   const input = createBillInputSchema.parse(rawInput);
+  const paymentMode = input.paymentMode ?? "representative";
   const asset = requireSettlementAsset(input.settlementAssetId, expectedNetwork);
   const destinationAddress = input.destinationAddress.trim();
   if (!isValidClassicAddress(destinationAddress)) {
@@ -187,32 +191,30 @@ function prepareBill(
   const totalAmount = parseAmount(asset, input.totalAmount, false, "Bill total");
   const recipientFundedAmount = parseAmount(
     asset,
-    input.recipientFundedAmount,
+    input.recipientFundedAmount ?? input.creatorShareAmount,
     true,
     "Recipient-funded amount",
   );
+  const compatibilityCreatorShareAmount = parseAmount(
+    asset,
+    input.creatorShareAmount,
+    true,
+    "Creator share compatibility amount",
+  );
 
-  if (input.compatibilityCreatorShareAmount !== undefined) {
-    const compatibilityAmount = parseAmount(
-      asset,
-      input.compatibilityCreatorShareAmount,
-      true,
-      "Creator share compatibility amount",
+  if (compatibilityCreatorShareAmount.units !== recipientFundedAmount.units) {
+    throw new BillInputError(
+      "Recipient-funded amount and creator-share compatibility amount must match.",
     );
-    if (compatibilityAmount.units !== recipientFundedAmount.units) {
-      throw new BillInputError(
-        "Recipient-funded amount and creator-share compatibility amount must match.",
-      );
-    }
   }
 
-  if (input.paymentMode === "direct" && recipientFundedAmount.units !== "0") {
+  if (paymentMode === "direct" && recipientFundedAmount.units !== "0") {
     throw new BillInputError(
       "Direct-recipient Bills cannot contain a recipient-funded amount.",
     );
   }
 
-  assertModeAllocationCompatibility(input);
+  assertModeAllocationCompatibility(input, paymentMode);
 
   const payerAddresses = new Set<string>();
   const normalizedParticipants = input.participants.map((participant) => {
@@ -282,7 +284,7 @@ function prepareBill(
     };
   });
 
-  const compatibilityCreatorShareAmount: MoneyAmount = {
+  const frozenRecipientFundedAmount: MoneyAmount = {
     code: asset.symbol,
     units: allocation.result.creatorShareUnits,
     scale: asset.precision,
@@ -296,23 +298,23 @@ function prepareBill(
   const review = billReviewSchema.parse({
     network: asset.network,
     title: input.title.trim(),
-    paymentMode: input.paymentMode,
+    paymentMode,
     recipientLabel: input.recipientLabel?.trim() || null,
     destinationAddress,
     destinationTag,
     asset,
     totalAmount,
-    recipientFundedAmount: compatibilityCreatorShareAmount,
-    creatorShareAmount: compatibilityCreatorShareAmount,
+    recipientFundedAmount: frozenRecipientFundedAmount,
+    creatorShareAmount: frozenRecipientFundedAmount,
     allocatedAmount,
     totalDrops: compatibilityDrops(asset, totalAmount.units),
     recipientFundedDrops: compatibilityDrops(
       asset,
-      compatibilityCreatorShareAmount.units,
+      frozenRecipientFundedAmount.units,
     ),
     creatorShareDrops: compatibilityDrops(
       asset,
-      compatibilityCreatorShareAmount.units,
+      frozenRecipientFundedAmount.units,
     ),
     allocatedDrops: compatibilityDrops(asset, allocatedAmount.units),
     participants,
