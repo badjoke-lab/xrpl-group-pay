@@ -52,6 +52,7 @@ These documents define approved behavior. They may describe target behavior that
 - `privacy-data-map.md` — data classification, storage, disclosure, retention, and deletion.
 - `state-machine.md` — Bill, PaymentSlot, wallet-handoff, transaction-observation, recovery, and verification states.
 - `persistence-scope.md` — durable records, compatibility guarantees, and current database scope.
+- `payment-mode-persistence.md` — current PR #133 payment-mode, recipient-funded, closure, and review storage contract.
 - `d1-provisioning.md` — local, Testnet, and Mainnet D1 provisioning and migration controls.
 - `transaction-proof.md` — public proof fields, digest contracts, privacy boundary, and integrity checks.
 - `payment-reconciliation.md` — validated-ledger reconciliation required before replacing a prior Wallet Handoff.

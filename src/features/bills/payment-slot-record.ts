@@ -7,6 +7,8 @@ import {
   PAYMENT_SLOT_CONTRACT_VERSION,
 } from "@/features/persistence/asset-records";
 
+import { billPaymentModeSchema } from "./types";
+
 export const slotStatusSchema = z.enum([
   "unpaid",
   "payload_created",
@@ -25,6 +27,7 @@ export const billStatusSchema = z.enum([
   "partially_paid",
   "settled",
   "needs_review",
+  "closed_incomplete",
 ]);
 
 export const paymentSlotRecordSchema = z.object({
@@ -33,6 +36,8 @@ export const paymentSlotRecordSchema = z.object({
   bill_id: z.string().min(1),
   bill_public_id: z.string().uuid(),
   bill_title: z.string().min(1).max(100),
+  payment_mode: billPaymentModeSchema.optional().default("representative"),
+  recipient_label: z.string().max(100).nullable().optional().default(null),
   network: xrplNetworkSchema,
   destination_address: z.string().min(1),
   destination_tag: z.number().int().min(0).max(4_294_967_295).nullable(),
@@ -53,6 +58,8 @@ export const paymentSlotRecordSchema = z.object({
   slot_status: slotStatusSchema,
   bill_status: billStatusSchema,
   paid_tx_hash: z.string().nullable(),
+  review_reason_code: z.string().min(1).nullable().optional().default(null),
+  review_details_json: z.string().min(1).nullable().optional().default(null),
 });
 
 export const SELECT_PAYMENT_SLOT = `
@@ -62,6 +69,8 @@ export const SELECT_PAYMENT_SLOT = `
     ps.bill_id AS bill_id,
     b.public_id AS bill_public_id,
     b.title AS bill_title,
+    b.payment_mode AS payment_mode,
+    b.recipient_label AS recipient_label,
     b.network AS network,
     b.destination_address AS destination_address,
     b.destination_tag AS destination_tag,
@@ -77,8 +86,13 @@ export const SELECT_PAYMENT_SLOT = `
     ps.expected_amount_units AS expected_amount_units,
     ps.invoice_id AS invoice_id,
     ps.status AS slot_status,
-    b.status AS bill_status,
-    ps.paid_tx_hash AS paid_tx_hash
+    CASE
+      WHEN b.closure_state = 'closed_incomplete' THEN 'closed_incomplete'
+      ELSE b.status
+    END AS bill_status,
+    ps.paid_tx_hash AS paid_tx_hash,
+    ps.review_reason_code AS review_reason_code,
+    ps.review_details_json AS review_details_json
   FROM payment_slots ps
   INNER JOIN bills b ON b.id = ps.bill_id
   WHERE ps.public_token_hash = ?1

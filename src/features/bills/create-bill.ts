@@ -159,11 +159,28 @@ function parseDestinationTag(value: string | number | undefined) {
   return parsed;
 }
 
+function assertModeAllocationCompatibility(
+  input: NormalizedCreateBillInput,
+  paymentMode: "representative" | "direct",
+) {
+  if (
+    paymentMode === "direct" &&
+    input.allocation &&
+    "remainderAssignment" in input.allocation &&
+    input.allocation.remainderAssignment?.kind === "creator"
+  ) {
+    throw new BillInputError(
+      "Direct-recipient Bills cannot assign a remainder to the recipient-funded amount.",
+    );
+  }
+}
+
 function prepareBill(
   rawInput: CreateBillInput,
   expectedNetwork: XrplNetwork = "testnet",
 ): PreparedBill {
   const input = createBillInputSchema.parse(rawInput);
+  const paymentMode = input.paymentMode ?? "representative";
   const asset = requireSettlementAsset(input.settlementAssetId, expectedNetwork);
   const destinationAddress = input.destinationAddress.trim();
   if (!isValidClassicAddress(destinationAddress)) {
@@ -172,13 +189,34 @@ function prepareBill(
 
   const destinationTag = parseDestinationTag(input.destinationTag);
   const totalAmount = parseAmount(asset, input.totalAmount, false, "Bill total");
-  const requestedCreatorShareAmount = parseAmount(
+  const recipientFundedAmount = parseAmount(
+    asset,
+    input.recipientFundedAmount ?? input.creatorShareAmount,
+    true,
+    "Recipient-funded amount",
+  );
+  const compatibilityCreatorShareAmount = parseAmount(
     asset,
     input.creatorShareAmount,
     true,
-    "Creator share",
+    "Creator share compatibility amount",
   );
 
+  if (compatibilityCreatorShareAmount.units !== recipientFundedAmount.units) {
+    throw new BillInputError(
+      "Recipient-funded amount and creator-share compatibility amount must match.",
+    );
+  }
+
+  if (paymentMode === "direct" && recipientFundedAmount.units !== "0") {
+    throw new BillInputError(
+      "Direct-recipient Bills cannot contain a recipient-funded amount.",
+    );
+  }
+
+  assertModeAllocationCompatibility(input, paymentMode);
+
+  const payerAddresses = new Set<string>();
   const normalizedParticipants = input.participants.map((participant) => {
     const expectedPayerAddress = participant.expectedPayerAddress.trim();
     if (!isValidClassicAddress(expectedPayerAddress)) {
@@ -186,6 +224,17 @@ function prepareBill(
         "Every expected payer must be a valid classic XRPL address.",
       );
     }
+    if (expectedPayerAddress === destinationAddress) {
+      throw new BillInputError(
+        "The recipient address cannot also be an expected payer address.",
+      );
+    }
+    if (payerAddresses.has(expectedPayerAddress)) {
+      throw new BillInputError(
+        "Each expected payer address may appear only once in a Bill.",
+      );
+    }
+    payerAddresses.add(expectedPayerAddress);
     return {
       participantLabel: participant.label?.trim() || null,
       expectedPayerAddress,
@@ -198,7 +247,7 @@ function prepareBill(
       normalizedInput: input,
       asset,
       totalUnits: totalAmount.units,
-      creatorShareUnits: requestedCreatorShareAmount.units,
+      creatorShareUnits: recipientFundedAmount.units,
     });
   } catch (error) {
     if (error instanceof BillAllocationPreparationError) {
@@ -235,7 +284,7 @@ function prepareBill(
     };
   });
 
-  const creatorShareAmount: MoneyAmount = {
+  const frozenRecipientFundedAmount: MoneyAmount = {
     code: asset.symbol,
     units: allocation.result.creatorShareUnits,
     scale: asset.precision,
@@ -249,14 +298,24 @@ function prepareBill(
   const review = billReviewSchema.parse({
     network: asset.network,
     title: input.title.trim(),
+    paymentMode,
+    recipientLabel: input.recipientLabel?.trim() || null,
     destinationAddress,
     destinationTag,
     asset,
     totalAmount,
-    creatorShareAmount,
+    recipientFundedAmount: frozenRecipientFundedAmount,
+    creatorShareAmount: frozenRecipientFundedAmount,
     allocatedAmount,
     totalDrops: compatibilityDrops(asset, totalAmount.units),
-    creatorShareDrops: compatibilityDrops(asset, creatorShareAmount.units),
+    recipientFundedDrops: compatibilityDrops(
+      asset,
+      frozenRecipientFundedAmount.units,
+    ),
+    creatorShareDrops: compatibilityDrops(
+      asset,
+      frozenRecipientFundedAmount.units,
+    ),
     allocatedDrops: compatibilityDrops(asset, allocatedAmount.units),
     participants,
   });
@@ -322,15 +381,18 @@ export async function createPublishedBill(
         adminTokenHash,
         review.title,
         review.network,
+        review.paymentMode,
+        review.recipientLabel,
         review.destinationAddress,
         review.destinationTag,
         legacyCompatibilityUnits(review.totalAmount.units),
-        legacyCompatibilityUnits(review.creatorShareAmount.units),
+        legacyCompatibilityUnits(review.recipientFundedAmount.units),
         ...billAssetWriteValues(
           review.asset,
           review.totalAmount.units,
-          review.creatorShareAmount.units,
+          review.recipientFundedAmount.units,
         ),
+        review.recipientFundedAmount.units,
         timestamp,
       ),
     ...slots.map((slot) =>
@@ -396,14 +458,19 @@ export async function createPublishedBill(
       publicId: billPublicId,
       title: review.title,
       network: review.network,
+      paymentMode: review.paymentMode,
+      recipientLabel: review.recipientLabel,
       destinationAddress: review.destinationAddress,
       destinationTag: review.destinationTag,
       asset: review.asset,
       totalAmount: review.totalAmount,
+      recipientFundedAmount: review.recipientFundedAmount,
       creatorShareAmount: review.creatorShareAmount,
       totalDrops: review.totalDrops,
+      recipientFundedDrops: review.recipientFundedDrops,
       creatorShareDrops: review.creatorShareDrops,
       status: "open",
+      closureState: "active",
       revision: 1,
       frozenAt: timestamp,
       createdAt: timestamp,
