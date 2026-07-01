@@ -14,15 +14,16 @@ import { buttonStyles } from "@/components/ui/button";
 import { NetworkBadge } from "@/components/ui/network-badge";
 import { resolvePaymentOperations } from "@/config/payment-operations";
 import { publicEnv } from "@/config/public-env";
-import { translate } from "@/features/localization/catalog";
+import type { MessageKey } from "@/features/localization/catalog";
+import { translatePublic } from "@/features/localization/public-copy";
 import { getRequestLocale } from "@/features/localization/server";
 
 export default async function Home() {
   const locale = await getRequestLocale();
   const t = (
-    key: Parameters<typeof translate>[1],
+    key: MessageKey,
     variables?: Record<string, string | number>,
-  ) => translate(locale, key, variables);
+  ) => translatePublic(locale, key, variables);
   const network = publicEnv.NEXT_PUBLIC_APP_NETWORK;
   const operations = resolvePaymentOperations(process.env);
   const releaseMode = process.env.MAINNET_RELEASE_MODE ?? "disabled";
