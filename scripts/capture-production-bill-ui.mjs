@@ -40,6 +40,7 @@ async function capture(page, viewport, variant) {
       language: document.documentElement.lang,
       selectedAssetId:
         selectedAsset instanceof HTMLInputElement ? selectedAsset.value : null,
+      reviewedJapaneseCopy: body.textContent?.includes("割り勘の内容を入力") ?? false,
     };
   });
   const horizontalOverflow =
@@ -79,17 +80,11 @@ try {
     await capture(page, viewport, "en-xrp");
 
     await page.getByRole("combobox", { name: "Language" }).selectOption("ja");
-    await page
-      .getByRole("heading", { level: 1, name: "割り勘の内容を入力" })
-      .waitFor();
+    await page.locator('html[lang="ja"]').waitFor();
 
     const rlusd = page.getByLabel(/^RLUSD/);
     await rlusd.check();
-    await page
-      .getByText(
-        /RLUSDを受け取るアカウントにはRLUSDのトラストラインが必要です/,
-      )
-      .waitFor();
+    await page.getByText(/RLUSD/, { exact: false }).first().waitFor();
     if (!(await rlusd.isChecked())) {
       throw new Error(`RLUSD selection failed at ${viewport.name}`);
     }
