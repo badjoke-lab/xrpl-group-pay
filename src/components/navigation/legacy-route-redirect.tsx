@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 export type LegacyRouteDestination = "/payment" | "/bill/progress" | "/proof";
 
@@ -17,17 +17,25 @@ export function LegacyRouteRedirect({
 }: {
   destination: LegacyRouteDestination;
 }) {
-  const [href, setHref] = useState(destination);
-
   useEffect(() => {
-    const target = legacyRouteTarget(
-      destination,
-      window.location.search,
-      window.location.hash,
+    window.location.replace(
+      legacyRouteTarget(
+        destination,
+        window.location.search,
+        window.location.hash,
+      ),
     );
-    setHref(target);
-    window.location.replace(target);
   }, [destination]);
+
+  function continueToCanonicalRoute() {
+    window.location.replace(
+      legacyRouteTarget(
+        destination,
+        window.location.search,
+        window.location.hash,
+      ),
+    );
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-5">
@@ -36,12 +44,13 @@ export function LegacyRouteRedirect({
         <p className="mt-3 leading-7 text-muted">
           This page has moved to a shorter address.
         </p>
-        <a
-          href={href}
+        <button
+          type="button"
+          onClick={continueToCanonicalRoute}
           className="mt-5 inline-flex min-h-11 items-center justify-center rounded-md bg-action px-5 font-semibold text-white"
         >
           Continue
-        </a>
+        </button>
       </div>
     </main>
   );
