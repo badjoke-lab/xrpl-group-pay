@@ -1,81 +1,126 @@
-import { CircleAlert, GitCommitHorizontal, ShieldCheck } from "lucide-react";
+import { CheckCircle2, GitCommitHorizontal, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 import { BrandMark } from "@/components/brand/brand-mark";
 import { LanguageSwitcher } from "@/components/localization/language-switcher";
 import { NetworkBadge } from "@/components/ui/network-badge";
 import { publicEnv } from "@/config/public-env";
-import { translate } from "@/features/localization/catalog";
+import type { Locale, MessageKey } from "@/features/localization/catalog";
+import { translatePublic } from "@/features/localization/public-copy";
 import { getRequestLocale } from "@/features/localization/server";
 
 export const metadata = {
   title: "Changelog",
-  description: "Meaningful XRPL Group Pay product and security changes.",
+  description: "XRPL Group Pay product and security changes.",
 };
 
-const entries = [
+type Entry = {
+  date: string;
+  title: string;
+  kind: string;
+  icon: typeof CheckCircle2;
+  body: readonly string[];
+};
+
+const EN_ENTRIES: readonly Entry[] = [
   {
-    date: "2026-06-29",
-    title: "Validated-ledger replacement reconciliation",
-    kind: "Security",
-    icon: ShieldCheck,
+    date: "2026-07-01",
+    title: "Public Mainnet release and creator UI improvements",
+    kind: "Release",
+    icon: CheckCircle2,
     body: [
-      "Reviews the expected payer's validated account history before replacing a previous Wallet Handoff.",
-      "Settles one exact existing payment, sends multiple exact payments to durable review, and fails closed when history is incomplete.",
-      "Keeps InvoiceID as candidate discovery only; every candidate still passes the complete frozen Payment verification contract.",
+      "Published the reviewed Mainnet runtime with bill creation and payment verification enabled.",
+      "Improved the mobile layout and changed participant forms into compact expandable cards.",
+      "Added production screenshots at mobile and desktop widths with overflow checks.",
     ],
   },
   {
-    date: "2026-06-29",
-    title: "One-shot Xaman payment handoffs",
-    kind: "Security",
-    icon: ShieldCheck,
-    body: [
-      "Pinned the expected payer Account and one validated XRPL Sequence into every provider-created Payment.",
-      "Added a bounded LastLedgerSequence so stale signing requests fail closed.",
-      "Recorded the controlled Mainnet RLUSD duplicate-transfer incident as a release blocker without exposing private operator material.",
-    ],
-  },
-  {
-    date: "2026-06-29",
-    title: "Controlled Mainnet XRP acceptance",
-    kind: "Release evidence",
+    date: "2026-06-30",
+    title: "Mainnet XRP and RLUSD acceptance completed",
+    kind: "Verification",
     icon: GitCommitHorizontal,
     body: [
-      "Verified a one-drop XRP Payment on XRPL Mainnet with the assigned Source Tag and frozen InvoiceID.",
-      "Recorded the durable receipt and public proof digest.",
-      "Confirmed duplicate settlement prevention, cross-slot replay rejection, and halted restoration.",
+      "Completed controlled Mainnet checks for XRP and official RLUSD.",
+      "Confirmed ledger verification, durable receipts, duplicate protection, and replay protection.",
+    ],
+  },
+  {
+    date: "2026-06-29",
+    title: "Safer Xaman payment requests",
+    kind: "Security",
+    icon: ShieldCheck,
+    body: [
+      "Bound each request to the expected payer and one XRPL Sequence.",
+      "Added an expiry window and a ledger check before replacing an interrupted request.",
     ],
   },
   {
     date: "2026-06-25",
-    title: "Deterministic allocation and Asset-aware Bills",
+    title: "Flexible bill splitting",
     kind: "Product",
     icon: GitCommitHorizontal,
     body: [
-      "Added Equal, Percentage, Shares, and Custom Amount allocation strategies.",
-      "Added explicit remainder assignment and immutable allocation records.",
-      "Added XRP or official RLUSD selection with fixed-precision Asset units across every PaymentSlot.",
+      "Added equal, custom amount, percentage, and shares-based splitting.",
+      "Added XRP and official RLUSD as selectable payment assets.",
+    ],
+  },
+];
+
+const JA_ENTRIES: readonly Entry[] = [
+  {
+    date: "2026-07-01",
+    title: "Mainnet版を公開し、請求作成画面を改善",
+    kind: "公開",
+    icon: CheckCircle2,
+    body: [
+      "Mainnetで請求作成と支払い確認を利用できる状態にしました。",
+      "スマートフォンでの表示崩れを直し、参加者入力を折りたたみ式に変更しました。",
+      "スマートフォンとPCの本番画面を自動確認する仕組みを追加しました。",
     ],
   },
   {
-    date: "2026-06-24",
-    title: "Initial end-to-end Testnet product",
-    kind: "Product",
+    date: "2026-06-30",
+    title: "XRPとRLUSDのMainnet確認を完了",
+    kind: "動作確認",
     icon: GitCommitHorizontal,
     body: [
-      "Added Bill creation, participant capabilities, Xaman signing, validated-ledger verification, D1 receipts, atomic progress updates, and public XRP proof.",
-      "Added creator review, participant final confirmation, responsive payer views, and desktop creator views.",
+      "Mainnet上でXRPと公式RLUSDの支払い確認を行いました。",
+      "着金確認、記録保存、二重計上防止、リンクの使い回し防止を確認しました。",
     ],
   },
-] as const;
+  {
+    date: "2026-06-29",
+    title: "Xamanの支払いリクエストを安全化",
+    kind: "安全性",
+    icon: ShieldCheck,
+    body: [
+      "支払うウォレットと1回分のSequenceを支払いリクエストへ固定しました。",
+      "古いリクエストの期限と、再作成前のXRPL確認を追加しました。",
+    ],
+  },
+  {
+    date: "2026-06-25",
+    title: "4通りの割り勘方法に対応",
+    kind: "機能追加",
+    icon: GitCommitHorizontal,
+    body: [
+      "均等、個別金額、割合、比率で負担額を分けられるようにしました。",
+      "支払い通貨としてXRPと公式RLUSDを選べるようにしました。",
+    ],
+  },
+];
+
+function entriesFor(locale: Locale) {
+  return locale === "ja" ? JA_ENTRIES : EN_ENTRIES;
+}
 
 export default async function ChangelogPage() {
   const locale = await getRequestLocale();
   const t = (
-    key: Parameters<typeof translate>[1],
+    key: MessageKey,
     variables?: Record<string, string | number>,
-  ) => translate(locale, key, variables);
+  ) => translatePublic(locale, key, variables);
+  const entries = entriesFor(locale);
 
   return (
     <main className="min-h-screen bg-background">
@@ -101,14 +146,11 @@ export default async function ChangelogPage() {
           {t("changelog.description")}
         </p>
 
-        <section className="mt-8 rounded-xl border border-action/30 bg-action/10 p-5 sm:p-6">
+        <section className="mt-8 rounded-xl border border-success/30 bg-success/10 p-5 sm:p-6">
           <div className="flex items-start gap-3">
-            <CircleAlert
-              aria-hidden="true"
-              className="mt-0.5 size-6 shrink-0 text-action"
-            />
+            <CheckCircle2 aria-hidden="true" className="mt-0.5 size-6 shrink-0 text-success" />
             <div>
-              <h2 className="font-semibold text-action">
+              <h2 className="font-semibold text-success">
                 {t("changelog.status.title")}
               </h2>
               <p className="mt-1 leading-7 text-foreground">
@@ -133,9 +175,7 @@ export default async function ChangelogPage() {
                     <p className="text-xs font-bold uppercase tracking-[0.14em] text-action">
                       {kind}
                     </p>
-                    <h2 className="mt-1 font-heading text-2xl font-semibold">
-                      {title}
-                    </h2>
+                    <h2 className="mt-1 font-heading text-2xl font-semibold">{title}</h2>
                   </div>
                 </div>
                 <time className="text-sm font-semibold text-muted">{date}</time>
@@ -143,10 +183,7 @@ export default async function ChangelogPage() {
               <ul className="mt-6 space-y-3">
                 {body.map((item) => (
                   <li key={item} className="flex gap-3 leading-7 text-muted">
-                    <span
-                      aria-hidden="true"
-                      className="mt-3 size-1.5 shrink-0 rounded-full bg-action"
-                    />
+                    <span aria-hidden="true" className="mt-3 size-1.5 shrink-0 rounded-full bg-action" />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -156,10 +193,7 @@ export default async function ChangelogPage() {
         </div>
 
         <div className="mt-10 flex flex-wrap gap-4 text-sm font-semibold">
-          <Link
-            href="/roadmap"
-            className="text-brand underline-offset-4 hover:underline"
-          >
+          <Link href="/roadmap" className="text-brand underline-offset-4 hover:underline">
             {t("nav.roadmap")}
           </Link>
           <a
