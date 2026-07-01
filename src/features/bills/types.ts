@@ -103,7 +103,7 @@ export type BillAllocationInput = z.infer<typeof billAllocationInputSchema>;
 const canonicalCreateBillInputSchema = z
   .object({
     title: z.string().trim().min(1).max(100),
-    paymentMode: billPaymentModeSchema.optional().default("representative"),
+    paymentMode: billPaymentModeSchema.optional(),
     recipientLabel: z.string().trim().max(100).optional(),
     destinationAddress: z.string().trim().min(1),
     destinationTag: destinationTagSchema.optional(),
@@ -116,11 +116,18 @@ const canonicalCreateBillInputSchema = z
   })
   .strict()
   .transform((input) => {
+    const usesPaymentModeContract =
+      input.paymentMode !== undefined ||
+      input.recipientLabel !== undefined ||
+      input.recipientFundedAmount !== undefined;
     const recipientFundedAmount =
       input.recipientFundedAmount ?? input.creatorShareAmount ?? "0";
+
     return {
       title: input.title,
-      paymentMode: input.paymentMode,
+      ...(usesPaymentModeContract
+        ? { paymentMode: input.paymentMode ?? ("representative" as const) }
+        : {}),
       ...(input.recipientLabel === undefined
         ? {}
         : { recipientLabel: input.recipientLabel }),
@@ -130,11 +137,8 @@ const canonicalCreateBillInputSchema = z
         : { destinationTag: input.destinationTag }),
       settlementAssetId: input.settlementAssetId,
       totalAmount: input.totalAmount,
-      recipientFundedAmount,
+      ...(usesPaymentModeContract ? { recipientFundedAmount } : {}),
       creatorShareAmount: recipientFundedAmount,
-      ...(input.creatorShareAmount === undefined
-        ? {}
-        : { compatibilityCreatorShareAmount: input.creatorShareAmount }),
       ...(input.allocation === undefined ? {} : { allocation: input.allocation }),
       participants: input.participants,
     };
@@ -163,16 +167,13 @@ const legacyXrpCreateBillInputSchema = z
   .strict()
   .transform((input) => ({
     title: input.title,
-    paymentMode: "representative" as const,
     destinationAddress: input.destinationAddress,
     ...(input.destinationTag === undefined
       ? {}
       : { destinationTag: input.destinationTag }),
     settlementAssetId: "xrpl:testnet:xrp" as const,
     totalAmount: input.totalXrp,
-    recipientFundedAmount: input.creatorShareXrp,
     creatorShareAmount: input.creatorShareXrp,
-    compatibilityCreatorShareAmount: input.creatorShareXrp,
     participants: input.participants.map((participant) => ({
       ...(participant.label === undefined ? {} : { label: participant.label }),
       expectedPayerAddress: participant.expectedPayerAddress,
@@ -182,15 +183,14 @@ const legacyXrpCreateBillInputSchema = z
 
 export type NormalizedCreateBillInput = {
   title: string;
-  paymentMode: z.infer<typeof billPaymentModeSchema>;
+  paymentMode?: z.infer<typeof billPaymentModeSchema>;
   recipientLabel?: string;
   destinationAddress: string;
   destinationTag?: string | number;
   settlementAssetId: z.infer<typeof xrplSettlementAssetIdSchema>;
   totalAmount: string;
-  recipientFundedAmount: string;
+  recipientFundedAmount?: string;
   creatorShareAmount: string;
-  compatibilityCreatorShareAmount?: string;
   allocation?: BillAllocationInput;
   participants: Array<{
     participantId?: string;
