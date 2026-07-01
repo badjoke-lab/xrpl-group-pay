@@ -20,6 +20,7 @@ export const XRPL_ACCOUNT_READ_ENDPOINTS: Readonly<
 };
 
 const classicAddressSchema = z.string().refine(isValidClassicAddress);
+const unsignedIntegerStringSchema = z.string().regex(/^(?:0|[1-9]\d*)$/);
 const decimalStringSchema = z
   .string()
   .regex(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/);
@@ -39,9 +40,12 @@ const accountInfoResultSchema = z
     account_data: z
       .object({
         Account: classicAddressSchema,
+        Balance: unsignedIntegerStringSchema,
+        OwnerCount: z.number().int().min(0).max(4_294_967_295),
       })
       .passthrough(),
     account_flags: accountFlagsSchema,
+    ledger_index: z.number().int().min(0).max(4_294_967_295),
     validated: z.literal(true),
   })
   .passthrough();
@@ -71,6 +75,37 @@ const accountLinesResultSchema = z
   })
   .passthrough();
 
+const integerLikeSchema = z.union([
+  z.number().int().nonnegative().transform((value) => String(value)),
+  unsignedIntegerStringSchema,
+]);
+
+const serverStateResultSchema = z
+  .object({
+    state: z
+      .object({
+        validated_ledger: z.object({
+          base_fee: integerLikeSchema,
+          reserve_base: integerLikeSchema,
+          reserve_inc: integerLikeSchema,
+          seq: z.number().int().min(0).max(4_294_967_295),
+        }),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
+const feeResultSchema = z
+  .object({
+    drops: z.object({
+      base_fee: unsignedIntegerStringSchema,
+      minimum_fee: unsignedIntegerStringSchema,
+      open_ledger_fee: unsignedIntegerStringSchema,
+    }),
+    ledger_current_index: z.number().int().min(0).max(4_294_967_295),
+  })
+  .passthrough();
+
 const rpcEnvelopeSchema = z
   .object({
     result: z.unknown(),
@@ -83,18 +118,41 @@ const rpcErrorSchema = z
   })
   .passthrough();
 
+type AccountReadMethod =
+  | "account_info"
+  | "account_lines"
+  | "server_state"
+  | "fee";
+
 export type XrplAccountFlags = z.infer<typeof accountFlagsSchema>;
 export type XrplTrustLine = z.infer<typeof trustLineSchema>;
 
 export type XrplAccountInfo = {
   account: string;
   flags: XrplAccountFlags;
+  balanceDrops: string;
+  ownerCount: number;
+  validatedLedgerIndex: number;
+};
+
+export type XrplNetworkReadinessState = {
+  validatedLedgerIndex: number;
+  currentLedgerIndex: number;
+  baseFeeDrops: string;
+  minimumFeeDrops: string;
+  openLedgerFeeDrops: string;
+  reserveBaseDrops: string;
+  reserveIncrementDrops: string;
 };
 
 export interface XrplRecipientReadClient {
   readonly network: XrplNetwork;
   getAccountInfo(account: string): Promise<XrplAccountInfo | null>;
   getTrustLines(account: string, peer: string): Promise<XrplTrustLine[]>;
+}
+
+export interface XrplReadinessClient extends XrplRecipientReadClient {
+  getNetworkReadinessState(): Promise<XrplNetworkReadinessState>;
 }
 
 export class XrplAccountReadUnavailableError extends Error {
@@ -117,13 +175,13 @@ function requireClassicAddress(value: string) {
   const parsed = classicAddressSchema.safeParse(value);
   if (!parsed.success) {
     throw new XrplAccountReadConfigurationError(
-      "Recipient readiness requires a valid classic XRPL address.",
+      "Readiness checks require a valid classic XRPL address.",
     );
   }
   return parsed.data;
 }
 
-export class XrplAccountReadClient implements XrplRecipientReadClient {
+export class XrplAccountReadClient implements XrplReadinessClient {
   constructor(
     readonly network: XrplNetwork,
     private readonly endpoints: readonly string[] =
@@ -139,7 +197,7 @@ export class XrplAccountReadClient implements XrplRecipientReadClient {
 
   private async requestEndpoint(
     endpoint: string,
-    method: "account_info" | "account_lines",
+    method: AccountReadMethod,
     params: Record<string, unknown>,
   ): Promise<unknown> {
     let response: Response;
@@ -153,7 +211,7 @@ export class XrplAccountReadClient implements XrplRecipientReadClient {
         body: JSON.stringify({
           method,
           params: [{ ...params, api_version: 2 }],
-          id: "xrpl-group-pay-recipient-readiness",
+          id: "xrpl-group-pay-readiness",
         }),
         cache: "no-store",
         signal: AbortSignal.timeout(10_000),
@@ -175,11 +233,13 @@ export class XrplAccountReadClient implements XrplRecipientReadClient {
   }
 
   private isUsableResult(
-    method: "account_info" | "account_lines",
+    method: AccountReadMethod,
     params: Record<string, unknown>,
     result: unknown,
   ) {
-    if (rpcErrorSchema.safeParse(result).success) return true;
+    if (rpcErrorSchema.safeParse(result).success) {
+      return method === "account_info" || method === "account_lines";
+    }
 
     if (method === "account_info") {
       const parsed = accountInfoResultSchema.safeParse(result);
@@ -188,12 +248,20 @@ export class XrplAccountReadClient implements XrplRecipientReadClient {
       );
     }
 
-    const parsed = accountLinesResultSchema.safeParse(result);
-    return parsed.success && parsed.data.account === params.account;
+    if (method === "account_lines") {
+      const parsed = accountLinesResultSchema.safeParse(result);
+      return parsed.success && parsed.data.account === params.account;
+    }
+
+    if (method === "server_state") {
+      return serverStateResultSchema.safeParse(result).success;
+    }
+
+    return feeResultSchema.safeParse(result).success;
   }
 
   private async request(
-    method: "account_info" | "account_lines",
+    method: AccountReadMethod,
     params: Record<string, unknown>,
   ): Promise<unknown> {
     for (const endpoint of [...new Set(this.endpoints)]) {
@@ -227,6 +295,9 @@ export class XrplAccountReadClient implements XrplRecipientReadClient {
     return {
       account: parsed.account_data.Account,
       flags: parsed.account_flags,
+      balanceDrops: parsed.account_data.Balance,
+      ownerCount: parsed.account_data.OwnerCount,
+      validatedLedgerIndex: parsed.ledger_index,
     };
   }
 
@@ -259,6 +330,25 @@ export class XrplAccountReadClient implements XrplRecipientReadClient {
     }
 
     throw new XrplAccountReadUnavailableError();
+  }
+
+  async getNetworkReadinessState(): Promise<XrplNetworkReadinessState> {
+    const [stateResult, feeResult] = await Promise.all([
+      this.request("server_state", {}),
+      this.request("fee", {}),
+    ]);
+    const state = serverStateResultSchema.parse(stateResult).state.validated_ledger;
+    const fee = feeResultSchema.parse(feeResult);
+
+    return {
+      validatedLedgerIndex: state.seq,
+      currentLedgerIndex: fee.ledger_current_index,
+      baseFeeDrops: state.base_fee,
+      minimumFeeDrops: fee.drops.minimum_fee,
+      openLedgerFeeDrops: fee.drops.open_ledger_fee,
+      reserveBaseDrops: state.reserve_base,
+      reserveIncrementDrops: state.reserve_inc,
+    };
   }
 }
 
