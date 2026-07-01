@@ -14,6 +14,7 @@ import {
   SELECT_PAYMENT_SLOT,
   slotStatusSchema,
 } from "./payment-slot-record";
+import type { billPaymentModeSchema } from "./types";
 
 export type ResolvedPaymentSlot = {
   slotId: string;
@@ -21,6 +22,8 @@ export type ResolvedPaymentSlot = {
   billId: string;
   billPublicId: string;
   billTitle: string;
+  paymentMode: z.infer<typeof billPaymentModeSchema>;
+  recipientLabel: string | null;
   network: XrplNetwork;
   destinationAddress: string;
   destinationTag: number | null;
@@ -34,6 +37,8 @@ export type ResolvedPaymentSlot = {
   slotStatus: z.infer<typeof slotStatusSchema>;
   billStatus: z.infer<typeof billStatusSchema>;
   paidTransactionId: string | null;
+  reviewReasonCode: string | null;
+  reviewDetailsJson: string | null;
 };
 
 export class PaymentSlotNotFoundError extends Error {
@@ -82,6 +87,8 @@ export async function loadPaymentSlotByToken(
     billId: parsed.data.bill_id,
     billPublicId: parsed.data.bill_public_id,
     billTitle: parsed.data.bill_title,
+    paymentMode: parsed.data.payment_mode,
+    recipientLabel: parsed.data.recipient_label,
     network: parsed.data.network,
     destinationAddress: parsed.data.destination_address,
     destinationTag: parsed.data.destination_tag,
@@ -95,15 +102,26 @@ export async function loadPaymentSlotByToken(
     slotStatus: parsed.data.slot_status,
     billStatus: parsed.data.bill_status,
     paidTransactionId: parsed.data.paid_tx_hash,
+    reviewReasonCode: parsed.data.review_reason_code,
+    reviewDetailsJson: parsed.data.review_details_json,
   };
 }
 
 export function requirePayableSlot(slot: ResolvedPaymentSlot) {
   if (slot.slotStatus === "paid") {
-    throw new PaymentSlotStateError("SLOT_ALREADY_PAID", "This payment slot is already paid.");
+    throw new PaymentSlotStateError(
+      "SLOT_ALREADY_PAID",
+      "This payment slot is already paid.",
+    );
   }
-  if (!["open", "partially_paid"].includes(slot.billStatus) || !payloadEligibleStatuses.has(slot.slotStatus)) {
-    throw new PaymentSlotStateError("BILL_NOT_PAYABLE", "This payment slot is not accepting a new sign request.");
+  if (
+    !["open", "partially_paid"].includes(slot.billStatus) ||
+    !payloadEligibleStatuses.has(slot.slotStatus)
+  ) {
+    throw new PaymentSlotStateError(
+      "BILL_NOT_PAYABLE",
+      "This payment slot is not accepting a new sign request.",
+    );
   }
   return slot;
 }
