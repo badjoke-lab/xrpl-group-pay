@@ -45,7 +45,7 @@ class Database implements D1DatabaseLike {
         participant_label: "Blair",
         expected_payer_address: "rPayer",
         expected_amount_drops: "1000000",
-        payment_contract_version: "payment-slot-v2",
+        payment_contract_version: "xrpl-group-pay:payment-slot:v1",
         asset_id: "xrpl:testnet:xrp",
         asset_type: "native",
         currency_code: "XRP",
