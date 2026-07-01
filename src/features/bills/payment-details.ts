@@ -137,9 +137,13 @@ export async function loadPayablePaymentDetails(
   paymentToken: string,
   sourceTag: number,
 ): Promise<PaymentDetails> {
-  const slot = requirePayableSlot(
-    await loadPaymentSlotByToken(database, paymentToken),
-  );
+  const loadedSlot = await loadPaymentSlotByToken(database, paymentToken);
+  const canResumeSubmission =
+    ["open", "partially_paid"].includes(loadedSlot.billStatus) &&
+    ["submitted", "validating"].includes(loadedSlot.slotStatus);
+  const slot = canResumeSubmission
+    ? loadedSlot
+    : requirePayableSlot(loadedSlot);
 
   return paymentDetailsFromSlot(slot, sourceTag);
 }
