@@ -40,31 +40,37 @@ export function ParticipantAllocationCard({
     strategy === "custom"
       ? item.amount.trim()
         ? `${item.amount} ${assetSymbol}`
-        : "—"
+        : null
       : calculatedUnits
         ? `${unitsToDecimal(calculatedUnits, assetScale)} ${assetSymbol}`
-        : "—";
+        : null;
 
   return (
     <details
       open={number === 1 ? true : undefined}
       className="group min-w-0 max-w-full overflow-hidden rounded-lg border border-border bg-background open:border-brand/50"
     >
-      <summary className="flex min-w-0 cursor-pointer list-none items-center gap-3 px-4 py-4 sm:px-5 [&::-webkit-details-marker]:hidden">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-subtle text-sm font-bold text-brand">
+      <summary className="flex min-w-0 cursor-pointer list-none items-center gap-2 px-3 py-4 sm:gap-3 sm:px-5 [&::-webkit-details-marker]:hidden">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-subtle text-xs font-bold text-brand sm:size-8 sm:text-sm">
           {number}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-heading font-semibold">{title}</span>
-          <span className="mt-0.5 block truncate font-mono text-xs text-muted">
+          <span className="block truncate font-heading text-sm font-semibold sm:text-base">
+            {title}
+          </span>
+          <span className="mt-0.5 block truncate font-mono text-[11px] text-muted sm:text-xs">
             {item.expectedPayerAddress.trim() || t("bill.participant.payer")}
           </span>
         </span>
-        <span className="shrink-0 text-right">
-          <span className="block text-sm font-semibold text-brand">{amount}</span>
+        <span className="flex shrink-0 items-center gap-2 text-right">
+          {amount && (
+            <span className="hidden text-sm font-semibold text-brand min-[360px]:block">
+              {amount}
+            </span>
+          )}
           <ChevronDown
             aria-hidden="true"
-            className="ml-auto mt-1 size-4 text-muted transition-transform group-open:rotate-180"
+            className="size-4 shrink-0 text-muted transition-transform group-open:rotate-180"
           />
         </span>
       </summary>
