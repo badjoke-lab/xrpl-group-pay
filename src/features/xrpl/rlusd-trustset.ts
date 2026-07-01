@@ -1,10 +1,12 @@
 import { isValidClassicAddress } from "xrpl";
-import { z } from "zod";
 
 import type { MainnetAssetAccess } from "@/features/assets/mainnet-registry";
 import { requireApprovedMainnetSettlementAsset } from "@/features/assets/mainnet-registry";
 import { getRlusdAssetDescriptor } from "@/features/assets/registry";
-import type { IssuedAssetDescriptor, XrplNetwork } from "@/features/assets/types";
+import type {
+  IssuedAssetDescriptor,
+  XrplNetwork,
+} from "@/features/assets/types";
 import { unitsToDecimal } from "@/features/money/money";
 import { moneyUnitsSchema } from "@/features/money/types";
 import {
@@ -63,7 +65,10 @@ function canonicalRlusd(
 ): IssuedAssetDescriptor {
   const asset = getRlusdAssetDescriptor(network);
   if (network === "mainnet") {
-    const approved = requireApprovedMainnetSettlementAsset(asset.id, mainnetAccess);
+    const approved = requireApprovedMainnetSettlementAsset(
+      asset.id,
+      mainnetAccess,
+    );
     if (
       approved.assetType !== "issued" ||
       approved.currency !== asset.currency ||
@@ -106,7 +111,9 @@ export function buildRlusdTrustSetIntent(input: {
     );
   }
 
-  const requiredAmount = trustSetLimitSchema.safeParse(input.requiredAmountUnits);
+  const requiredAmount = trustSetLimitSchema.safeParse(
+    input.requiredAmountUnits,
+  );
   const limit = trustSetLimitSchema.safeParse(input.limitUnits);
   if (!requiredAmount.success || !limit.success) {
     throw new RlusdTrustSetBuildError(
