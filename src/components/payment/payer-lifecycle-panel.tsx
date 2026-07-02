@@ -77,6 +77,7 @@ function presentation(kind: PayerLifecycleView["kind"]) {
 
 export function PayerLifecyclePanel({
   lifecycle,
+  title,
   message,
   transactionId = null,
   working = false,
@@ -85,6 +86,7 @@ export function PayerLifecyclePanel({
   onSetup,
 }: {
   lifecycle: PayerLifecycleView;
+  title?: string | null;
   message?: string | null;
   transactionId?: string | null;
   working?: boolean;
@@ -125,7 +127,7 @@ export function PayerLifecyclePanel({
         <ContextualHelp topic={lifecycle.helpTopic} variant="inline" />
       </div>
       <h2 className="mt-4 font-heading text-2xl font-semibold">
-        {t(labels.title)}
+        {title || t(labels.title)}
       </h2>
       <p className="mt-3 max-w-xl leading-7 text-muted">
         {message || t(labels.body)}
