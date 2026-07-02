@@ -2,6 +2,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getRlusdAssetDescriptor } from "@/features/assets/registry";
+import type { PaymentDetails } from "@/features/bills/payment-details";
+import { readyPaymentReadiness } from "@/test/fixtures/payment-readiness";
 
 import { TestnetPaymentForm } from "./testnet-payment-form";
 
@@ -18,13 +20,19 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+function requestUrl(input: RequestInfo | URL) {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.toString();
+  return input.url;
+}
+
 class MockWebSocket {
   addEventListener() {}
   removeEventListener() {}
   close() {}
 }
 
-const details = {
+const details: PaymentDetails = {
   billTitle: "RLUSD Dinner",
   participantLabel: "Alex",
   expectedPayerAddress: "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -86,14 +94,27 @@ function issuedVerification(requestedUnits = "1250000") {
 }
 
 function prepareFetch(verification: unknown) {
-  return vi
-    .fn()
-    .mockResolvedValueOnce(jsonResponse(details))
-    .mockResolvedValueOnce(jsonResponse(createdPayload, 201))
-    .mockResolvedValueOnce(
-      jsonResponse({ payloadId: PAYLOAD_ID, status: "submitted", txid: TXID }),
-    )
-    .mockResolvedValueOnce(jsonResponse(verification));
+  return vi.fn(async (input: RequestInfo | URL) => {
+    const url = requestUrl(input);
+    if (url === "/api/payments/details") return jsonResponse(details);
+    if (url === "/api/payments/readiness") {
+      return jsonResponse(readyPaymentReadiness(details));
+    }
+    if (url === "/api/payments/payload") {
+      return jsonResponse(createdPayload, 201);
+    }
+    if (url === `/api/xaman/payloads/${PAYLOAD_ID}`) {
+      return jsonResponse({
+        payloadId: PAYLOAD_ID,
+        status: "submitted",
+        txid: TXID,
+      });
+    }
+    if (url === "/api/payments/verify") {
+      return jsonResponse(verification);
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  });
 }
 
 async function submitAndVerify() {
@@ -132,8 +153,7 @@ describe("RLUSD participant verification", () => {
     expect(
       screen.getByText("A durable verification receipt was recorded."),
     ).toBeVisible();
-    expect(fetcher).toHaveBeenNthCalledWith(
-      4,
+    expect(fetcher).toHaveBeenCalledWith(
       "/api/payments/verify",
       expect.objectContaining({
         body: JSON.stringify({
