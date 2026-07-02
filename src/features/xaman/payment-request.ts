@@ -15,6 +15,17 @@ export const MAINNET_FORCE_NETWORK = XAMAN_FORCE_NETWORKS.mainnet;
 export type XamanForceNetwork =
   (typeof XAMAN_FORCE_NETWORKS)[keyof typeof XAMAN_FORCE_NETWORKS];
 
+export type XamanTransactionPayloadRequest<
+  Transaction extends Record<string, unknown> = Record<string, unknown>,
+> = {
+  txjson: Transaction;
+  options: {
+    submit: true;
+    expire: number;
+    force_network: XamanForceNetwork;
+  };
+};
+
 export class PaymentInputError extends Error {
   constructor(message: string) {
     super(message);
@@ -77,14 +88,8 @@ export function normalizePaymentInput(input: CreatePaymentInput) {
   };
 }
 
-export type XamanPaymentPayloadRequest = {
-  txjson: XrplPaymentTransaction;
-  options: {
-    submit: true;
-    expire: number;
-    force_network: XamanForceNetwork;
-  };
-};
+export type XamanPaymentPayloadRequest =
+  XamanTransactionPayloadRequest<XrplPaymentTransaction>;
 
 export function buildTestnetPaymentPayload(
   input: CreatePaymentInput,
