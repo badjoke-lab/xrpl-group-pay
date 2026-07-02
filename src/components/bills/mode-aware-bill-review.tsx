@@ -132,7 +132,13 @@ export function ModeAwareBillReview({
           />
           <Field label={t("bill.review.network")} value={`XRPL ${review.network === "mainnet" ? "Mainnet" : "Testnet"}`} />
           <Field label={t("bill.review.asset")} value={review.asset.symbol} />
-          {issued && <Field label={t("bill.review.issuer")} value={review.asset.issuer} mono />}
+          {issued && (
+            <Field
+              label={t("bill.review.issuer")}
+              value={review.asset.issuer ?? t("bill.review.notPresent")}
+              mono
+            />
+          )}
         </dl>
       </section>
 
