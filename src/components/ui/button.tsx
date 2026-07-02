@@ -1,8 +1,4 @@
-import {
-  forwardRef,
-  type ButtonHTMLAttributes,
-  type MouseEvent,
-} from "react";
+import { forwardRef, type ButtonHTMLAttributes } from "react";
 
 import { cn } from "@/lib/cn";
 
@@ -36,31 +32,14 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  (
-    {
-      className,
-      variant = "primary",
-      type = "button",
-      onClick,
-      ...props
-    },
-    ref,
-  ) => {
-    function handleClick(event: MouseEvent<HTMLButtonElement>) {
-      if (type === "button") event.preventDefault();
-      onClick?.(event);
-    }
-
-    return (
-      <button
-        ref={ref}
-        {...props}
-        type={type}
-        className={buttonStyles({ variant, className })}
-        onClick={handleClick}
-      />
-    );
-  },
+  ({ className, variant = "primary", type = "button", ...props }, ref) => (
+    <button
+      ref={ref}
+      type={type}
+      className={buttonStyles({ variant, className })}
+      {...props}
+    />
+  ),
 );
 
 Button.displayName = "Button";
