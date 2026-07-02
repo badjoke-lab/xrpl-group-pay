@@ -1,3 +1,3 @@
 "use client";
 
-export { TestnetBillForm } from "./testnet-bill-form-v2";
+export { TwoModeBillForm as TestnetBillForm } from "./two-mode-bill-form";
