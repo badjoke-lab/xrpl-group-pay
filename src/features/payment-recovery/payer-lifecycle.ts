@@ -157,6 +157,11 @@ export function payerLifecycleFromApiError(
       return view("review_required", "MULTIPLE_CANDIDATES", {
         diagnosticCode: code,
       });
+    case "TRANSACTION_FAILED":
+      return view("retry_safe", code, {
+        diagnosticCode: code,
+        replacementRule: "reconcile_first",
+      });
     case "PAYMENT_RECONCILIATION_UNAVAILABLE":
     case "ACTIVE_HANDOFF_EXISTS":
       return view("wait_recheck", code, {
