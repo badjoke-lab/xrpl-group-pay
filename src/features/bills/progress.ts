@@ -13,6 +13,10 @@ import { moneyAmountSchema } from "@/features/money/types";
 import type { D1DatabaseLike } from "@/features/persistence/d1-types";
 
 import { hashCapabilityToken } from "./capabilities";
+import {
+  billClosureStateSchema,
+  billPaymentModeSchema,
+} from "./types";
 
 const billStatusSchema = z.enum([
   "open",
@@ -44,6 +48,8 @@ const billRowSchema = z.object({
   public_id: z.string().uuid(),
   title: z.string().min(1).max(100),
   network: xrplNetworkSchema,
+  payment_mode: billPaymentModeSchema,
+  recipient_label: z.string().max(100).nullable(),
   destination_address: z.string().min(1),
   destination_tag: z.number().int().min(0).max(4_294_967_295).nullable(),
   total_drops: positiveUnitsSchema,
@@ -51,6 +57,8 @@ const billRowSchema = z.object({
   settlement_asset_id: z.string().min(1).nullable().optional(),
   total_amount_units: positiveUnitsSchema.nullable().optional(),
   creator_share_amount_units: integerUnitsSchema.nullable().optional(),
+  recipient_funded_amount_units: integerUnitsSchema.nullable().optional(),
+  closure_state: billClosureStateSchema,
   status: billStatusSchema,
   revision: z.number().int().min(1),
   frozen_at: z.string().datetime(),
@@ -67,6 +75,7 @@ const slotRowSchema = z.object({
   expected_amount_units: positiveUnitsSchema.nullable().optional(),
   invoice_id: upperHex256Schema,
   status: paymentSlotProgressStatusSchema,
+  review_reason_code: z.string().min(1).nullable(),
   paid_tx_hash: upperHex256Schema.nullable(),
   paid_ledger_index: z.number().int().min(0).nullable(),
   paid_at: z.string().datetime().nullable(),
@@ -82,14 +91,19 @@ export const billProgressSchema = z
         publicId: z.string().uuid(),
         title: z.string().min(1).max(100),
         network: xrplNetworkSchema,
+        paymentMode: billPaymentModeSchema,
+        recipientLabel: z.string().max(100).nullable(),
         destinationAddress: z.string().min(1),
         destinationTag: z.number().int().min(0).max(4_294_967_295).nullable(),
         asset: assetDescriptorSchema,
         totalAmount: moneyAmountSchema,
+        recipientFundedAmount: moneyAmountSchema,
         creatorShareAmount: moneyAmountSchema,
         totalDrops: positiveUnitsSchema.nullable(),
+        recipientFundedDrops: integerUnitsSchema.nullable(),
         creatorShareDrops: integerUnitsSchema.nullable(),
         status: billStatusSchema,
+        closureState: billClosureStateSchema,
         revision: z.number().int().min(1),
         frozenAt: z.string().datetime(),
         updatedAt: z.string().datetime(),
@@ -99,12 +113,15 @@ export const billProgressSchema = z
       .object({
         participantCount: z.number().int().min(0),
         paidCount: z.number().int().min(0),
+        remainingCount: z.number().int().min(0),
         pendingCount: z.number().int().min(0),
         reviewCount: z.number().int().min(0),
         expectedExternalAmount: moneyAmountSchema,
         paidAmount: moneyAmountSchema,
+        remainingAmount: moneyAmountSchema,
         expectedExternalDrops: integerUnitsSchema.nullable(),
         paidDrops: integerUnitsSchema.nullable(),
+        remainingDrops: integerUnitsSchema.nullable(),
       })
       .strict(),
     slots: z.array(
@@ -118,6 +135,7 @@ export const billProgressSchema = z
           expectedAmountDrops: positiveUnitsSchema.nullable(),
           invoiceId: upperHex256Schema.nullable(),
           status: paymentSlotProgressStatusSchema,
+          reviewReasonCode: z.string().min(1).nullable(),
           paidTransactionId: upperHex256Schema.nullable(),
           paidLedgerIndex: z.number().int().min(0).nullable(),
           paidAt: z.string().datetime().nullable(),
@@ -151,6 +169,8 @@ const SELECT_BILL = `
     public_id,
     title,
     network,
+    payment_mode,
+    recipient_label,
     destination_address,
     destination_tag,
     total_drops,
@@ -158,6 +178,8 @@ const SELECT_BILL = `
     settlement_asset_id,
     total_amount_units,
     creator_share_amount_units,
+    recipient_funded_amount_units,
+    closure_state,
     CASE
       WHEN closure_state = 'closed_incomplete' THEN 'closed_incomplete'
       ELSE status
@@ -181,6 +203,7 @@ const SELECT_SLOTS = `
     slots.expected_amount_units,
     slots.invoice_id,
     slots.status,
+    slots.review_reason_code,
     slots.paid_tx_hash,
     slots.paid_ledger_index,
     slots.paid_at,
@@ -255,6 +278,12 @@ export async function loadBillProgressByToken(
     const totalUnits = bill.data.total_amount_units ?? bill.data.total_drops;
     const creatorShareUnits =
       bill.data.creator_share_amount_units ?? bill.data.creator_share_drops;
+    const recipientFundedUnits =
+      bill.data.recipient_funded_amount_units ?? creatorShareUnits;
+
+    if (bill.data.payment_mode === "direct" && recipientFundedUnits !== "0") {
+      throw new BillProgressDatabaseError();
+    }
 
     const normalizedSlots = slots.data.map((slot) => {
       const slotAsset = requireAsset(slot.asset_id, bill.data.network);
@@ -275,6 +304,13 @@ export async function loadBillProgressByToken(
       (sum, slot) => sum + BigInt(slot.expectedUnits),
       0n,
     );
+    if (
+      expectedExternalUnits + BigInt(recipientFundedUnits) !==
+      BigInt(totalUnits)
+    ) {
+      throw new BillProgressDatabaseError();
+    }
+
     const paidUnits = normalizedSlots.reduce(
       (sum, slot) =>
         slot.row.status === "paid"
@@ -282,11 +318,20 @@ export async function loadBillProgressByToken(
           : sum,
       0n,
     );
+    if (paidUnits > expectedExternalUnits) {
+      throw new BillProgressDatabaseError();
+    }
+
+    const remainingUnits = expectedExternalUnits - paidUnits;
     const paidCount = normalizedSlots.filter(
       (slot) => slot.row.status === "paid",
     ).length;
     const reviewCount = normalizedSlots.filter((slot) =>
       isReviewStatus(slot.row.status),
+    ).length;
+    const pendingCount = normalizedSlots.filter(
+      (slot) =>
+        slot.row.status !== "paid" && !isReviewStatus(slot.row.status),
     ).length;
     const isAdmin = bill.data.access_role === "admin";
     const native = asset.assetType === "native";
@@ -297,6 +342,8 @@ export async function loadBillProgressByToken(
         publicId: bill.data.public_id,
         title: bill.data.title,
         network: bill.data.network,
+        paymentMode: bill.data.payment_mode,
+        recipientLabel: isAdmin ? bill.data.recipient_label : null,
         destinationAddress: bill.data.destination_address,
         destinationTag: bill.data.destination_tag,
         asset,
@@ -305,14 +352,21 @@ export async function loadBillProgressByToken(
           units: totalUnits,
           scale: asset.precision,
         },
+        recipientFundedAmount: {
+          code: asset.symbol,
+          units: recipientFundedUnits,
+          scale: asset.precision,
+        },
         creatorShareAmount: {
           code: asset.symbol,
           units: creatorShareUnits,
           scale: asset.precision,
         },
         totalDrops: native ? totalUnits : null,
+        recipientFundedDrops: native ? recipientFundedUnits : null,
         creatorShareDrops: native ? creatorShareUnits : null,
         status: bill.data.status,
+        closureState: bill.data.closure_state,
         revision: bill.data.revision,
         frozenAt: bill.data.frozen_at,
         updatedAt: bill.data.updated_at,
@@ -320,7 +374,8 @@ export async function loadBillProgressByToken(
       summary: {
         participantCount: normalizedSlots.length,
         paidCount,
-        pendingCount: normalizedSlots.length - paidCount - reviewCount,
+        remainingCount: normalizedSlots.length - paidCount,
+        pendingCount,
         reviewCount,
         expectedExternalAmount: {
           code: asset.symbol,
@@ -332,10 +387,16 @@ export async function loadBillProgressByToken(
           units: paidUnits.toString(),
           scale: asset.precision,
         },
+        remainingAmount: {
+          code: asset.symbol,
+          units: remainingUnits.toString(),
+          scale: asset.precision,
+        },
         expectedExternalDrops: native
           ? expectedExternalUnits.toString()
           : null,
         paidDrops: native ? paidUnits.toString() : null,
+        remainingDrops: native ? remainingUnits.toString() : null,
       },
       slots: normalizedSlots.map(({ row, asset: slotAsset, expectedUnits }) => ({
         publicId: row.public_id,
@@ -351,6 +412,7 @@ export async function loadBillProgressByToken(
           slotAsset.assetType === "native" ? expectedUnits : null,
         invoiceId: isAdmin ? row.invoice_id : null,
         status: row.status,
+        reviewReasonCode: isAdmin ? row.review_reason_code : null,
         paidTransactionId: row.paid_tx_hash,
         paidLedgerIndex: row.paid_ledger_index,
         paidAt: row.paid_at,
