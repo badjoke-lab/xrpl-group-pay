@@ -2,7 +2,7 @@
 
 **Status:** Active  
 **Scope:** Make Waves v1 visual system  
-**Last reviewed:** 2026-06-24  
+**Last reviewed:** 2026-07-02  
 **Document class:** Public
 
 ## 1. Color tokens
@@ -24,6 +24,8 @@
   --color-action-hover: #DB5C49;
   --color-action-subtle: #FDE9E5;
 
+  --color-progress: #245F9E;
+  --color-progress-subtle: #E8F1FB;
   --color-success: #168A62;
   --color-success-subtle: #E5F5EF;
   --color-warning: #D58A22;
@@ -38,10 +40,13 @@
 
 - `brand`: product identity, headings, selected navigation, key settlement values.
 - `action`: one primary action per view.
+- `progress`: active wallet, provider, or validated-ledger work that is not complete.
 - `success`: validated and completed only.
 - `warning`: readiness, pending attention, expiry, or Mainnet caution.
 - `danger`: blocking mismatch or unsafe configuration.
 - `muted`: descriptive and secondary content.
+
+The five status families are neutral, in progress, complete, action required, and destructive. Product brand color is not the in-progress status color.
 
 XRP, RLUSD, wallets, and future rails do not receive separate application themes. Asset identity is communicated by text, badges, and details, not a wholesale color change.
 
@@ -141,22 +146,24 @@ Badges include text. Verification and blocking states never rely on color or ico
 
 ## 10. Status components
 
-| State | Token | Suggested icon |
+| State | Family | Suggested icon |
 |---|---|---|
 | Unpaid | neutral | empty circle |
-| Awaiting wallet | brand | wallet or clock |
-| Validating | brand | progress |
-| Paid | success | check |
-| Needs review | warning | alert |
-| Failed | danger | x or alert |
-| Expired | neutral/warning | clock |
+| Awaiting wallet | in progress | wallet or clock |
+| Validating | in progress | progress |
+| Paid | complete | check |
+| Needs review | action required | alert |
+| Failed | destructive | x or alert |
+| Expired | action required | clock |
 | Cancelled | neutral | slash |
-| Readiness ready | success | check |
-| Readiness blocked | danger/warning | alert |
+| Readiness ready | complete | check |
+| Readiness blocked | action required | alert |
+
+Every status uses visible text and an icon. Participant cards use a small badge and a two-pixel semantic accent instead of a fully saturated background.
 
 ## 11. Progress
 
-Progress uses a subtle track, Deep Plum fill, and success only when settled. It includes numeric amount, currency or asset, participant count, and text status.
+Aggregate progress uses a subtle track, Deep Plum fill, and success only when settled. Individual in-progress badges and card accents use progress blue. Progress includes numeric amount, currency or asset, participant count, and text status.
 
 ## 12. Identifiers
 

@@ -1,33 +1,47 @@
+import type { HTMLAttributes } from "react";
+import { FlaskConical, RadioTower } from "lucide-react";
+
 import { cn } from "@/lib/cn";
 
 export type AppNetwork = "testnet" | "mainnet";
 
-type NetworkBadgeProps = {
+export type NetworkBadgeProps = Omit<
+  HTMLAttributes<HTMLSpanElement>,
+  "children"
+> & {
   network: AppNetwork;
-  className?: string;
+  label?: string;
 };
 
-export function NetworkBadge({ network, className }: NetworkBadgeProps) {
+export function NetworkBadge({
+  network,
+  label,
+  className,
+  ...props
+}: NetworkBadgeProps) {
   const isMainnet = network === "mainnet";
+  const Icon = isMainnet ? RadioTower : FlaskConical;
 
   return (
     <span
+      data-network={network}
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-pill border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] sm:px-3 sm:text-xs sm:tracking-[0.12em]",
+        "inline-flex min-h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-pill border px-2.5 py-1 text-xs font-bold leading-none",
         isMainnet
-          ? "border-warning/35 bg-warning-subtle text-foreground"
-          : "border-brand/15 bg-brand-subtle text-brand",
+          ? "border-warning/40 bg-warning-subtle text-foreground"
+          : "border-brand/20 bg-brand-subtle text-brand",
         className,
       )}
+      {...props}
     >
-      <span
+      <Icon
         aria-hidden="true"
         className={cn(
-          "size-1.5 shrink-0 rounded-full sm:size-2",
-          isMainnet ? "bg-warning" : "bg-brand",
+          "size-3.5 shrink-0",
+          isMainnet ? "text-warning" : "text-brand",
         )}
       />
-      {isMainnet ? "Mainnet · live" : "Testnet"}
+      {label ?? (isMainnet ? "Mainnet · live" : "Testnet")}
     </span>
   );
 }
