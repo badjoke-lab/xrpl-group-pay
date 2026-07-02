@@ -97,7 +97,7 @@ describe("TestnetBillForm remainder handling", () => {
     expect(screen.getByText("Remainder units")).toBeVisible();
     expect(
       screen.getByText("Remainder assignment").parentElement,
-    ).toHaveTextContent("Creator share");
+    ).toHaveTextContent("Recipient-funded amount");
   });
 
   it("requires a selected participant before assigning the remainder", () => {
