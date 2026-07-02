@@ -36,6 +36,10 @@ function response(body: unknown, status = 200) {
   });
 }
 
+function freshLaunchResponse() {
+  return Promise.resolve(response(baseLaunch));
+}
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -71,7 +75,9 @@ describe("RlusdTrustSetFlow", () => {
     );
 
     expect(await screen.findByText("This is not a payment")).toBeVisible();
-    expect(screen.getByText(/does not transfer the bill amount/i)).toBeVisible();
+    expect(
+      screen.getAllByText(/does not transfer the bill amount/i),
+    ).not.toHaveLength(0);
     fireEvent.click(
       screen.getByRole("button", { name: "Open RLUSD setup in Xaman" }),
     );
@@ -81,10 +87,9 @@ describe("RlusdTrustSetFlow", () => {
         name: "Approve the TrustSet in Xaman",
       }),
     ).toBeVisible();
-    expect(screen.getByAltText("QR code for the RLUSD TrustSet request")).toHaveAttribute(
-      "src",
-      "https://xaman.app/qr/trustset.png",
-    );
+    expect(
+      screen.getByAltText("QR code for the RLUSD TrustSet request"),
+    ).toHaveAttribute("src", "https://xaman.app/qr/trustset.png");
     expect(screen.getByRole("link", { name: "Open Xaman" })).toHaveAttribute(
       "href",
       "https://xaman.app/sign/trustset",
@@ -97,14 +102,17 @@ describe("RlusdTrustSetFlow", () => {
   });
 
   it("renders Japanese and Korean critical copy through the shared locale", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response(baseLaunch)));
-    const { unmount } = render(
+    const fetcher = vi.fn().mockImplementation(freshLaunchResponse);
+    vi.stubGlobal("fetch", fetcher);
+
+    const japanese = render(
       <LocalizationProvider initialLocale="ja">
         <RlusdTrustSetFlow preparationToken={TOKEN} />
       </LocalizationProvider>,
     );
     expect(await screen.findByText("これは支払いではありません")).toBeVisible();
-    unmount();
+    japanese.unmount();
+    cleanup();
 
     render(
       <LocalizationProvider initialLocale="ko">
@@ -112,6 +120,7 @@ describe("RlusdTrustSetFlow", () => {
       </LocalizationProvider>,
     );
     expect(await screen.findByText("이 작업은 결제가 아닙니다")).toBeVisible();
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it("reports ready only after the status endpoint returns ledger-confirmed readiness", async () => {
@@ -144,12 +153,18 @@ describe("RlusdTrustSetFlow", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { name: "Checking the XRPL trust line" }),
+      await screen.findByRole("heading", {
+        name: "Checking the XRPL trust line",
+      }),
     ).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Check setup status" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Check setup status" }),
+    );
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { name: "Official RLUSD trust line ready" }),
+        screen.getByRole("heading", {
+          name: "Official RLUSD trust line ready",
+        }),
       ).toBeVisible(),
     );
     expect(fetcher.mock.calls[1][0]).toBe("/api/rlusd/preparations/status");
