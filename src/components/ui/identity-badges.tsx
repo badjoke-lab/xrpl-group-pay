@@ -2,6 +2,7 @@ import type { HTMLAttributes } from "react";
 import {
   BarChart3,
   Coins,
+  Eye,
   FileCheck2,
   Link2,
   ShieldCheck,
@@ -118,12 +119,29 @@ export function RoleBadge({
   );
 }
 
-export type LinkType = "payment" | "progress" | "preparation" | "proof";
+export type LinkType =
+  | "management"
+  | "read_only"
+  | "payment"
+  | "progress"
+  | "preparation"
+  | "proof";
 
 const linkConfig: Record<
   LinkType,
-  { icon: LucideIcon; key: "paymentLink" | "progressLink" | "preparationLink" | "proofLink" }
+  {
+    icon: LucideIcon;
+    key:
+      | "managementLink"
+      | "readOnlyLink"
+      | "paymentLink"
+      | "progressLink"
+      | "preparationLink"
+      | "proofLink";
+  }
 > = {
+  management: { icon: UserRoundCog, key: "managementLink" },
+  read_only: { icon: Eye, key: "readOnlyLink" },
   payment: { icon: Link2, key: "paymentLink" },
   progress: { icon: BarChart3, key: "progressLink" },
   preparation: { icon: ShieldCheck, key: "preparationLink" },
