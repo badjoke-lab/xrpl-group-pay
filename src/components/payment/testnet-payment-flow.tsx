@@ -1,4 +1,4 @@
 export {
-  TestnetPaymentForm,
+  PayerReadyPaymentFlow as TestnetPaymentForm,
   type TestnetPaymentFormProps,
-} from "./testnet-payment-flow-v2";
+} from "./payer-ready-payment-flow";
