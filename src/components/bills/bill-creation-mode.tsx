@@ -66,15 +66,11 @@ export function BillCreationMode({
 
   return (
     <fieldset>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <legend className="font-heading text-2xl font-semibold">
-            {text.legend}
-          </legend>
-          <p className="mt-2 max-w-2xl leading-7 text-muted">
-            {text.description}
-          </p>
-        </div>
+      <legend className="font-heading text-2xl font-semibold">
+        {text.legend}
+      </legend>
+      <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+        <p className="max-w-2xl leading-7 text-muted">{text.description}</p>
         <ContextualHelp topic="roles" variant="inline" />
       </div>
       <div className="mt-6 grid gap-4 md:grid-cols-2">
