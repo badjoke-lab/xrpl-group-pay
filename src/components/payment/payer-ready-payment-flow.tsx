@@ -12,14 +12,17 @@ import {
   PaymentReadinessPanel,
   paymentReadinessAllowsHandoff,
 } from "@/components/payment/payment-readiness-panel";
-import type { PaymentReadinessResponse } from "@/app/api/payments/readiness/route";
 import type { PaymentDetails } from "@/features/bills/payment-details";
 import {
   PaymentDetailsRequestError,
   requestPaymentDetails,
 } from "@/features/bills/payment-details-client";
 import { useCapabilityToken } from "@/features/capabilities/use-capability-token";
-import { useCriticalLocalization } from "@/features/localization/critical-catalog";
+import {
+  criticalTranslate,
+  useCriticalLocalization,
+} from "@/features/localization/critical-catalog";
+import type { PaymentReadinessResponse } from "@/features/xrpl/payment-readiness-contract";
 import { requestPaymentReadiness } from "@/features/xrpl/payment-readiness-client";
 
 import {
@@ -35,7 +38,7 @@ type LoadState =
 export function PayerReadyPaymentFlow({
   paymentToken,
 }: TestnetPaymentFormProps) {
-  const { ct } = useCriticalLocalization();
+  const { locale } = useCriticalLocalization();
   const { capability, resolved } = useCapabilityToken(paymentToken);
   const [detailsState, setDetailsState] = useState<LoadState>({
     kind: "loading",
@@ -78,12 +81,14 @@ export function PayerReadyPaymentFlow({
       setDetailsState({
         kind: "error",
         message:
-          error instanceof Error ? error.message : ct("payer.error.details"),
+          error instanceof Error
+            ? error.message
+            : criticalTranslate(locale, "payer.error.details"),
         code:
           error instanceof PaymentDetailsRequestError ? error.code : null,
       });
     }
-  }, [capability, ct, recheck]);
+  }, [capability, locale, recheck]);
 
   useEffect(() => {
     if (!resolved || !capability) return;
