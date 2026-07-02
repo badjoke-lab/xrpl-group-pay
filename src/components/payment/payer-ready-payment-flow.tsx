@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 
 import {
-  DetailsErrorPanel,
   LoadingDetailsPanel,
   PaymentSummary,
   UnavailablePanel,
 } from "@/components/payment/payment-panels";
+import { PayerLifecyclePanel } from "@/components/payment/payer-lifecycle-panel";
 import {
   PaymentReadinessPanel,
   paymentReadinessAllowsHandoff,
@@ -22,13 +22,14 @@ import {
   criticalTranslate,
   useCriticalLocalization,
 } from "@/features/localization/critical-catalog";
+import { payerLifecycleFromApiError } from "@/features/payment-recovery/payer-lifecycle";
 import type { PaymentReadinessResponse } from "@/features/xrpl/payment-readiness-contract";
 import { requestPaymentReadiness } from "@/features/xrpl/payment-readiness-client";
 
 import {
-  TestnetPaymentForm as ExistingPaymentFlow,
-  type TestnetPaymentFormProps,
-} from "./testnet-payment-flow-v2";
+  PayerLifecyclePaymentFlow,
+  type PayerLifecyclePaymentFlowProps,
+} from "./testnet-payment-flow-v3";
 
 type LoadState =
   | { kind: "loading" }
@@ -37,7 +38,7 @@ type LoadState =
 
 export function PayerReadyPaymentFlow({
   paymentToken,
-}: TestnetPaymentFormProps) {
+}: PayerLifecyclePaymentFlowProps) {
   const { locale } = useCriticalLocalization();
   const { capability, resolved } = useCapabilityToken(paymentToken);
   const [detailsState, setDetailsState] = useState<LoadState>({
@@ -148,16 +149,27 @@ export function PayerReadyPaymentFlow({
     }
   }
 
+  function invalidateReadiness() {
+    setReadiness(null);
+    void recheck();
+  }
+
   if (!resolved) return <LoadingDetailsPanel />;
   if (!capability) return <UnavailablePanel />;
   if (detailsState.kind === "loading") return <LoadingDetailsPanel />;
   if (detailsState.kind === "error") {
+    const lifecycle = payerLifecycleFromApiError(detailsState.code);
     return (
-      <DetailsErrorPanel
-        message={detailsState.message}
-        alreadyPaid={detailsState.code === "SLOT_ALREADY_PAID"}
-        onRetry={() => void load()}
-      />
+      <section className="mx-auto max-w-2xl rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8">
+        <PayerLifecyclePanel
+          lifecycle={lifecycle}
+          message={detailsState.message}
+          working={readinessLoading}
+          onRecheck={
+            lifecycle.recheckAllowed ? () => void load() : undefined
+          }
+        />
+      </section>
     );
   }
 
@@ -178,7 +190,10 @@ export function PayerReadyPaymentFlow({
     return (
       <div className="space-y-6">
         {panel}
-        <ExistingPaymentFlow paymentToken={capability} />
+        <PayerLifecyclePaymentFlow
+          paymentToken={capability}
+          onReadinessInvalidated={invalidateReadiness}
+        />
       </div>
     );
   }
@@ -191,4 +206,4 @@ export function PayerReadyPaymentFlow({
   );
 }
 
-export type { TestnetPaymentFormProps };
+export type TestnetPaymentFormProps = PayerLifecyclePaymentFlowProps;
