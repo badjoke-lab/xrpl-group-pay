@@ -105,17 +105,19 @@ export function BillFormField({
   const describedBy = [descriptionId, errorId].filter(Boolean).join(" ") || undefined;
 
   return (
-    <label className="block min-w-0" htmlFor={id}>
-      <span className="flex min-h-7 items-center justify-between gap-3">
-        <span className="text-sm font-semibold">{label}</span>
+    <div className="block min-w-0">
+      <div className="flex min-h-7 items-center justify-between gap-3">
+        <label htmlFor={id} className="text-sm font-semibold">
+          {label}
+        </label>
         {labelAction}
-      </span>
+      </div>
       {description && (
-        <span id={descriptionId} className="mt-1 block text-xs leading-5 text-muted">
+        <p id={descriptionId} className="mt-1 text-xs leading-5 text-muted">
           {description}
-        </span>
+        </p>
       )}
-      <span
+      <div
         className={cn(
           "mt-2 flex min-w-0 w-full overflow-hidden rounded-md border bg-background focus-within:ring-3",
           error
@@ -143,12 +145,12 @@ export function BillFormField({
             {suffix}
           </span>
         )}
-      </span>
+      </div>
       {error && (
-        <span id={errorId} role="alert" className="mt-1.5 block text-sm text-danger">
+        <p id={errorId} role="alert" className="mt-1.5 text-sm text-danger">
           {error}
-        </span>
+        </p>
       )}
-    </label>
+    </div>
   );
 }
