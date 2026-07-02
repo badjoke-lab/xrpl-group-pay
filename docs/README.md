@@ -2,7 +2,7 @@
 
 **Status:** Active  
 **Scope:** Public documentation map and precedence rules  
-**Last reviewed:** 2026-07-02  
+**Last reviewed:** 2026-07-03  
 **Document class:** Public
 
 ## 1. Purpose
@@ -59,6 +59,7 @@ These documents define approved behavior. They may describe target behavior that
 - `rlusd-trustset-preparation.md` — current PR #137 official RLUSD TrustSet planning, shareable capability flow, Xaman lifecycle, and validated-ledger readiness contract.
 - `payment-failure-taxonomy.md` — current PR #138 stable failure codes, recovery dispositions, replacement rules, and localization contract.
 - `operator-progress-dashboard.md` — current PR #145 mode-correct totals, capability-scoped details, semantic states, safe payer actions, refresh, and link handling.
+- `review-retry-closure.md` — current PR #146 expected-versus-observed review facts, explicit retry authorization, immutable incomplete closure, audit records, and privacy controls.
 - `d1-provisioning.md` — local, Testnet, and Mainnet D1 provisioning and migration controls.
 - `transaction-proof.md` — public proof fields, digest contracts, privacy boundary, and integrity checks.
 - `payment-reconciliation.md` — validated-ledger reconciliation required before replacing a prior Wallet Handoff.
