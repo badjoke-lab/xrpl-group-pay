@@ -7,7 +7,7 @@ describe("paymentRecoveryAssessmentSchema", () => {
   it("accepts taxonomy-generated recovery metadata", () => {
     const assessment = classifyPaymentRecovery({
       source: "verification_failed",
-      reason: "WRONG_AMOUNT",
+      reason: "AMOUNT_MISMATCH",
       transactionId: "A".repeat(64),
     });
 
