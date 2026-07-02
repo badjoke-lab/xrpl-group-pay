@@ -34,6 +34,7 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "primary", type = "button", ...props }, ref) => (
     <button
+      key={type}
       ref={ref}
       type={type}
       className={buttonStyles({ variant, className })}
