@@ -23,7 +23,9 @@ describe("PayerLifecyclePanel", () => {
     const button = screen.getByRole("button", { name: "Retry safely" });
     fireEvent.click(button);
     expect(retry).toHaveBeenCalledTimes(1);
-    expect(screen.getByText(/checks the payer account and frozen InvoiceID/)).toBeVisible();
+    expect(
+      screen.getByText(/checks the payer account and frozen InvoiceID/),
+    ).toBeVisible();
   });
 
   it("blocks replacement for review-required transactions", () => {
@@ -36,8 +38,12 @@ describe("PayerLifecyclePanel", () => {
       </LocalizationProvider>,
     );
 
-    expect(screen.getByRole("heading", { name: "この支払いは確認が必要です" })).toBeVisible();
-    expect(screen.getByText("この状態では代替支払いを作成できません。")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "この支払いは確認が必要です" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText("この状態では代替支払いを作成できません。"),
+    ).toBeVisible();
     expect(screen.queryByRole("button", { name: /再試行/ })).toBeNull();
   });
 
@@ -68,7 +74,9 @@ describe("PayerLifecyclePanel", () => {
       </LocalizationProvider>,
     );
 
-    expect(screen.getByRole("heading", { name: "Payment already completed" })).toBeVisible();
-    expect(screen.queryByRole("button")).not.toHaveAccessibleName(/retry/i);
+    expect(
+      screen.getByRole("heading", { name: "Payment already completed" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: /retry/i })).toBeNull();
   });
 });
