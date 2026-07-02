@@ -63,15 +63,6 @@ test("shows natural Japanese copy and allows RLUSD selection", async ({ page }) 
 });
 
 test("reviews a shared bill before freezing it", async ({ page }) => {
-  page.on("pageerror", (error) => {
-    console.log(`[bill-e2e-pageerror] ${error.message}`);
-  });
-  page.on("console", (message) => {
-    if (message.type() === "error") {
-      console.log(`[bill-e2e-console] ${message.text()}`);
-    }
-  });
-
   await page.route("**/api/bills/review", async (route) => {
     await route.fulfill({
       status: 200,
@@ -152,25 +143,11 @@ test("reviews a shared bill before freezing it", async ({ page }) => {
   await amounts.nth(1).fill("5");
 
   await expect(page.getByText("Allocation exact")).toBeVisible();
-  const continueButton = page.getByRole("button", { name: "Continue" });
-  console.log(
-    `[bill-e2e-before-step4] disabled=${await continueButton.isDisabled()} text=${JSON.stringify(
-      await page.locator("form").innerText(),
-    )}`,
-  );
-  await continueButton.click();
-  await page.waitForTimeout(200);
-  console.log(
-    `[bill-e2e-after-step4] url=${page.url()} text=${JSON.stringify(
-      await page.locator("form").innerText(),
-    )} session=${JSON.stringify(
-      await page.evaluate(() => ({ ...window.sessionStorage })),
-    )}`,
-  );
+  await page.getByRole("button", { name: "Continue" }).click();
   await expect(
     page.getByRole("heading", { name: "Ready to freeze this Bill?" }),
   ).toBeVisible();
-  await page.locator('form button[type="submit"]').click();
+  await page.getByRole("button", { name: "Review and freeze" }).click();
   await expect(
     page.getByRole("heading", { name: "Review before freezing" }),
   ).toBeVisible();
