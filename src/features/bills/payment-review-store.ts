@@ -1,6 +1,7 @@
 import type { D1DatabaseLike } from "@/features/persistence/d1-types";
 
 import type { ResolvedPaymentSlot } from "./payment-slot";
+import { PaymentSlotSettlementDatabaseError } from "./settle-slot";
 
 const MARK_SLOT_REVIEW = `
   UPDATE payment_slots
@@ -21,9 +22,9 @@ const MARK_BILL_REVIEW = `
     AND status IN ('open', 'partially_paid', 'needs_review')
 `;
 
-export class PaymentReviewPersistenceError extends Error {
+export class PaymentReviewPersistenceError extends PaymentSlotSettlementDatabaseError {
   constructor() {
-    super("The payment review state could not be persisted.");
+    super();
     this.name = "PaymentReviewPersistenceError";
   }
 }
