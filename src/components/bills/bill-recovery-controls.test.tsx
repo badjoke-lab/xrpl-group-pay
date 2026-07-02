@@ -142,7 +142,7 @@ describe("BillRecoveryControls", () => {
     expect(screen.getByText("5 XRP")).toBeVisible();
     expect(screen.getByText("Observed destination differs.")).toBeVisible();
     const explorer = screen.getByRole("link", {
-      name: "Open observed transaction in XRPL Explorer",
+      name: /Open observed transaction in XRPL Explorer/,
     });
     expect(explorer).toHaveAttribute(
       "href",
