@@ -144,7 +144,10 @@ test("reviews a shared bill before freezing it", async ({ page }) => {
 
   await expect(page.getByText("Allocation exact")).toBeVisible();
   await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("button", { name: "Review and freeze" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Ready to freeze this Bill?" }),
+  ).toBeVisible();
+  await page.locator('form button[type="submit"]').click();
   await expect(
     page.getByRole("heading", { name: "Review before freezing" }),
   ).toBeVisible();
