@@ -31,7 +31,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("requires confirmation again after a rejected request", async () => {
+it("requires reconciliation and confirmation after a rejected request", async () => {
   const payloadId = "123e4567-e89b-12d3-a456-426614174000";
   const asset = getXrpAssetDescriptor("testnet");
   const details: PaymentDetails = {
@@ -86,8 +86,13 @@ it("requires confirmation again after a rejected request", async () => {
   );
   await screen.findByRole("heading", { name: "Waiting for approval in Xaman" });
   fireEvent.click(screen.getByRole("button", { name: "Check status" }));
-  await screen.findByRole("heading", { name: "Request rejected" });
-  fireEvent.click(screen.getByRole("button", { name: "Review and try again" }));
+  await screen.findByRole("heading", {
+    name: "A new attempt is available",
+  });
+  expect(
+    screen.getByText(/checks the payer account and frozen InvoiceID/),
+  ).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Retry safely" }));
 
   expect(
     screen.getByRole("heading", { name: "Confirm the exact Testnet payment" }),
