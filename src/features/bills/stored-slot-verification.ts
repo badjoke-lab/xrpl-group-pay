@@ -37,16 +37,30 @@ function providerOutcome(
     };
   }
 
-  if (
-    request.status === "rejected" ||
-    request.status === "expired" ||
-    request.status === "failed"
-  ) {
+  if (request.status === "rejected") {
     return {
       status: "failed",
-      reason: "HANDOFF_FAILED",
+      reason: "HANDOFF_REJECTED",
       transactionId: request.transactionId,
-      message: `The wallet request ended with status ${request.status}.`,
+      message: "The payer rejected the wallet request before submission.",
+    };
+  }
+
+  if (request.status === "expired") {
+    return {
+      status: "failed",
+      reason: "HANDOFF_EXPIRED",
+      transactionId: request.transactionId,
+      message: "The wallet request expired before submission.",
+    };
+  }
+
+  if (request.status === "failed") {
+    return {
+      status: "failed",
+      reason: "HANDOFF_PROVIDER_FAILED",
+      transactionId: request.transactionId,
+      message: "The wallet provider reported a failed handoff.",
     };
   }
 
