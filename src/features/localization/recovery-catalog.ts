@@ -160,7 +160,7 @@ export function paymentRecoveryCopy(
     title: recoveryTranslate(locale, assessment.titleKey),
     body: recoveryTranslate(locale, assessment.bodyKey),
     action: assessment.actionKey
-      ? recoveryTranslate(locale, assessment.actionKey)
+      ? recoveryTranslate(locale, assessment.actionKey as RecoveryMessageKey)
       : null,
   };
 }
