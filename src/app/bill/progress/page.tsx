@@ -44,7 +44,7 @@ export default async function BillProgressPage() {
           <p className="mt-5 text-lg leading-8 text-muted">{gt("pageBody")}</p>
         </div>
 
-        <TestnetBillProgress />
+        <TestnetBillProgress managementControls />
       </div>
     </main>
   );
