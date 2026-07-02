@@ -49,12 +49,16 @@ function fillBillDetails({
   fireEvent.change(
     screen.getByLabelText(
       mode === "representative"
-        ? "Representative or recipient name"
-        : "Store or organizer name",
+        ? /Representative or recipient name/
+        : /Store or organizer name/,
     ),
-    { target: { value: mode === "representative" ? "Dinner organizer" : "Venue" } },
+    {
+      target: {
+        value: mode === "representative" ? "Dinner organizer" : "Venue",
+      },
+    },
   );
-  fireEvent.change(screen.getByLabelText("Recipient XRPL address"), {
+  fireEvent.change(screen.getByLabelText(/Recipient XRPL address/), {
     target: { value: BILL_DESTINATION },
   });
   fireEvent.change(screen.getByLabelText("Bill title"), {
@@ -75,7 +79,7 @@ function fillBillDetails({
         name: /Include a recipient-funded amount/,
       }),
     );
-    fireEvent.change(screen.getByLabelText("Recipient-funded amount"), {
+    fireEvent.change(screen.getByLabelText(/Recipient-funded amount/), {
       target: { value: "2" },
     });
   }
@@ -171,10 +175,9 @@ describe("two-mode Testnet Bill creation", () => {
       creatorShareAmount: "2",
       allocation: { strategy: "custom" },
     });
-    expect(request.participants.map((item: { amount: string }) => item.amount)).toEqual([
-      "3",
-      "5",
-    ]);
+    expect(
+      request.participants.map((item: { amount: string }) => item.amount),
+    ).toEqual(["3", "5"]);
   });
 
   it("sends direct mode with zero recipient-funded amount and an Equal allocation", async () => {
