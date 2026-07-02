@@ -107,7 +107,7 @@ describe("TestnetBillProgress compatibility export", () => {
     expect(screen.getByText("1/2 paid")).toBeVisible();
     expect(screen.getByText("8 XRP")).toBeVisible();
     expect(screen.getAllByText("3 XRP", { exact: true })).toHaveLength(2);
-    expect(screen.getByText("5 XRP")).toBeVisible();
+    expect(screen.getAllByText("5 XRP", { exact: true })).toHaveLength(2);
     expect(screen.getByText("1 verified · 1 remaining")).toBeVisible();
     expect(screen.getByText("10 XRP")).toBeVisible();
     expect(screen.getByText("2 XRP")).toBeVisible();
@@ -186,7 +186,7 @@ describe("TestnetBillProgress compatibility export", () => {
     render(<TestnetBillProgress capabilityToken={TOKEN} />);
     expect(await screen.findByText("Direct recipient")).toBeVisible();
     expect(screen.getAllByText("10 XRP", { exact: true })).toHaveLength(2);
-    expect(screen.getByText("7 XRP")).toBeVisible();
+    expect(screen.getAllByText("7 XRP", { exact: true })).toHaveLength(2);
     expect(screen.getByText("0 XRP")).toBeVisible();
   });
 
