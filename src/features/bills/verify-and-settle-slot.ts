@@ -6,7 +6,7 @@ import {
 import type { AssetVerificationOutcome } from "@/features/payment-verification/asset-outcome";
 import { classifyPaymentRecovery } from "@/features/payment-recovery/taxonomy";
 
-import { markPaymentSlotNeedsReview } from "./payment-review-store";
+import type { markPaymentSlotNeedsReview } from "./payment-review-store";
 import type { ResolvedPaymentSlot } from "./payment-slot";
 import { settleVerifiedIssuedPaymentSlot } from "./settle-issued-slot";
 import { settleVerifiedPaymentSlot } from "./settle-slot";
@@ -54,17 +54,13 @@ export async function verifyAndSettleStoredSlotPayment(
       reason: outcome.reason,
       transactionId: outcome.transactionId,
     });
-    if (recovery.requiresReview) {
-      await (dependencies.recordReview ?? markPaymentSlotNeedsReview)(
-        database,
-        slot,
-        {
-          kind: "verification_mismatch",
-          transactionId: outcome.transactionId,
-          reasonCode: recovery.code,
-          message: outcome.message,
-        },
-      );
+    if (recovery.requiresReview && dependencies.recordReview) {
+      await dependencies.recordReview(database, slot, {
+        kind: "verification_mismatch",
+        transactionId: outcome.transactionId,
+        reasonCode: recovery.code,
+        message: outcome.message,
+      });
     }
     return assetPaymentVerificationApiOutcomeSchema.parse({
       ...outcome,
