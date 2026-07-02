@@ -41,7 +41,7 @@ export function NetworkBadge({
           isMainnet ? "text-warning" : "text-brand",
         )}
       />
-      <span>{label ?? (isMainnet ? "Mainnet · live" : "Testnet")}</span>
+      {label ?? (isMainnet ? "Mainnet · live" : "Testnet")}
     </span>
   );
 }
