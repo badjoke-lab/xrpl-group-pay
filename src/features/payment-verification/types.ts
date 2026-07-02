@@ -18,6 +18,9 @@ export const verificationPendingReasonSchema = z.enum([
 export const verificationFailureReasonSchema = z.enum([
   "INVALID_PROVIDER_HANDOFF",
   "HANDOFF_FAILED",
+  "HANDOFF_REJECTED",
+  "HANDOFF_EXPIRED",
+  "HANDOFF_PROVIDER_FAILED",
   "UNSUPPORTED_VERIFICATION_STRATEGY",
   "INVALID_XAMAN_TEMPLATE",
   "SLOT_EXPECTATION_MISMATCH",
