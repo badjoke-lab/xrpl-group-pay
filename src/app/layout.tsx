@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { FloatingHelp } from "@/components/help/floating-help";
 import { LocalizationProvider } from "@/features/localization/provider";
 import { getRequestLocale } from "@/features/localization/server";
 
@@ -26,6 +27,9 @@ export default async function RootLayout({
       <body>
         <LocalizationProvider initialLocale={locale}>
           {children}
+          <div className="fixed bottom-5 right-5 z-40">
+            <FloatingHelp />
+          </div>
         </LocalizationProvider>
       </body>
     </html>
