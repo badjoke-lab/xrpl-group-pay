@@ -13,6 +13,8 @@ export type SettlementAssetId =
   | "xrpl:mainnet:xrp"
   | "xrpl:mainnet:rlusd";
 
+export type BillPaymentMode = "" | "representative" | "direct";
+
 export type ParticipantDraft = {
   id: string;
   label: string;
@@ -24,11 +26,16 @@ export type ParticipantDraft = {
 };
 
 export type BillDraft = {
+  paymentMode: BillPaymentMode;
+  recipientLabel: string;
+  recipientFundedEnabled: boolean;
+  recipientFundedAmount: string;
   title: string;
   destinationAddress: string;
   destinationTag: string;
   settlementAssetId: SettlementAssetId;
   totalAmount: string;
+  /** Compatibility field for the pre-mode form and persisted draft migration. */
   creatorShareAmount: string;
   allocationStrategy: AllocationFormStrategy;
   remainderMode: RemainderMode;
@@ -78,6 +85,10 @@ export function newParticipant(): ParticipantDraft {
 export function newBillDraft(network: XrplNetwork = "testnet"): BillDraft {
   const mainnet = network === "mainnet";
   return {
+    paymentMode: "",
+    recipientLabel: "",
+    recipientFundedEnabled: false,
+    recipientFundedAmount: "0",
     title: "",
     destinationAddress: "",
     destinationTag: "",
@@ -121,7 +132,7 @@ export function createAllocationSummary(input: {
 }): AllocationViewSummary {
   let remainderAssignmentLabel = "No remainder";
   if (input.appliedAssignment?.kind === "creator") {
-    remainderAssignmentLabel = "Creator";
+    remainderAssignmentLabel = "Recipient-funded amount";
   } else if (input.appliedAssignment?.kind === "participant") {
     remainderAssignmentLabel = participantDisplayLabel(
       input.draft,
@@ -139,6 +150,16 @@ export function createAllocationSummary(input: {
   };
 }
 
+export function recipientFundedValue(draft: BillDraft): string {
+  if (draft.paymentMode === "direct") return "0";
+  if (draft.paymentMode === "representative") {
+    return draft.recipientFundedEnabled
+      ? draft.recipientFundedAmount.trim() || "0"
+      : "0";
+  }
+  return draft.creatorShareAmount.trim() || "0";
+}
+
 export function billDraftToInput(input: {
   draft: BillDraft;
   remainderAssignment?: RemainderAssignment;
@@ -146,13 +167,22 @@ export function billDraftToInput(input: {
 }): CreateBillInput {
   const value = input.draft;
   const destinationTag = value.destinationTag.trim();
+  const fundedAmount = recipientFundedValue(value);
+  const usesPaymentModeContract = value.paymentMode !== "";
   const base = {
     title: value.title,
+    ...(usesPaymentModeContract
+      ? { paymentMode: value.paymentMode as "representative" | "direct" }
+      : {}),
+    ...(value.recipientLabel.trim()
+      ? { recipientLabel: value.recipientLabel.trim() }
+      : {}),
     destinationAddress: value.destinationAddress,
     ...(destinationTag ? { destinationTag } : {}),
     settlementAssetId: value.settlementAssetId,
     totalAmount: value.totalAmount,
-    creatorShareAmount: value.creatorShareAmount,
+    ...(usesPaymentModeContract ? { recipientFundedAmount: fundedAmount } : {}),
+    creatorShareAmount: fundedAmount,
   };
   const participants = value.participants.map((item) => ({
     participantId: item.id,
