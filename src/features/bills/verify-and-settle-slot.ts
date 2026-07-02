@@ -6,6 +6,7 @@ import {
 import type { AssetVerificationOutcome } from "@/features/payment-verification/asset-outcome";
 import { classifyPaymentRecovery } from "@/features/payment-recovery/taxonomy";
 
+import { markPaymentSlotNeedsReview } from "./payment-review-store";
 import type { ResolvedPaymentSlot } from "./payment-slot";
 import { settleVerifiedIssuedPaymentSlot } from "./settle-issued-slot";
 import { settleVerifiedPaymentSlot } from "./settle-slot";
@@ -23,6 +24,7 @@ export type VerifyAndSettleSlotDependencies = {
   ) => Promise<AssetVerificationOutcome>;
   settleXrp?: typeof settleVerifiedPaymentSlot;
   settleIssued?: typeof settleVerifiedIssuedPaymentSlot;
+  recordReview?: typeof markPaymentSlotNeedsReview;
 };
 
 export async function verifyAndSettleStoredSlotPayment(
@@ -47,13 +49,26 @@ export async function verifyAndSettleStoredSlotPayment(
   }
 
   if (outcome.status === "failed") {
+    const recovery = classifyPaymentRecovery({
+      source: "verification_failed",
+      reason: outcome.reason,
+      transactionId: outcome.transactionId,
+    });
+    if (recovery.requiresReview) {
+      await (dependencies.recordReview ?? markPaymentSlotNeedsReview)(
+        database,
+        slot,
+        {
+          kind: "verification_mismatch",
+          transactionId: outcome.transactionId,
+          reasonCode: recovery.code,
+          message: outcome.message,
+        },
+      );
+    }
     return assetPaymentVerificationApiOutcomeSchema.parse({
       ...outcome,
-      recovery: classifyPaymentRecovery({
-        source: "verification_failed",
-        reason: outcome.reason,
-        transactionId: outcome.transactionId,
-      }),
+      recovery,
     });
   }
 
