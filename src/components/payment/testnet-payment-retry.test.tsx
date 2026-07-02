@@ -1,6 +1,10 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
+import { getXrpAssetDescriptor } from "@/features/assets/registry";
+import type { PaymentDetails } from "@/features/bills/payment-details";
+import { readyPaymentReadiness } from "@/test/fixtures/payment-readiness";
+
 import { TestnetPaymentForm } from "./testnet-payment-form";
 
 class MockWebSocket {
@@ -16,6 +20,12 @@ function response(body: unknown, status = 200) {
   });
 }
 
+function requestUrl(input: RequestInfo | URL) {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.toString();
+  return input.url;
+}
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -23,22 +33,28 @@ afterEach(() => {
 
 it("requires confirmation again after a rejected request", async () => {
   const payloadId = "123e4567-e89b-12d3-a456-426614174000";
-  const details = {
+  const asset = getXrpAssetDescriptor("testnet");
+  const details: PaymentDetails = {
     billTitle: "Dinner",
     participantLabel: "Alex",
     expectedPayerAddress: "rPayer",
     destinationAddress: "rDestination",
     destinationTag: null,
+    asset,
+    amount: { code: "XRP", units: "4000000", scale: 6 },
     amountDrops: "4000000",
     sourceTag: 123456,
     invoiceId: "B".repeat(64),
     network: "testnet",
   };
-  const fetcher = vi
-    .fn()
-    .mockResolvedValueOnce(response(details))
-    .mockResolvedValueOnce(
-      response(
+  const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+    const url = requestUrl(input);
+    if (url === "/api/payments/details") return response(details);
+    if (url === "/api/payments/readiness") {
+      return response(readyPaymentReadiness(details));
+    }
+    if (url === "/api/payments/payload") {
+      return response(
         {
           payloadId,
           status: "waiting",
@@ -52,11 +68,13 @@ it("requires confirmation again after a rejected request", async () => {
           },
         },
         201,
-      ),
-    )
-    .mockResolvedValueOnce(
-      response({ payloadId, status: "rejected", txid: null }),
-    );
+      );
+    }
+    if (url === `/api/xaman/payloads/${payloadId}`) {
+      return response({ payloadId, status: "rejected", txid: null });
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  });
   vi.stubGlobal("fetch", fetcher);
   vi.stubGlobal("WebSocket", MockWebSocket);
 
@@ -74,5 +92,8 @@ it("requires confirmation again after a rejected request", async () => {
   expect(
     screen.getByRole("heading", { name: "Confirm the exact Testnet payment" }),
   ).toBeVisible();
-  expect(fetcher).toHaveBeenCalledTimes(3);
+  expect(fetcher).toHaveBeenCalledWith(
+    `/api/xaman/payloads/${payloadId}`,
+    expect.objectContaining({ cache: "no-store" }),
+  );
 });
