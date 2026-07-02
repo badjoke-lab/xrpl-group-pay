@@ -9,6 +9,10 @@ import {
   loadBillReviewManagement,
 } from "@/features/bills/bill-recovery-management";
 import {
+  BillProgressDatabaseError,
+  BillProgressNotFoundError,
+} from "@/features/bills/progress";
+import {
   getPaymentsDatabase,
   PaymentsDatabaseUnavailableError,
 } from "@/features/persistence/cloudflare-d1";
@@ -125,9 +129,17 @@ export async function handleBillRecoveryRequest(
   try {
     return json(await dependencies.execute(input), 200);
   } catch (error) {
-    if (error instanceof BillRecoveryNotFoundError) {
+    if (
+      error instanceof BillRecoveryNotFoundError ||
+      error instanceof BillProgressNotFoundError
+    ) {
       return json(
-        { error: { code: error.code, message: error.message } },
+        {
+          error: {
+            code: "BILL_RECOVERY_NOT_FOUND",
+            message: "The Bill management capability is invalid or unavailable.",
+          },
+        },
         404,
       );
     }
@@ -139,6 +151,7 @@ export async function handleBillRecoveryRequest(
     }
     if (
       error instanceof BillRecoveryDatabaseError ||
+      error instanceof BillProgressDatabaseError ||
       error instanceof PaymentsDatabaseUnavailableError
     ) {
       return json(
