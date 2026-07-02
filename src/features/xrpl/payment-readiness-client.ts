@@ -1,4 +1,4 @@
-import type { PaymentReadinessResponse } from "@/app/api/payments/readiness/route";
+import type { PaymentReadinessResponse } from "./payment-readiness-contract";
 
 export class PaymentReadinessRequestError extends Error {
   constructor(
