@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   CheckCircle2,
   CircleAlert,
+  Copy,
   ExternalLink,
   LoaderCircle,
   RefreshCw,
@@ -11,7 +12,12 @@ import {
   UserRoundCog,
 } from "lucide-react";
 
-import { billProgressSemanticStatus } from "@/components/bills/bill-progress-status";
+import {
+  billGroupSemanticStatus,
+  billProgressSemanticStatus,
+  slotSafeActionKey,
+} from "@/components/bills/bill-progress-status";
+import { ContextualHelp } from "@/components/help/contextual-help";
 import { Button } from "@/components/ui/button";
 import {
   AssetBadge,
@@ -57,6 +63,25 @@ function amount(value: BillProgressSnapshot["bill"]["totalAmount"]) {
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof BillProgressRequestError ? error.message : fallback;
+}
+
+function localeTag(locale: "en" | "ja" | "ko") {
+  return locale === "ja" ? "ja-JP" : locale === "ko" ? "ko-KR" : "en-US";
+}
+
+function displayTime(value: string, locale: "en" | "ja" | "ko") {
+  return new Intl.DateTimeFormat(localeTag(locale), {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function transactionExplorerHref(
+  network: BillProgressSnapshot["bill"]["network"],
+  transactionId: string,
+) {
+  const host = network === "mainnet" ? "livenet.xrpl.org" : "testnet.xrpl.org";
+  return `https://${host}/transactions/${transactionId}`;
 }
 
 export function BillProgress({ capabilityToken }: BillProgressProps) {
@@ -166,14 +191,17 @@ function ProgressSnapshotView({
   const { locale } = useLocalization();
   const isAdmin = progress.access === "admin";
   const isSettled = progress.bill.status === "settled";
+  const isClosed = progress.bill.status === "closed_incomplete";
   const completion =
     progress.summary.participantCount === 0
       ? 0
       : Math.round(
-          (progress.summary.paidCount / progress.summary.participantCount) * 100,
+          (progress.summary.paidCount / progress.summary.participantCount) *
+            100,
         );
   const networkLabel =
     progress.bill.network === "mainnet" ? "XRPL Mainnet" : "XRPL Testnet";
+  const groupStatus = billGroupSemanticStatus(progress.bill.status, gt);
 
   return (
     <div className="space-y-7">
@@ -204,6 +232,16 @@ function ProgressSnapshotView({
                   network={progress.bill.network}
                   label={networkLabel}
                 />
+                <StatusBadge
+                  family={groupStatus.family}
+                  label={groupStatus.label}
+                  animated={groupStatus.animated}
+                />
+                <span className="inline-flex min-h-7 items-center rounded-pill border border-border bg-background px-2.5 py-1 text-xs font-bold text-muted">
+                  {progress.bill.paymentMode === "representative"
+                    ? gt("representativeMode")
+                    : gt("directMode")}
+                </span>
               </div>
               <h2 className="mt-4 font-heading text-3xl font-semibold sm:text-4xl">
                 {progress.bill.title}
@@ -211,6 +249,11 @@ function ProgressSnapshotView({
               <p className="mt-3 max-w-2xl leading-7 text-muted">
                 {gt("exactPayment", { asset: progress.bill.asset.symbol })}
               </p>
+              {isAdmin && progress.bill.recipientLabel && (
+                <p className="mt-2 text-sm font-semibold text-foreground">
+                  {progress.bill.recipientLabel}
+                </p>
+              )}
               {progress.bill.asset.assetType === "issued" && (
                 <p
                   className="mt-2 break-all font-mono text-xs text-muted"
@@ -256,26 +299,46 @@ function ProgressSnapshotView({
                 style={{ width: `${completion}%` }}
               />
             </div>
+            <p className="mt-3 text-xs text-muted">
+              {gt("refreshedAt", {
+                time: displayTime(progress.bill.updatedAt, locale),
+              })}
+            </p>
           </div>
         </div>
 
         <dl className="grid border-t border-border sm:grid-cols-2 lg:grid-cols-4">
           <Metric
-            label={gt("billTotal")}
-            value={amount(progress.bill.totalAmount)}
+            label={gt("expected")}
+            value={amount(progress.summary.expectedExternalAmount)}
           />
           <Metric
             label={gt("verified")}
             value={amount(progress.summary.paidAmount)}
           />
           <Metric
-            label={gt("pending")}
-            value={String(progress.summary.pendingCount)}
+            label={gt("remaining")}
+            value={amount(progress.summary.remainingAmount)}
+            alert={progress.summary.reviewCount > 0}
           />
           <Metric
-            label={gt("review")}
-            value={String(progress.summary.reviewCount)}
-            alert={progress.summary.reviewCount > 0}
+            label={gt("payerCount")}
+            value={gt("payerCountValue", {
+              paid: progress.summary.paidCount,
+              remaining: progress.summary.remainingCount,
+            })}
+          />
+        </dl>
+
+        <dl className="grid border-t border-border bg-background sm:grid-cols-2">
+          <CompactMetric
+            label={gt("billTotal")}
+            value={amount(progress.bill.totalAmount)}
+          />
+          <CompactMetric
+            label={gt("recipientFunded")}
+            value={amount(progress.bill.recipientFundedAmount)}
+            muted={progress.bill.paymentMode === "direct"}
           />
         </dl>
       </section>
@@ -296,6 +359,8 @@ function ProgressSnapshotView({
           </div>
         </CardAccent>
       )}
+
+      <LinkHandlingCard isAdmin={isAdmin} />
 
       <section className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-3">
@@ -318,6 +383,8 @@ function ProgressSnapshotView({
               key={slot.publicId}
               slot={slot}
               isAdmin={isAdmin}
+              isClosed={isClosed}
+              network={progress.bill.network}
               index={index}
             />
           ))}
@@ -327,26 +394,89 @@ function ProgressSnapshotView({
   );
 }
 
+function LinkHandlingCard({ isAdmin }: { isAdmin: boolean }) {
+  const { gt } = useProgressLocalization();
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
+    "idle",
+  );
+
+  async function copyCurrentLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
+    }
+  }
+
+  return (
+    <CardAccent
+      family={isAdmin ? "action_required" : "neutral"}
+      className="rounded-xl border border-border bg-surface p-5 shadow-sm sm:p-6"
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="max-w-3xl">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-heading text-xl font-semibold">
+              {gt("shareTitle")}
+            </h3>
+            <ContextualHelp topic="capability-privacy" variant="inline" />
+          </div>
+          <p className="mt-2 leading-7 text-muted">
+            {isAdmin ? gt("adminShareBody") : gt("publicShareBody")}
+          </p>
+        </div>
+        <div className="shrink-0">
+          <Button type="button" variant="secondary" onClick={() => void copyCurrentLink()}>
+            <Copy aria-hidden="true" className="size-4" />
+            {isAdmin ? gt("copyManagement") : gt("copyReadOnly")}
+          </Button>
+          {copyState !== "idle" && (
+            <p
+              role="status"
+              className={cn(
+                "mt-2 text-center text-xs font-semibold",
+                copyState === "failed" ? "text-danger" : "text-success",
+              )}
+            >
+              {copyState === "copied" ? gt("copied") : gt("copyFailed")}
+            </p>
+          )}
+        </div>
+      </div>
+    </CardAccent>
+  );
+}
+
 function SlotCard({
   slot,
   isAdmin,
+  isClosed,
+  network,
   index,
 }: {
   slot: Slot;
   isAdmin: boolean;
+  isClosed: boolean;
+  network: BillProgressSnapshot["bill"]["network"];
   index: number;
 }) {
   const { gt } = useProgressLocalization();
+  const { locale } = useLocalization();
   const status = billProgressSemanticStatus(slot.status, gt);
+  const safeAction = gt(slotSafeActionKey(slot.status, isClosed));
   const proofUrl = slot.proofToken ? `/proof#token=${slot.proofToken}` : null;
+  const explorerUrl = slot.paidTransactionId
+    ? transactionExplorerHref(network, slot.paidTransactionId)
+    : null;
 
   return (
     <CardAccent
       family={status.family}
       className="rounded-lg border border-border bg-background p-5"
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
             {isAdmin
               ? gt("participant", { number: index + 1 })
@@ -357,26 +487,55 @@ function SlotCard({
               ? slot.participantLabel
               : gt("paymentSlot", { number: index + 1 })}
           </h4>
-          {isAdmin && slot.expectedPayerAddress && (
-            <p
-              className="mt-2 break-all font-mono text-xs text-muted"
-              title={slot.expectedPayerAddress}
-            >
-              {gt("expectedWallet", {
-                wallet: shortValue(slot.expectedPayerAddress),
-              })}
-            </p>
-          )}
-          {slot.paidTransactionId && (
-            <p
-              className="mt-2 break-all font-mono text-xs text-muted"
-              title={slot.paidTransactionId}
-            >
-              {gt("verifiedTx", {
-                transaction: shortValue(slot.paidTransactionId),
-              })}
-            </p>
-          )}
+
+          <dl className="mt-3 space-y-2 text-sm text-muted">
+            {isAdmin && slot.expectedPayerAddress && (
+              <DetailRow
+                label={gt("expectedWallet", {
+                  wallet: shortValue(slot.expectedPayerAddress),
+                })}
+                value={slot.expectedPayerAddress}
+              />
+            )}
+            {isAdmin && slot.invoiceId && (
+              <DetailRow
+                label={gt("invoiceId", {
+                  invoice: shortValue(slot.invoiceId),
+                })}
+                value={slot.invoiceId}
+              />
+            )}
+            {slot.paidTransactionId && (
+              <DetailRow
+                label={gt("verifiedTx", {
+                  transaction: shortValue(slot.paidTransactionId),
+                })}
+                value={slot.paidTransactionId}
+              />
+            )}
+            {slot.paidLedgerIndex !== null && (
+              <p>{gt("ledgerIndex", { ledger: slot.paidLedgerIndex })}</p>
+            )}
+            {slot.paidAt && (
+              <p>
+                {gt("confirmedAt", {
+                  time: displayTime(slot.paidAt, locale),
+                })}
+              </p>
+            )}
+            {!slot.paidAt && (
+              <p>
+                {gt("updatedAt", {
+                  time: displayTime(slot.updatedAt, locale),
+                })}
+              </p>
+            )}
+            {isAdmin && slot.reviewReasonCode && (
+              <p className="font-mono text-xs text-danger">
+                {gt("reviewReason", { reason: slot.reviewReasonCode })}
+              </p>
+            )}
+          </dl>
         </div>
 
         <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
@@ -388,18 +547,55 @@ function SlotCard({
             label={status.label}
             animated={status.animated}
           />
-          {proofUrl && (
-            <a
-              href={proofUrl}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand underline-offset-4 hover:underline"
-            >
-              {gt("publicProof")}
-              <ExternalLink aria-hidden="true" className="size-4" />
-            </a>
-          )}
+          <div className="flex flex-wrap gap-3 sm:justify-end">
+            {explorerUrl && (
+              <a
+                href={explorerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                referrerPolicy="no-referrer"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand underline-offset-4 hover:underline"
+              >
+                {gt("explorer")}
+                <ExternalLink aria-hidden="true" className="size-4" />
+              </a>
+            )}
+            {proofUrl && (
+              <a
+                href={proofUrl}
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand underline-offset-4 hover:underline"
+              >
+                {gt("publicProof")}
+                <ExternalLink aria-hidden="true" className="size-4" />
+              </a>
+            )}
+          </div>
         </div>
       </div>
+
+      <div className="mt-5 rounded-lg border border-border bg-surface p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-semibold text-foreground">{safeAction}</p>
+          <ContextualHelp
+            topic={slot.status === "paid" ? "payment-status" : "safe-recovery"}
+            variant="inline"
+          />
+        </div>
+        {isAdmin && slot.status !== "paid" && !isClosed && (
+          <p className="mt-2 text-sm leading-6 text-muted">
+            {gt("noWalletControl")}
+          </p>
+        )}
+      </div>
     </CardAccent>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <p className="break-all font-mono text-xs" title={value}>
+      {label}
+    </p>
   );
 }
 
@@ -418,10 +614,30 @@ function Metric({
         {label}
       </dt>
       <dd
-        className={`mt-2 font-heading text-xl font-semibold ${alert ? "text-danger" : ""}`}
+        className={cn(
+          "mt-2 font-heading text-xl font-semibold",
+          alert && "text-danger",
+        )}
       >
         {value}
       </dd>
+    </div>
+  );
+}
+
+function CompactMetric({
+  label,
+  value,
+  muted = false,
+}: {
+  label: string;
+  value: string;
+  muted?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
+      <dt className="text-sm font-semibold text-muted">{label}</dt>
+      <dd className={cn("font-semibold", muted && "text-muted")}>{value}</dd>
     </div>
   );
 }
