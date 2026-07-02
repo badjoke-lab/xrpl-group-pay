@@ -11,6 +11,7 @@ import {
   TEST_SOURCE_TAG,
   TEST_TXID,
 } from "@/features/payment-verification/test-helpers";
+import type { ProviderRequestStatus } from "@/features/wallet-providers/status-reader";
 import type { XrplTxResult } from "@/features/xrpl/schemas";
 
 import type { ResolvedPaymentSlot } from "./payment-slot";
@@ -122,5 +123,39 @@ describe("stored verification dispatch", () => {
         deliveredAmount: { units: "1250000", scale: 6 },
       },
     });
+  });
+
+  it("keeps rejection, expiry, and provider failure as distinct reasons", async () => {
+    const cases = [
+      ["rejected", "HANDOFF_REJECTED"],
+      ["expired", "HANDOFF_EXPIRED"],
+      ["failed", "HANDOFF_PROVIDER_FAILED"],
+    ] as const;
+
+    for (const [status, reason] of cases) {
+      const request: ProviderRequestStatus = {
+        providerId: "xaman",
+        requestId: "request-id",
+        status,
+        transactionId: null,
+      };
+      const outcome = await verifyStoredSlotAssetPayment(
+        baseSlot,
+        "request-id",
+        {
+          readProviderStatus: async () => request,
+          getXrplTransaction: async () => {
+            throw new Error("Ledger lookup must not run for terminal handoff state.");
+          },
+          sourceTag: TEST_SOURCE_TAG,
+        },
+      );
+
+      expect(outcome).toMatchObject({
+        status: "failed",
+        reason,
+        transactionId: null,
+      });
+    }
   });
 });
