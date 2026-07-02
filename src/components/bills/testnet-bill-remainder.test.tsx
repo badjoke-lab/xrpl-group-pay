@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   BILL_DESTINATION,
@@ -17,62 +17,71 @@ function response(body: unknown, status = 200) {
   });
 }
 
-function fillRemainderBill() {
+function continueToNextStep() {
+  const button = screen.getByRole("button", { name: "Continue" });
+  expect(button).toBeEnabled();
+  fireEvent.click(button);
+}
+
+function reachRemainderStep() {
+  fireEvent.click(
+    screen.getByRole("radio", { name: /Pay a representative/ }),
+  );
+  continueToNextStep();
+
+  fireEvent.change(screen.getByLabelText(/Representative or recipient name/), {
+    target: { value: "Dinner organizer" },
+  });
   fireEvent.change(screen.getByLabelText("Bill title"), {
     target: { value: "Tiny split" },
   });
-  fireEvent.change(screen.getByLabelText("Creator destination address"), {
+  fireEvent.change(screen.getByLabelText(/Recipient XRPL address/), {
     target: { value: BILL_DESTINATION },
   });
-  fireEvent.change(screen.getByPlaceholderText("10"), {
+  fireEvent.change(screen.getByLabelText("Bill total"), {
     target: { value: "0.000003" },
   });
-  fireEvent.change(screen.getByPlaceholderText("2"), {
-    target: { value: "0" },
-  });
+  continueToNextStep();
+
+  fireEvent.click(screen.getByRole("radio", { name: /^Equal/ }));
   const payers = screen.getAllByLabelText("Expected payer address");
   fireEvent.change(payers[0], { target: { value: PAYER_ONE } });
   fireEvent.change(payers[1], { target: { value: PAYER_TWO } });
 }
 
+beforeEach(() => {
+  window.sessionStorage.clear();
+});
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  window.sessionStorage.clear();
 });
 
 describe("TestnetBillForm remainder handling", () => {
-  it("blocks review until an explicit remainder rule is selected", async () => {
+  it("blocks progress until an explicit remainder rule is selected", async () => {
     const fetcher = vi.fn().mockResolvedValue(response(BILL_REVIEW_FIXTURE));
     vi.stubGlobal("fetch", fetcher);
 
     render(<TestnetBillForm />);
-    fireEvent.click(screen.getByLabelText(/^Equal/));
-    fillRemainderBill();
+    reachRemainderStep();
 
     expect(screen.getByText("Remainder rule required")).toBeVisible();
-    expect(
-      screen.getByText("Assign the remainder explicitly"),
-    ).toBeVisible();
+    expect(screen.getByText("Assign the remainder explicitly")).toBeVisible();
     expect(
       screen.getByText(
         "The calculation leaves 1 smallest Asset unit. Group Pay will not discard or assign it silently.",
       ),
     ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Review bill before freezing" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
 
-    fireEvent.click(screen.getByLabelText(/Creator pays remainder/));
+    fireEvent.click(screen.getByRole("radio", { name: /Creator pays remainder/ }));
 
     expect(screen.getByText("Allocation exact")).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Review bill before freezing" }),
-    ).toBeEnabled();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Review bill before freezing" }),
-    );
+    continueToNextStep();
+    fireEvent.click(screen.getByRole("button", { name: "Review and freeze" }));
     expect(
       await screen.findByRole("heading", { name: "Review before freezing" }),
     ).toBeVisible();
@@ -93,30 +102,24 @@ describe("TestnetBillForm remainder handling", () => {
 
   it("requires a selected participant before assigning the remainder", () => {
     render(<TestnetBillForm />);
-    fireEvent.click(screen.getByLabelText(/^Equal/));
-    fillRemainderBill();
-    fireEvent.click(screen.getByLabelText(/Choose one participant/));
+    reachRemainderStep();
+    fireEvent.click(screen.getByRole("radio", { name: /Choose one participant/ }));
 
     expect(screen.getByLabelText("Remainder participant")).toHaveValue("");
     expect(screen.getByText("Remainder rule required")).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Review bill before freezing" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
   });
 
   it("validates manual remainder increments exactly", () => {
     render(<TestnetBillForm />);
-    fireEvent.click(screen.getByLabelText(/^Equal/));
-    fillRemainderBill();
-    fireEvent.click(screen.getByLabelText(/Distribute manually/));
+    reachRemainderStep();
+    fireEvent.click(screen.getByRole("radio", { name: /Distribute manually/ }));
 
     const increments = screen.getAllByLabelText(/Remainder units for/);
     fireEvent.change(increments[0], { target: { value: "1" } });
     fireEvent.change(increments[1], { target: { value: "0" } });
 
     expect(screen.getByText("Allocation exact")).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Review bill before freezing" }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
   });
 });
