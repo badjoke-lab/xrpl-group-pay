@@ -221,7 +221,7 @@ describe("verifyAndSettleStoredSlotPayment", () => {
     expect(settleXrp).not.toHaveBeenCalled();
   });
 
-  it("returns pending outcomes without attempting settlement", async () => {
+  it("returns pending outcomes with wait-and-recheck recovery", async () => {
     const verifyPayment = vi.fn().mockResolvedValue({
       status: "pending",
       reason: "TRANSACTION_NOT_VALIDATED",
@@ -243,8 +243,43 @@ describe("verifyAndSettleStoredSlotPayment", () => {
       reason: "TRANSACTION_NOT_VALIDATED",
       transactionId: TXID,
       message: "Pending",
+      recovery: expect.objectContaining({
+        code: "TRANSACTION_PENDING",
+        disposition: "wait_recheck",
+        replacementRule: "blocked",
+        canRecheck: true,
+      }),
     });
     expect(settleXrp).not.toHaveBeenCalled();
     expect(settleIssued).not.toHaveBeenCalled();
+  });
+
+  it("returns mismatches with review-required recovery", async () => {
+    const verifyPayment = vi.fn().mockResolvedValue({
+      status: "failed",
+      reason: "WRONG_DESTINATION",
+      transactionId: TXID,
+      message: "Mismatch",
+    });
+
+    await expect(
+      verifyAndSettleStoredSlotPayment(database, slot, "request-id", {
+        verification: verificationDependencies,
+        verifyPayment,
+        settleXrp: vi.fn(),
+        settleIssued: vi.fn(),
+      }),
+    ).resolves.toEqual({
+      status: "failed",
+      reason: "WRONG_DESTINATION",
+      transactionId: TXID,
+      message: "Mismatch",
+      recovery: expect.objectContaining({
+        code: "WRONG_DESTINATION",
+        disposition: "review_required",
+        replacementRule: "blocked",
+        requiresReview: true,
+      }),
+    });
   });
 });

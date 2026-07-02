@@ -1,3 +1,5 @@
+import { classifyPaymentRecovery } from "@/features/payment-recovery/taxonomy";
+
 import {
   assetPaymentVerificationApiOutcomeSchema,
   type AssetPaymentVerificationApiOutcome,
@@ -19,6 +21,11 @@ function unavailable(message?: unknown): AssetPaymentVerificationApiOutcome {
       typeof message === "string"
         ? message
         : "The validated ledger or receipt storage is temporarily unavailable. Check again.",
+    recovery: classifyPaymentRecovery({
+      source: "verification_pending",
+      reason: "VERIFICATION_UNAVAILABLE",
+      transactionId: null,
+    }),
   };
 }
 

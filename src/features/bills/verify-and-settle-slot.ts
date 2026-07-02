@@ -4,6 +4,7 @@ import {
   type AssetPaymentVerificationApiOutcome,
 } from "@/features/payment-verification/asset-api-outcome";
 import type { AssetVerificationOutcome } from "@/features/payment-verification/asset-outcome";
+import { classifyPaymentRecovery } from "@/features/payment-recovery/taxonomy";
 
 import type { ResolvedPaymentSlot } from "./payment-slot";
 import { settleVerifiedIssuedPaymentSlot } from "./settle-issued-slot";
@@ -34,8 +35,26 @@ export async function verifyAndSettleStoredSlotPayment(
     dependencies.verifyPayment ?? verifyStoredSlotAssetPayment
   )(slot, requestId, dependencies.verification);
 
-  if (outcome.status !== "verified") {
-    return assetPaymentVerificationApiOutcomeSchema.parse(outcome);
+  if (outcome.status === "pending") {
+    return assetPaymentVerificationApiOutcomeSchema.parse({
+      ...outcome,
+      recovery: classifyPaymentRecovery({
+        source: "verification_pending",
+        reason: outcome.reason,
+        transactionId: outcome.transactionId,
+      }),
+    });
+  }
+
+  if (outcome.status === "failed") {
+    return assetPaymentVerificationApiOutcomeSchema.parse({
+      ...outcome,
+      recovery: classifyPaymentRecovery({
+        source: "verification_failed",
+        reason: outcome.reason,
+        transactionId: outcome.transactionId,
+      }),
+    });
   }
 
   if (outcome.legacyProof !== null) {

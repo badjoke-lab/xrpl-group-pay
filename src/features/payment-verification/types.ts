@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { xrplNetworkSchema } from "@/features/assets/types";
 import { recordedPaymentReceiptSchema } from "@/features/persistence/types";
+import { paymentRecoveryAssessmentSchema } from "@/features/payment-recovery/schema";
 
 const transactionHashSchema = z.string().regex(/^[A-F0-9]{64}$/i);
 const dropsSchema = z.string().regex(/^(?:0|[1-9]\d*)$/);
@@ -18,6 +19,9 @@ export const verificationPendingReasonSchema = z.enum([
 export const verificationFailureReasonSchema = z.enum([
   "INVALID_PROVIDER_HANDOFF",
   "HANDOFF_FAILED",
+  "HANDOFF_REJECTED",
+  "HANDOFF_EXPIRED",
+  "HANDOFF_PROVIDER_FAILED",
   "UNSUPPORTED_VERIFICATION_STRATEGY",
   "INVALID_XAMAN_TEMPLATE",
   "SLOT_EXPECTATION_MISMATCH",
@@ -89,6 +93,7 @@ const pendingOutcomeSchema = z
     reason: verificationPendingReasonSchema,
     transactionId: transactionHashSchema.nullable(),
     message: z.string().min(1),
+    recovery: paymentRecoveryAssessmentSchema.optional(),
   })
   .strict();
 
@@ -98,6 +103,7 @@ const failedOutcomeSchema = z
     reason: verificationFailureReasonSchema,
     transactionId: transactionHashSchema.nullable(),
     message: z.string().min(1),
+    recovery: paymentRecoveryAssessmentSchema.optional(),
   })
   .strict();
 
