@@ -1,6 +1,9 @@
 "use client";
 
 import { CheckCircle2, Circle } from "lucide-react";
+import { useId, type ReactNode } from "react";
+
+import { cn } from "@/lib/cn";
 
 export function BillFormChoiceCard({
   name,
@@ -69,6 +72,9 @@ export function BillFormChoiceCard({
 
 export function BillFormField({
   label,
+  labelAction,
+  description,
+  error,
   value,
   onChange,
   placeholder,
@@ -76,8 +82,13 @@ export function BillFormField({
   mono = false,
   suffix,
   inputMode,
+  type = "text",
+  disabled = false,
 }: {
   label: string;
+  labelAction?: ReactNode;
+  description?: string;
+  error?: string | null;
   value: string;
   onChange(value: string): void;
   placeholder: string;
@@ -85,18 +96,46 @@ export function BillFormField({
   mono?: boolean;
   suffix?: string;
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  type?: React.HTMLInputTypeAttribute;
+  disabled?: boolean;
 }) {
+  const id = useId();
+  const descriptionId = description ? `${id}-description` : undefined;
+  const errorId = error ? `${id}-error` : undefined;
+  const describedBy = [descriptionId, errorId].filter(Boolean).join(" ") || undefined;
+
   return (
-    <label className="block min-w-0">
-      <span className="text-sm font-semibold">{label}</span>
-      <div className="mt-2 flex min-w-0 w-full overflow-hidden rounded-md border border-border bg-background focus-within:border-brand focus-within:ring-3 focus-within:ring-focus/20">
+    <label className="block min-w-0" htmlFor={id}>
+      <span className="flex min-h-7 items-center justify-between gap-3">
+        <span className="text-sm font-semibold">{label}</span>
+        {labelAction}
+      </span>
+      {description && (
+        <span id={descriptionId} className="mt-1 block text-xs leading-5 text-muted">
+          {description}
+        </span>
+      )}
+      <span
+        className={cn(
+          "mt-2 flex min-w-0 w-full overflow-hidden rounded-md border bg-background focus-within:ring-3",
+          error
+            ? "border-danger focus-within:border-danger focus-within:ring-danger/20"
+            : "border-border focus-within:border-brand focus-within:ring-focus/20",
+          disabled && "bg-surface-subtle opacity-70",
+        )}
+      >
         <input
+          id={id}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           required={required}
           placeholder={placeholder}
           inputMode={inputMode}
+          type={type}
+          disabled={disabled}
           autoComplete="off"
+          aria-invalid={error ? "true" : undefined}
+          aria-describedby={describedBy}
           className={`min-h-12 min-w-0 w-full flex-1 bg-transparent px-3 outline-none sm:px-4 ${mono ? "font-mono text-sm" : ""}`}
         />
         {suffix && (
@@ -104,7 +143,12 @@ export function BillFormField({
             {suffix}
           </span>
         )}
-      </div>
+      </span>
+      {error && (
+        <span id={errorId} role="alert" className="mt-1.5 block text-sm text-danger">
+          {error}
+        </span>
+      )}
     </label>
   );
 }
