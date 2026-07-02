@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { getXrpAssetDescriptor } from "@/features/assets/registry";
 import { prepareBillReview } from "@/features/bills/create-bill";
 
 import {
@@ -97,14 +98,7 @@ describe("two-mode draft validation", () => {
 
   it("requires a positive representative-funded amount below the total", () => {
     const draft = completeDraft("representative");
-    const asset = {
-      id: "xrpl:testnet:xrp",
-      paymentRail: "xrpl",
-      network: "testnet",
-      symbol: "XRP",
-      assetType: "native",
-      precision: 6,
-    } as const;
+    const asset = getXrpAssetDescriptor("testnet");
 
     draft.recipientFundedAmount = "0";
     expect(recipientFundedAmountIssue(draft, asset)).toBe("not_positive");
