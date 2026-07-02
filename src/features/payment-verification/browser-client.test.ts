@@ -102,26 +102,29 @@ describe("requestPaymentVerification", () => {
       },
       422,
     ],
-  ])("accepts a complete XRP-compatible outcome with HTTP %s", async (outcome, status) => {
-    const fetcher = vi.fn().mockResolvedValue(response(outcome, status));
+  ])(
+    "accepts a complete XRP-compatible outcome with HTTP %s",
+    async (outcome, status) => {
+      const fetcher = vi.fn().mockResolvedValue(response(outcome, status));
 
-    await expect(
-      requestPaymentVerification(
-        PAYMENT_TOKEN,
-        PAYLOAD_ID,
-        fetcher as unknown as typeof fetch,
-      ),
-    ).resolves.toEqual(outcome);
-    expect(fetcher).toHaveBeenCalledWith(
-      "/api/payments/verify",
-      expect.objectContaining({
-        body: JSON.stringify({
-          paymentToken: PAYMENT_TOKEN,
-          payloadId: PAYLOAD_ID,
+      await expect(
+        requestPaymentVerification(
+          PAYMENT_TOKEN,
+          PAYLOAD_ID,
+          fetcher as unknown as typeof fetch,
+        ),
+      ).resolves.toEqual(outcome);
+      expect(fetcher).toHaveBeenCalledWith(
+        "/api/payments/verify",
+        expect.objectContaining({
+          body: JSON.stringify({
+            paymentToken: PAYMENT_TOKEN,
+            payloadId: PAYLOAD_ID,
+          }),
         }),
-      }),
-    );
-  });
+      );
+    },
+  );
 
   it("accepts a canonical issued-asset verification result", async () => {
     const outcome = issuedVerified();
@@ -136,7 +139,7 @@ describe("requestPaymentVerification", () => {
     ).resolves.toEqual(outcome);
   });
 
-  it("keeps infrastructure failures retryable", async () => {
+  it("keeps infrastructure failures in wait-and-recheck", async () => {
     const fetcher = vi.fn().mockResolvedValue(
       response(
         { error: { message: "XRPL Testnet is temporarily unavailable." } },
@@ -155,6 +158,12 @@ describe("requestPaymentVerification", () => {
       reason: "VERIFICATION_UNAVAILABLE",
       transactionId: null,
       message: "XRPL Testnet is temporarily unavailable.",
+      recovery: expect.objectContaining({
+        code: "LEDGER_TEMPORARILY_UNAVAILABLE",
+        disposition: "wait_recheck",
+        replacementRule: "blocked",
+        canRecheck: true,
+      }),
     });
 
     const unreachable = vi.fn().mockRejectedValue(new Error("offline"));
@@ -167,6 +176,10 @@ describe("requestPaymentVerification", () => {
     ).resolves.toMatchObject({
       status: "pending",
       reason: "VERIFICATION_UNAVAILABLE",
+      recovery: {
+        code: "LEDGER_TEMPORARILY_UNAVAILABLE",
+        disposition: "wait_recheck",
+      },
     });
   });
 
@@ -199,15 +212,18 @@ describe("requestPaymentVerification", () => {
       })(),
       200,
     ],
-  ])("rejects malformed or status-inconsistent responses", async (body, status) => {
-    const fetcher = vi.fn().mockResolvedValue(response(body, status));
+  ])(
+    "rejects malformed or status-inconsistent responses",
+    async (body, status) => {
+      const fetcher = vi.fn().mockResolvedValue(response(body, status));
 
-    await expect(
-      requestPaymentVerification(
-        PAYMENT_TOKEN,
-        PAYLOAD_ID,
-        fetcher as unknown as typeof fetch,
-      ),
-    ).rejects.toBeInstanceOf(PaymentVerificationRequestError);
-  });
+      await expect(
+        requestPaymentVerification(
+          PAYMENT_TOKEN,
+          PAYLOAD_ID,
+          fetcher as unknown as typeof fetch,
+        ),
+      ).rejects.toBeInstanceOf(PaymentVerificationRequestError);
+    },
+  );
 });
