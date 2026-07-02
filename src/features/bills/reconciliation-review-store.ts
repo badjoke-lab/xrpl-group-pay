@@ -18,21 +18,30 @@ const INSERT_FINDING = `
 
 const MARK_SLOT_NEEDS_REVIEW = `
   UPDATE payment_slots
-  SET status = 'needs_review', updated_at = ?1
-  WHERE id = ?2
+  SET
+    status = 'needs_review',
+    review_reason_code = 'MULTIPLE_VALIDATED_MATCHES',
+    review_details_json = ?1,
+    updated_at = ?2
+  WHERE id = ?3
     AND status <> 'paid'
 `;
 
 const MARK_BILL_NEEDS_REVIEW = `
   UPDATE bills
-  SET status = 'needs_review', updated_at = ?1
-  WHERE id = ?2
+  SET
+    status = 'needs_review',
+    review_reason_code = 'MULTIPLE_VALIDATED_MATCHES',
+    review_details_json = ?1,
+    updated_at = ?2
+  WHERE id = ?3
+    AND closure_state = 'active'
     AND status IN ('open', 'partially_paid', 'needs_review')
 `;
 
 export class ReconciliationReviewPersistenceError extends Error {
   constructor() {
-    super("The duplicate-payment review state could not be persisted.");
+    super("The reconciliation review state could not be persisted.");
     this.name = "ReconciliationReviewPersistenceError";
   }
 }
@@ -47,12 +56,26 @@ export async function markReconciliationNeedsReview(
     now: Date;
   },
 ) {
-  const transactionIds = [...new Set(input.transactionIds.map((id) => id.toUpperCase()))].sort();
+  const transactionIds = [
+    ...new Set(input.transactionIds.map((id) => id.toUpperCase())),
+  ].sort();
   if (transactionIds.length < 2) {
     throw new ReconciliationReviewPersistenceError();
   }
 
   const now = input.now.toISOString();
+  const transactionIdsJson = JSON.stringify(transactionIds);
+  const reviewDetailsJson = JSON.stringify({
+    kind: "multiple_validated_matches",
+    transactionId: null,
+    transactionIds,
+    reasonCode: "MULTIPLE_VALIDATED_MATCHES",
+    message:
+      "Multiple validated transactions match the frozen PaymentSlot. Review is required before any replacement request.",
+    reviewedLedgerMin: input.reviewedLedgerMin,
+    reviewedLedgerMax: input.reviewedLedgerMax,
+    observedAt: now,
+  });
   const statements = [
     database
       .prepare(INSERT_FINDING)
@@ -61,13 +84,17 @@ export async function markReconciliationNeedsReview(
         slot.slotId,
         slot.billId,
         transactionIds.length,
-        JSON.stringify(transactionIds),
+        transactionIdsJson,
         input.reviewedLedgerMin,
         input.reviewedLedgerMax,
         now,
       ),
-    database.prepare(MARK_SLOT_NEEDS_REVIEW).bind(now, slot.slotId),
-    database.prepare(MARK_BILL_NEEDS_REVIEW).bind(now, slot.billId),
+    database
+      .prepare(MARK_SLOT_NEEDS_REVIEW)
+      .bind(reviewDetailsJson, now, slot.slotId),
+    database
+      .prepare(MARK_BILL_NEEDS_REVIEW)
+      .bind(reviewDetailsJson, now, slot.billId),
   ];
 
   try {
