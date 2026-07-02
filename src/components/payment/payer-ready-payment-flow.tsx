@@ -156,27 +156,32 @@ export function PayerReadyPaymentFlow({
     );
   }
 
-  const ready = paymentReadinessAllowsHandoff(readiness);
+  const panel = (
+    <PaymentReadinessPanel
+      details={detailsState.details}
+      readiness={readiness}
+      loading={readinessLoading}
+      error={readinessError}
+      setupWorking={setupWorking}
+      setupPath={setupPath}
+      onRecheck={() => void recheck()}
+      onPrepareSetup={() => void prepareRlusdSetup()}
+    />
+  );
+
+  if (paymentReadinessAllowsHandoff(readiness)) {
+    return (
+      <div className="space-y-6">
+        {panel}
+        <ExistingPaymentFlow paymentToken={capability} />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
-        <PaymentSummary details={detailsState.details} />
-        <PaymentReadinessPanel
-          details={detailsState.details}
-          readiness={readiness}
-          loading={readinessLoading}
-          error={readinessError}
-          setupWorking={setupWorking}
-          setupPath={setupPath}
-          onRecheck={() => void recheck()}
-          onPrepareSetup={() => void prepareRlusdSetup()}
-        />
-      </div>
-
-      {ready && (
-        <ExistingPaymentFlow paymentToken={capability} />
-      )}
+    <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+      <PaymentSummary details={detailsState.details} />
+      {panel}
     </div>
   );
 }
