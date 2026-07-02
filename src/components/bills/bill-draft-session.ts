@@ -11,6 +11,8 @@ import {
 export type BillCreationStep = 1 | 2 | 3 | 4;
 
 const VERSION = 1;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function billDraftStorageKey(network: XrplNetwork) {
   return `xgp.bill-draft.${network}.v${VERSION}`;
@@ -93,6 +95,7 @@ function sanitizeDraft(value: unknown, network: XrplNetwork): BillDraft | null {
 export function readBillDraftSession(network: XrplNetwork): {
   draft: BillDraft;
   step: BillCreationStep;
+  copiedFromPublicId?: string;
 } | null {
   if (typeof window === "undefined") return null;
   try {
@@ -109,7 +112,10 @@ export function readBillDraftSession(network: XrplNetwork): {
       rawStep === 1 || rawStep === 2 || rawStep === 3 || rawStep === 4
         ? rawStep
         : 1;
-    return { draft, step };
+    const copiedFromPublicId = text(value.copiedFromPublicId).trim();
+    return copiedFromPublicId && UUID_PATTERN.test(copiedFromPublicId)
+      ? { draft, step, copiedFromPublicId }
+      : { draft, step };
   } catch {
     return null;
   }
@@ -119,11 +125,20 @@ export function writeBillDraftSession(
   network: XrplNetwork,
   draft: BillDraft,
   step: BillCreationStep,
+  copiedFromPublicId?: string | null,
 ) {
   if (typeof window === "undefined") return;
   window.sessionStorage.setItem(
     billDraftStorageKey(network),
-    JSON.stringify({ version: VERSION, network, draft, step }),
+    JSON.stringify({
+      version: VERSION,
+      network,
+      draft,
+      step,
+      ...(copiedFromPublicId && UUID_PATTERN.test(copiedFromPublicId)
+        ? { copiedFromPublicId }
+        : {}),
+    }),
   );
 }
 
