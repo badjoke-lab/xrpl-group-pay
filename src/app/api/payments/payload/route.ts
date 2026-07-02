@@ -75,7 +75,7 @@ const defaultDependencies: SlotPayloadRouteDependencies = {
           } as const)
         : undefined;
     if (target.network !== environment.APP_NETWORK) {
-      throw new XamanConfigurationError(
+      throw new XrplAccountReadConfigurationError(
         "The payment database and wallet provider networks do not match.",
       );
     }
