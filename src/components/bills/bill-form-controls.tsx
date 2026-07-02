@@ -37,9 +37,9 @@ export function BillFormChoiceCard({
         value={value}
         checked={checked}
         onChange={onChange}
-        className="peer sr-only"
+        className="peer absolute inset-0 z-10 cursor-pointer opacity-0"
       />
-      <div className="flex min-w-0 items-start justify-between gap-3 sm:gap-4">
+      <div className="pointer-events-none flex min-w-0 items-start justify-between gap-3 sm:gap-4">
         <div className="min-w-0">
           <p className="break-words font-heading text-base font-semibold sm:text-lg">
             {label}
@@ -62,7 +62,7 @@ export function BillFormChoiceCard({
         </div>
       </div>
       {detail && (
-        <p className="mt-3 break-all font-mono text-[11px] leading-5 text-muted">
+        <p className="pointer-events-none mt-3 break-all font-mono text-[11px] leading-5 text-muted">
           {detail}
         </p>
       )}
