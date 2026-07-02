@@ -5,6 +5,8 @@ import {
   getRlusdAssetDescriptor,
   getXrpAssetDescriptor,
 } from "@/features/assets/registry";
+import type { PaymentDetails } from "@/features/bills/payment-details";
+import { readyPaymentReadiness } from "@/test/fixtures/payment-readiness";
 
 import { TestnetPaymentForm } from "./testnet-payment-form";
 
@@ -20,13 +22,19 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+function requestUrl(input: RequestInfo | URL) {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.toString();
+  return input.url;
+}
+
 class MockWebSocket {
   addEventListener() {}
   removeEventListener() {}
   close() {}
 }
 
-const details = {
+const details: PaymentDetails = {
   billTitle: "XRPL Meetup Dinner",
   participantLabel: "Alex",
   expectedPayerAddress: "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -53,6 +61,24 @@ const createdPayload = {
   },
 };
 
+function readyFetcher(
+  paymentDetails: PaymentDetails = details,
+  extra?: (url: string) => Response | undefined,
+) {
+  return vi.fn(async (input: RequestInfo | URL) => {
+    const url = requestUrl(input);
+    const additional = extra?.(url);
+    if (additional) return additional;
+    if (url === "/api/payments/details") {
+      return jsonResponse(paymentDetails);
+    }
+    if (url === "/api/payments/readiness") {
+      return jsonResponse(readyPaymentReadiness(paymentDetails));
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  });
+}
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -68,7 +94,7 @@ describe("TestnetPaymentForm", () => {
   });
 
   it("loads frozen details without creating a Xaman payload", async () => {
-    const fetcher = vi.fn().mockResolvedValue(jsonResponse(details));
+    const fetcher = readyFetcher();
     vi.stubGlobal("fetch", fetcher);
 
     render(<TestnetPaymentForm paymentToken={PAYMENT_TOKEN} />);
@@ -80,9 +106,19 @@ describe("TestnetPaymentForm", () => {
     expect(screen.getByText("Alex")).toBeVisible();
     expect(screen.queryByLabelText("Recipient XRPL address")).toBeNull();
     expect(screen.queryByRole("textbox", { name: "Amount" })).toBeNull();
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(
+      fetcher.mock.calls.some(
+        ([input]) => requestUrl(input) === "/api/payments/payload",
+      ),
+    ).toBe(false);
     expect(fetcher).toHaveBeenCalledWith(
       "/api/payments/details",
+      expect.objectContaining({
+        body: JSON.stringify({ paymentToken: PAYMENT_TOKEN }),
+      }),
+    );
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/payments/readiness",
       expect.objectContaining({
         body: JSON.stringify({ paymentToken: PAYMENT_TOKEN }),
       }),
@@ -91,13 +127,13 @@ describe("TestnetPaymentForm", () => {
 
   it("shows official RLUSD, issuer, and XRP fee notice before handoff", async () => {
     const asset = getRlusdAssetDescriptor("testnet");
-    const rlusdDetails = {
+    const rlusdDetails: PaymentDetails = {
       ...details,
       asset,
       amount: { code: "RLUSD", units: "1250000", scale: 6 },
       amountDrops: null,
     };
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(rlusdDetails)));
+    vi.stubGlobal("fetch", readyFetcher(rlusdDetails));
 
     render(<TestnetPaymentForm paymentToken={PAYMENT_TOKEN} />);
     await screen.findByRole("heading", { name: details.billTitle });
@@ -105,14 +141,17 @@ describe("TestnetPaymentForm", () => {
     expect(screen.getByText("1.25", { exact: true })).toBeVisible();
     expect(screen.getByText("Official RLUSD on XRPL Testnet")).toBeVisible();
     expect(screen.getByTitle(asset.issuer)).toBeVisible();
-    expect(screen.getByText(/network fee is paid separately in XRP/i)).toBeVisible();
+    expect(
+      screen.getByText(/network fee is paid separately in XRP/i),
+    ).toBeVisible();
   });
 
   it("requires final confirmation before creating the Sign Request", async () => {
-    const fetcher = vi
-      .fn()
-      .mockResolvedValueOnce(jsonResponse(details))
-      .mockResolvedValueOnce(jsonResponse(createdPayload, 201));
+    const fetcher = readyFetcher(details, (url) =>
+      url === "/api/payments/payload"
+        ? jsonResponse(createdPayload, 201)
+        : undefined,
+    );
     vi.stubGlobal("fetch", fetcher);
     vi.stubGlobal("WebSocket", MockWebSocket);
 
@@ -127,13 +166,16 @@ describe("TestnetPaymentForm", () => {
     ).toBeVisible();
     expect(screen.getByText(details.invoiceId)).toBeVisible();
     expect(screen.getByText(String(details.sourceTag))).toBeVisible();
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(
+      fetcher.mock.calls.some(
+        ([input]) => requestUrl(input) === "/api/payments/payload",
+      ),
+    ).toBe(false);
 
     fireEvent.click(screen.getByRole("button", { name: "Back to details" }));
     expect(
       screen.getByRole("heading", { name: "Frozen payment details loaded" }),
     ).toBeVisible();
-    expect(fetcher).toHaveBeenCalledTimes(1);
 
     fireEvent.click(
       screen.getByRole("button", { name: "Review final payment" }),
@@ -145,9 +187,7 @@ describe("TestnetPaymentForm", () => {
     expect(
       await screen.findByRole("heading", { name: "Waiting for approval in Xaman" }),
     ).toBeVisible();
-    expect(fetcher).toHaveBeenCalledTimes(2);
-    expect(fetcher).toHaveBeenNthCalledWith(
-      2,
+    expect(fetcher).toHaveBeenCalledWith(
       "/api/payments/payload",
       expect.objectContaining({
         body: JSON.stringify({ paymentToken: PAYMENT_TOKEN }),
@@ -156,15 +196,19 @@ describe("TestnetPaymentForm", () => {
   });
 
   it("loads, confirms, signs, verifies, and settles the stored slot", async () => {
-    const fetcher = vi
-      .fn()
-      .mockResolvedValueOnce(jsonResponse(details))
-      .mockResolvedValueOnce(jsonResponse(createdPayload, 201))
-      .mockResolvedValueOnce(
-        jsonResponse({ payloadId: PAYLOAD_ID, status: "submitted", txid: TXID }),
-      )
-      .mockResolvedValueOnce(
-        jsonResponse({
+    const fetcher = readyFetcher(details, (url) => {
+      if (url === "/api/payments/payload") {
+        return jsonResponse(createdPayload, 201);
+      }
+      if (url === `/api/xaman/payloads/${PAYLOAD_ID}`) {
+        return jsonResponse({
+          payloadId: PAYLOAD_ID,
+          status: "submitted",
+          txid: TXID,
+        });
+      }
+      if (url === "/api/payments/verify") {
+        return jsonResponse({
           status: "verified",
           proof: {
             network: "testnet",
@@ -189,8 +233,10 @@ describe("TestnetPaymentForm", () => {
             recordedAt: "2026-06-23T01:02:04.000Z",
             proofDigest: "C".repeat(64),
           },
-        }),
-      );
+        });
+      }
+      return undefined;
+    });
 
     vi.stubGlobal("fetch", fetcher);
     vi.stubGlobal("WebSocket", MockWebSocket);
@@ -212,8 +258,7 @@ describe("TestnetPaymentForm", () => {
         screen.getByRole("heading", { name: "Ledger verified" }),
       ).toBeVisible();
     });
-    expect(fetcher).toHaveBeenNthCalledWith(
-      4,
+    expect(fetcher).toHaveBeenCalledWith(
       "/api/payments/verify",
       expect.objectContaining({
         body: JSON.stringify({
@@ -222,7 +267,6 @@ describe("TestnetPaymentForm", () => {
         }),
       }),
     );
-    expect(fetcher).toHaveBeenCalledTimes(4);
   });
 
   it("shows a completed state for a paid capability without details", async () => {
