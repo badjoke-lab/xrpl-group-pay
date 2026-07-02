@@ -5,18 +5,33 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { buttonStyles } from "@/components/ui/button";
-import { useLocalization } from "@/features/localization/provider";
 import {
   getHelpTopic,
   helpGuideHref,
   type HelpTopicId,
 } from "@/features/help/help-registry";
+import { useLocalization } from "@/features/localization/provider";
 import { cn } from "@/lib/cn";
 
 const interfaceCopy = {
-  en: { button: "Help", close: "Close help", guide: "Open full Guide", dialog: "Contextual help" },
-  ja: { button: "ヘルプ", close: "ヘルプを閉じる", guide: "完全版ガイドを開く", dialog: "コンテキストヘルプ" },
-  ko: { button: "도움말", close: "도움말 닫기", guide: "전체 가이드 열기", dialog: "상황별 도움말" },
+  en: {
+    button: "Help",
+    close: "Close help",
+    guide: "Open full Guide",
+    dialog: "Contextual help",
+  },
+  ja: {
+    button: "ヘルプ",
+    close: "ヘルプを閉じる",
+    guide: "完全版ガイドを開く",
+    dialog: "コンテキストヘルプ",
+  },
+  ko: {
+    button: "도움말",
+    close: "도움말 닫기",
+    guide: "전체 가이드 열기",
+    dialog: "상황별 도움말",
+  },
 } as const;
 
 export type ContextualHelpProps = {
@@ -40,14 +55,12 @@ export function ContextualHelp({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
-
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
+    const trigger = triggerRef.current;
     document.body.style.overflow = "hidden";
     closeRef.current?.focus();
 
@@ -77,11 +90,12 @@ export function ContextualHelp({
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", onKeyDown);
-      triggerRef.current?.focus();
+      trigger?.focus();
     };
   }, [open]);
 
   const triggerLabel = label ?? copy.button;
+  const canUsePortal = typeof document !== "undefined";
 
   return (
     <>
@@ -93,17 +107,23 @@ export function ContextualHelp({
         onClick={() => setOpen(true)}
         className={cn(
           "inline-flex min-h-11 items-center justify-center gap-2 rounded-md font-semibold text-brand outline-none transition-colors hover:text-brand-hover focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2",
-          variant === "button" && "border border-brand/20 bg-surface px-4 py-2 text-sm shadow-sm hover:bg-brand-subtle",
+          variant === "button" &&
+            "border border-brand/20 bg-surface px-4 py-2 text-sm shadow-sm hover:bg-brand-subtle",
           variant === "icon" && "size-11 border border-border bg-surface",
-          variant === "inline" && "px-1 text-sm underline-offset-4 hover:underline",
+          variant === "inline" &&
+            "px-1 text-sm underline-offset-4 hover:underline",
           className,
         )}
       >
         <HelpCircle aria-hidden="true" className="size-4 shrink-0" />
-        {variant !== "icon" ? <span>{triggerLabel}</span> : <span className="sr-only">{triggerLabel}</span>}
+        {variant !== "icon" ? (
+          <span>{triggerLabel}</span>
+        ) : (
+          <span className="sr-only">{triggerLabel}</span>
+        )}
       </button>
 
-      {mounted && open
+      {canUsePortal && open
         ? createPortal(
             <div
               className="fixed inset-0 z-50 flex items-end bg-foreground/35 md:items-stretch md:justify-end"
@@ -121,8 +141,15 @@ export function ContextualHelp({
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand">{copy.dialog}</p>
-                    <h2 id={titleId} className="mt-2 font-heading text-2xl font-semibold text-foreground">{content.title}</h2>
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand">
+                      {copy.dialog}
+                    </p>
+                    <h2
+                      id={titleId}
+                      className="mt-2 font-heading text-2xl font-semibold text-foreground"
+                    >
+                      {content.title}
+                    </h2>
                   </div>
                   <button
                     ref={closeRef}
@@ -135,10 +162,17 @@ export function ContextualHelp({
                   </button>
                 </div>
 
-                <p id={descriptionId} className="mt-5 rounded-lg border border-brand/15 bg-brand-subtle p-4 font-semibold leading-7 text-foreground">{content.short}</p>
+                <p
+                  id={descriptionId}
+                  className="mt-5 rounded-lg border border-brand/15 bg-brand-subtle p-4 font-semibold leading-7 text-foreground"
+                >
+                  {content.short}
+                </p>
 
                 <div className="mt-5 space-y-4 text-sm leading-7 text-muted sm:text-base">
-                  {content.detail.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+                  {content.detail.map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))}
                 </div>
 
                 <div className="mt-7 border-t border-border pt-5">
