@@ -19,17 +19,22 @@ test("shows natural Japanese copy and allows RLUSD selection", async ({ page }) 
   await expect(
     page.getByRole("heading", { level: 1, name: "割り勘の内容を入力" }),
   ).toBeVisible();
-  await expect(page.getByRole("heading", { name: "請求を作成" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "請求内容" })).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "分け方と参加者" }),
+    page.getByRole("heading", { name: "受取人と各支払者の負担額を設定" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "入力内容の確認" }),
+    page.getByRole("group", { name: "参加者は誰に支払いますか？" }),
   ).toBeVisible();
-  await expect(page.getByText("共同請求を作成", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("配分と参加者", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("確認準備", { exact: true })).toHaveCount(0);
+
+  await page.getByRole("radio", { name: /代表者へ支払う/ }).click();
+  await page.getByRole("button", { name: "次へ" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "受取人と請求内容" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "精算資産" }),
+  ).toBeVisible();
 
   const rlusdInput = page.locator(
     'input[name="settlementAsset"][value$=":rlusd"]',
@@ -41,14 +46,18 @@ test("shows natural Japanese copy and allows RLUSD selection", async ({ page }) 
     page.getByText(/RLUSDを受け取るアカウントにはRLUSDのトラストラインが必要です/),
   ).toBeVisible();
 
-  const totalInput = page.getByLabel("合計額");
-  const creatorInput = page.getByLabel("作成者の負担");
+  const totalInput = page.getByLabel("請求総額");
   await expect(totalInput).toBeVisible();
-  await expect(creatorInput).toBeVisible();
   await expect(totalInput.locator("xpath=following-sibling::span")).toHaveText(
     "RLUSD",
   );
-  await expect(creatorInput.locator("xpath=following-sibling::span")).toHaveText(
+
+  await page
+    .getByRole("checkbox", { name: /受取人負担分を含める/ })
+    .click();
+  const fundedInput = page.getByLabel("受取人負担額");
+  await expect(fundedInput).toBeVisible();
+  await expect(fundedInput.locator("xpath=following-sibling::span")).toHaveText(
     "RLUSD",
   );
 });
@@ -62,7 +71,7 @@ test("reviews a shared bill before freezing it", async ({ page }) => {
         network: "testnet",
         title: "Dinner",
         paymentMode: "representative",
-        recipientLabel: null,
+        recipientLabel: "Dinner organizer",
         destinationAddress: "rPEPPER7kfTD9w2To4CQk6UCfuHM9c6GDY",
         destinationTag: null,
         asset: {
@@ -104,16 +113,24 @@ test("reviews a shared bill before freezing it", async ({ page }) => {
   });
 
   await page.goto("/testnet/bill");
+  await page.getByRole("radio", { name: /Pay a representative/ }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+
+  await page.getByLabel("Representative or recipient name").fill("Dinner organizer");
   await page.getByLabel("Bill title").fill("Dinner");
   await page
-    .getByLabel("Creator destination address")
+    .getByLabel("Recipient XRPL address")
     .fill("rPEPPER7kfTD9w2To4CQk6UCfuHM9c6GDY");
-  await page.getByPlaceholder("10").fill("10");
-  await page.getByPlaceholder("2").fill("2");
+  await page.getByLabel("Bill total").fill("10");
+  await page
+    .getByRole("checkbox", { name: /Include a recipient-funded amount/ })
+    .click();
+  await page.getByLabel("Recipient-funded amount").fill("2");
+  await page.getByRole("button", { name: "Continue" }).click();
 
   const labels = page.getByLabel("Label");
   const payers = page.getByLabel("Expected payer address");
-  const amounts = page.getByPlaceholder("4");
+  const amounts = page.getByLabel("Assigned amount");
   await labels.nth(0).fill("Alex");
   await payers.nth(0).fill("rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh");
   await amounts.nth(0).fill("3");
@@ -124,7 +141,8 @@ test("reviews a shared bill before freezing it", async ({ page }) => {
   await amounts.nth(1).fill("5");
 
   await expect(page.getByText("Allocation exact")).toBeVisible();
-  await page.getByRole("button", { name: "Review bill before freezing" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Review and freeze" }).click();
   await expect(
     page.getByRole("heading", { name: "Review before freezing" }),
   ).toBeVisible();
