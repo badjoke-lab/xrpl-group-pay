@@ -17,20 +17,16 @@ import {
   type BillReviewManagement,
 } from "@/features/bills/bill-recovery-client";
 import type { BillProgress } from "@/features/bills/progress";
-import { useLocalization } from "@/features/localization/provider";
 import { billRecoveryTranslate } from "@/features/localization/bill-recovery-catalog";
+import { useLocalization } from "@/features/localization/provider";
 import { formatMoneyAmount } from "@/features/money/money";
 
 export type BillRecoveryControlsProps = {
   capability: string;
-  initialProgress: BillProgress;
-  onProgressUpdated(progress: BillProgress): void;
+  onChanged(): void;
 };
 
-type Acknowledgements = Record<
-  string,
-  { prior: boolean; repeated: boolean }
->;
+type Acknowledgements = Record<string, { prior: boolean; repeated: boolean }>;
 
 function explorerHref(network: BillProgress["bill"]["network"], tx: string) {
   const host = network === "mainnet" ? "livenet.xrpl.org" : "testnet.xrpl.org";
@@ -49,30 +45,26 @@ function short(value: string) {
 
 export function BillRecoveryControls({
   capability,
-  initialProgress,
-  onProgressUpdated,
+  onChanged,
 }: BillRecoveryControlsProps) {
   const { locale } = useLocalization();
   const t = (key: Parameters<typeof billRecoveryTranslate>[1]) =>
     billRecoveryTranslate(locale, key);
-  const [management, setManagement] = useState<BillReviewManagement | null>(
-    null,
-  );
+  const [management, setManagement] = useState<BillReviewManagement | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hidden, setHidden] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [acknowledgements, setAcknowledgements] =
-    useState<Acknowledgements>({});
-  const [closureReason, setClosureReason] = useState<
+  const [ack, setAck] = useState<Acknowledgements>({});
+  const [closeReason, setCloseReason] = useState<
     "operator_closed_incomplete" | "collection_ended"
   >("operator_closed_incomplete");
-  const [closureConfirmation, setClosureConfirmation] = useState("");
+  const [closeText, setCloseText] = useState("");
   const [ackStops, setAckStops] = useState(false);
   const [ackRefunds, setAckRefunds] = useState(false);
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
     requestBillRecovery({ action: "load", adminToken: capability }).then(
       (result) => {
         if (!active) return;
@@ -81,33 +73,39 @@ export function BillRecoveryControls({
       },
       (requestError: unknown) => {
         if (!active) return;
-        setError(
-          requestError instanceof BillRecoveryRequestError
-            ? requestError.message
-            : t("loadError"),
-        );
+        if (
+          requestError instanceof BillRecoveryRequestError &&
+          requestError.code === "BILL_RECOVERY_NOT_FOUND"
+        ) {
+          setHidden(true);
+        } else {
+          setError(
+            requestError instanceof BillRecoveryRequestError
+              ? requestError.message
+              : t("loadError"),
+          );
+        }
         setLoading(false);
       },
     );
     return () => {
       active = false;
     };
-    // Capability is the request identity; locale changes affect copy only.
+    // Capability identifies this request. Locale changes only replace copy.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [capability]);
 
-  const progress = management?.progress ?? initialProgress;
+  const progress = management?.progress ?? null;
   const slots = useMemo(
-    () => new Map(progress.slots.map((slot) => [slot.publicId, slot])),
-    [progress.slots],
+    () => new Map(progress?.slots.map((slot) => [slot.publicId, slot]) ?? []),
+    [progress?.slots],
   );
-  const reviews = management?.reviews ?? [];
-  const isClosed = progress.bill.status === "closed_incomplete";
-  const isSettled = progress.bill.status === "settled";
+  const isClosed = progress?.bill.status === "closed_incomplete";
+  const isSettled = progress?.bill.status === "settled";
 
   async function authorizeRetry(slotPublicId: string) {
-    const acknowledgement = acknowledgements[slotPublicId];
-    if (!acknowledgement?.prior || !acknowledgement.repeated) return;
+    const accepted = ack[slotPublicId];
+    if (!accepted?.prior || !accepted.repeated) return;
     setBusy(`retry:${slotPublicId}`);
     setError(null);
     try {
@@ -119,7 +117,7 @@ export function BillRecoveryControls({
         acknowledgeDoublePaymentRisk: true,
       });
       setManagement(result);
-      onProgressUpdated(result.progress);
+      onChanged();
     } catch (requestError: unknown) {
       setError(
         requestError instanceof BillRecoveryRequestError
@@ -132,26 +130,20 @@ export function BillRecoveryControls({
   }
 
   async function closeIncomplete() {
-    if (
-      closureConfirmation !== "CLOSE_INCOMPLETE" ||
-      !ackStops ||
-      !ackRefunds
-    ) {
-      return;
-    }
+    if (closeText !== "CLOSE_INCOMPLETE" || !ackStops || !ackRefunds) return;
     setBusy("close");
     setError(null);
     try {
       const result = await requestBillRecovery({
         action: "close_incomplete",
         adminToken: capability,
-        reasonCode: closureReason,
+        reasonCode: closeReason,
         confirmation: "CLOSE_INCOMPLETE",
         acknowledgeStopsPayments: true,
         acknowledgeNoAutomaticRefunds: true,
       });
       setManagement(result);
-      onProgressUpdated(result.progress);
+      onChanged();
     } catch (requestError: unknown) {
       setError(
         requestError instanceof BillRecoveryRequestError
@@ -163,8 +155,10 @@ export function BillRecoveryControls({
     }
   }
 
+  if (hidden) return null;
+
   return (
-    <section className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8">
+    <section className="mt-7 rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8">
       <div className="flex items-start gap-3">
         <LockKeyhole aria-hidden="true" className="mt-1 size-6 shrink-0 text-brand" />
         <div>
@@ -174,39 +168,34 @@ export function BillRecoveryControls({
       </div>
 
       {loading && (
-        <div className="mt-6 flex items-center gap-3 text-sm text-muted" role="status">
+        <p role="status" className="mt-6 flex items-center gap-3 text-sm text-muted">
           <LoaderCircle aria-hidden="true" className="size-5 animate-spin" />
           {t("title")}
-        </div>
+        </p>
       )}
-
       {error && (
-        <div
-          role="alert"
-          className="mt-6 rounded-lg border border-danger/25 bg-danger/10 p-4 text-sm font-semibold text-danger"
-        >
+        <p role="alert" className="mt-6 rounded-lg border border-danger/25 bg-danger/10 p-4 text-sm font-semibold text-danger">
           {error}
-        </div>
+        </p>
       )}
 
-      {!loading && reviews.length > 0 && (
+      {!loading && progress && management?.reviews.length ? (
         <div className="mt-7 space-y-5">
-          {reviews.map((review) => {
+          {management.reviews.map((review) => {
             const slot = slots.get(review.slotPublicId);
             if (!slot) return null;
-            const acknowledgement = acknowledgements[review.slotPublicId] ?? {
+            const accepted = ack[review.slotPublicId] ?? {
               prior: false,
               repeated: false,
             };
             const actionable =
               review.status === "needs_review" ||
               review.status === "verification_failed";
-            const transactions = review.details?.transactionIds?.length
+            const txs = review.details?.transactionIds?.length
               ? review.details.transactionIds
               : review.details?.transactionId
                 ? [review.details.transactionId]
                 : [];
-
             return (
               <CardAccent
                 key={review.slotPublicId}
@@ -214,14 +203,9 @@ export function BillRecoveryControls({
                 className="rounded-xl border border-border bg-background p-5 sm:p-6"
               >
                 <div className="flex items-start gap-3">
-                  <ShieldAlert
-                    aria-hidden="true"
-                    className="mt-0.5 size-6 shrink-0 text-danger"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <h4 className="font-heading text-xl font-semibold">
-                      {t("reviewTitle")}
-                    </h4>
+                  <ShieldAlert aria-hidden="true" className="mt-0.5 size-6 shrink-0 text-danger" />
+                  <div>
+                    <h4 className="font-heading text-xl font-semibold">{t("reviewTitle")}</h4>
                     <p className="mt-1 text-sm font-semibold text-danger">
                       {review.reasonCode ?? slot.reviewReasonCode ?? t("reason")}
                     </p>
@@ -229,116 +213,67 @@ export function BillRecoveryControls({
                 </div>
 
                 <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                  <div className="rounded-lg border border-border bg-surface p-4">
-                    <h5 className="font-semibold">{t("expected")}</h5>
-                    <dl className="mt-3 space-y-3 text-sm">
-                      <Fact label={t("payer")} value={slot.expectedPayerAddress ?? "—"} mono />
-                      <Fact
-                        label={t("recipient")}
-                        value={progress.bill.destinationAddress}
-                        mono
-                      />
-                      <Fact label={t("amount")} value={money(slot.expectedAmount)} />
-                      <Fact label={t("invoice")} value={slot.invoiceId ?? "—"} mono />
-                    </dl>
-                  </div>
-
-                  <div className="rounded-lg border border-border bg-surface p-4">
-                    <h5 className="font-semibold">{t("observed")}</h5>
+                  <ReviewFacts title={t("expected")}>
+                    <Fact label={t("payer")} value={slot.expectedPayerAddress ?? "—"} mono />
+                    <Fact label={t("recipient")} value={progress.bill.destinationAddress} mono />
+                    <Fact label={t("amount")} value={money(slot.expectedAmount)} />
+                    <Fact label={t("invoice")} value={slot.invoiceId ?? "—"} mono />
+                  </ReviewFacts>
+                  <ReviewFacts title={t("observed")}>
                     {review.details ? (
-                      <div className="mt-3 space-y-3 text-sm">
-                        <Fact
-                          label={t("reason")}
-                          value={review.details.reasonCode}
-                          mono
-                        />
-                        <p className="leading-6 text-muted">
-                          {review.details.message}
-                        </p>
-                        {transactions.length > 0 && (
-                          <div>
-                            <p className="font-semibold text-muted">
-                              {transactions.length === 1
-                                ? t("transaction")
-                                : t("candidates")}
-                            </p>
-                            <ul className="mt-2 space-y-2">
-                              {transactions.map((transaction) => (
-                                <li key={transaction}>
-                                  <a
-                                    href={explorerHref(
-                                      progress.bill.network,
-                                      transaction,
-                                    )}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    referrerPolicy="no-referrer"
-                                    title={transaction}
-                                    className="inline-flex max-w-full items-center gap-1.5 break-all font-mono text-xs font-semibold text-brand underline-offset-4 hover:underline"
-                                  >
-                                    {short(transaction)}
-                                    <ExternalLink
-                                      aria-hidden="true"
-                                      className="size-4 shrink-0"
-                                    />
-                                    <span className="sr-only">{t("explorer")}</span>
-                                  </a>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
+                      <>
+                        <Fact label={t("reason")} value={review.details.reasonCode} mono />
+                        <p className="text-sm leading-6 text-muted">{review.details.message}</p>
+                        {txs.map((tx) => (
+                          <a
+                            key={tx}
+                            href={explorerHref(progress.bill.network, tx)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            referrerPolicy="no-referrer"
+                            title={tx}
+                            className="inline-flex items-center gap-1.5 break-all font-mono text-xs font-semibold text-brand underline-offset-4 hover:underline"
+                          >
+                            {short(tx)}
+                            <ExternalLink aria-hidden="true" className="size-4 shrink-0" />
+                            <span className="sr-only">{t("explorer")}</span>
+                          </a>
+                        ))}
+                      </>
                     ) : (
-                      <p className="mt-3 text-sm leading-6 text-muted">
-                        {t("noObservation")}
-                      </p>
+                      <p className="text-sm leading-6 text-muted">{t("noObservation")}</p>
                     )}
-                  </div>
+                  </ReviewFacts>
                 </div>
 
                 {review.retryAuthorizedAt ? (
-                  <div
-                    role="status"
-                    className="mt-5 rounded-lg border border-success/25 bg-success/10 p-4 text-sm font-semibold text-success"
-                  >
+                  <p role="status" className="mt-5 rounded-lg border border-success/25 bg-success/10 p-4 text-sm font-semibold text-success">
                     {t("authorized")}
-                  </div>
+                  </p>
                 ) : actionable ? (
                   <div className="mt-5 rounded-lg border border-danger/25 bg-danger/10 p-4">
-                    <div className="flex items-start gap-3">
-                      <CircleAlert
-                        aria-hidden="true"
-                        className="mt-0.5 size-5 shrink-0 text-danger"
-                      />
-                      <p className="text-sm leading-6 text-danger">
-                        {t("retryWarning")}
-                      </p>
-                    </div>
+                    <p className="flex items-start gap-3 text-sm leading-6 text-danger">
+                      <CircleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+                      {t("retryWarning")}
+                    </p>
                     <div className="mt-4 space-y-3">
                       <CheckRow
-                        checked={acknowledgement.prior}
+                        checked={accepted.prior}
                         label={t("acknowledgePrior")}
-                        onChange={(checked) =>
-                          setAcknowledgements((current) => ({
+                        onChange={(prior) =>
+                          setAck((current) => ({
                             ...current,
-                            [review.slotPublicId]: {
-                              ...acknowledgement,
-                              prior: checked,
-                            },
+                            [review.slotPublicId]: { ...accepted, prior },
                           }))
                         }
                       />
                       <CheckRow
-                        checked={acknowledgement.repeated}
+                        checked={accepted.repeated}
                         label={t("acknowledgeRepeated")}
-                        onChange={(checked) =>
-                          setAcknowledgements((current) => ({
+                        onChange={(repeated) =>
+                          setAck((current) => ({
                             ...current,
-                            [review.slotPublicId]: {
-                              ...acknowledgement,
-                              repeated: checked,
-                            },
+                            [review.slotPublicId]: { ...accepted, repeated },
                           }))
                         }
                       />
@@ -346,22 +281,13 @@ export function BillRecoveryControls({
                     <Button
                       className="mt-4"
                       variant="danger"
-                      disabled={
-                        busy !== null ||
-                        !acknowledgement.prior ||
-                        !acknowledgement.repeated
-                      }
+                      disabled={busy !== null || !accepted.prior || !accepted.repeated}
                       onClick={() => void authorizeRetry(review.slotPublicId)}
                     >
                       {busy === `retry:${review.slotPublicId}` && (
-                        <LoaderCircle
-                          aria-hidden="true"
-                          className="size-4 animate-spin"
-                        />
+                        <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
                       )}
-                      {busy === `retry:${review.slotPublicId}`
-                        ? t("authorizing")
-                        : t("authorize")}
+                      {busy === `retry:${review.slotPublicId}` ? t("authorizing") : t("authorize")}
                     </Button>
                   </div>
                 ) : null}
@@ -369,96 +295,57 @@ export function BillRecoveryControls({
             );
           })}
         </div>
-      )}
+      ) : null}
 
-      {!loading && isClosed && (
-        <CardAccent
-          family="destructive"
-          className="mt-7 rounded-xl border border-danger/25 bg-danger/10 p-5 sm:p-6"
-        >
-          <h4 className="font-heading text-xl font-semibold text-danger">
-            {t("closedTitle")}
-          </h4>
+      {!loading && progress && isClosed && (
+        <CardAccent family="destructive" className="mt-7 rounded-xl border border-danger/25 bg-danger/10 p-5 sm:p-6">
+          <h4 className="font-heading text-xl font-semibold text-danger">{t("closedTitle")}</h4>
           <p className="mt-2 leading-7 text-muted">{t("closedBody")}</p>
           <dl className="mt-5 grid gap-4 sm:grid-cols-3">
             <Fact label={t("paidCount")} value={`${progress.summary.paidCount}/${progress.summary.participantCount}`} />
             <Fact label={t("verifiedAmount")} value={money(progress.summary.paidAmount)} />
             <Fact label={t("unpaidAmount")} value={money(progress.summary.remainingAmount)} />
           </dl>
-          <p className="mt-5 text-sm font-semibold text-danger">
-            {t("noRefund")}
-          </p>
+          <p className="mt-5 text-sm font-semibold text-danger">{t("noRefund")}</p>
         </CardAccent>
       )}
 
-      {!loading && !isClosed && !isSettled && (
-        <CardAccent
-          family="destructive"
-          className="mt-7 rounded-xl border border-danger/25 bg-background p-5 sm:p-6"
-        >
-          <h4 className="font-heading text-xl font-semibold">
-            {t("closeTitle")}
-          </h4>
+      {!loading && progress && !isClosed && !isSettled && (
+        <CardAccent family="destructive" className="mt-7 rounded-xl border border-danger/25 bg-background p-5 sm:p-6">
+          <h4 className="font-heading text-xl font-semibold">{t("closeTitle")}</h4>
           <p className="mt-2 leading-7 text-muted">{t("closeBody")}</p>
-
           <label className="mt-5 block text-sm font-semibold">
             {t("closeReason")}
             <select
-              value={closureReason}
-              onChange={(event) =>
-                setClosureReason(
-                  event.target.value as
-                    | "operator_closed_incomplete"
-                    | "collection_ended",
-                )
-              }
-              className="mt-2 min-h-12 w-full rounded-md border border-border bg-surface px-3 py-2 text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-focus/35"
+              value={closeReason}
+              onChange={(event) => setCloseReason(event.target.value as typeof closeReason)}
+              className="mt-2 min-h-12 w-full rounded-md border border-border bg-surface px-3 py-2 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-focus/35"
             >
-              <option value="operator_closed_incomplete">
-                {t("operatorClosed")}
-              </option>
+              <option value="operator_closed_incomplete">{t("operatorClosed")}</option>
               <option value="collection_ended">{t("collectionEnded")}</option>
             </select>
           </label>
-
           <div className="mt-4 space-y-3">
-            <CheckRow
-              checked={ackStops}
-              label={t("acknowledgeStops")}
-              onChange={setAckStops}
-            />
-            <CheckRow
-              checked={ackRefunds}
-              label={t("acknowledgeRefunds")}
-              onChange={setAckRefunds}
-            />
+            <CheckRow checked={ackStops} label={t("acknowledgeStops")} onChange={setAckStops} />
+            <CheckRow checked={ackRefunds} label={t("acknowledgeRefunds")} onChange={setAckRefunds} />
           </div>
-
           <label className="mt-4 block text-sm font-semibold">
             {t("confirmation")}
             <input
-              value={closureConfirmation}
-              onChange={(event) => setClosureConfirmation(event.target.value)}
+              value={closeText}
+              onChange={(event) => setCloseText(event.target.value)}
               autoComplete="off"
               spellCheck={false}
-              className="mt-2 min-h-12 w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-focus/35"
+              className="mt-2 min-h-12 w-full rounded-md border border-border bg-surface px-3 py-2 font-mono focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-focus/35"
             />
           </label>
-
           <Button
             className="mt-5"
             variant="danger"
-            disabled={
-              busy !== null ||
-              closureConfirmation !== "CLOSE_INCOMPLETE" ||
-              !ackStops ||
-              !ackRefunds
-            }
+            disabled={busy !== null || closeText !== "CLOSE_INCOMPLETE" || !ackStops || !ackRefunds}
             onClick={() => void closeIncomplete()}
           >
-            {busy === "close" && (
-              <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-            )}
+            {busy === "close" && <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />}
             {busy === "close" ? t("closing") : t("close")}
           </Button>
         </CardAccent>
@@ -467,45 +354,29 @@ export function BillRecoveryControls({
   );
 }
 
-function CheckRow({
-  checked,
-  label,
-  onChange,
-}: {
-  checked: boolean;
-  label: string;
-  onChange(checked: boolean): void;
-}) {
+function ReviewFacts({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-border bg-surface p-4">
+      <h5 className="font-semibold">{title}</h5>
+      <dl className="mt-3 space-y-3">{children}</dl>
+    </div>
+  );
+}
+
+function CheckRow({ checked, label, onChange }: { checked: boolean; label: string; onChange(checked: boolean): void }) {
   return (
     <label className="flex cursor-pointer items-start gap-3 text-sm leading-6">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="mt-1 size-5 shrink-0 accent-brand"
-      />
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="mt-1 size-5 shrink-0 accent-brand" />
       <span>{label}</span>
     </label>
   );
 }
 
-function Fact({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
+function Fact({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
     <div>
-      <dt className="text-xs font-semibold uppercase tracking-[0.1em] text-muted">
-        {label}
-      </dt>
-      <dd className={`mt-1 break-all text-sm font-semibold ${mono ? "font-mono" : ""}`}>
-        {value}
-      </dd>
+      <dt className="text-xs font-semibold uppercase tracking-[0.1em] text-muted">{label}</dt>
+      <dd className={`mt-1 break-all text-sm font-semibold ${mono ? "font-mono" : ""}`}>{value}</dd>
     </div>
   );
 }
