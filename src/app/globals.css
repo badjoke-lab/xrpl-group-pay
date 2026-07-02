@@ -83,6 +83,20 @@ body {
   color: var(--app-brand);
 }
 
+span[data-semantic-family="in_progress"] {
+  border-color: color-mix(in srgb, var(--app-progress) 25%, transparent);
+  background: var(--app-progress-subtle);
+  color: var(--app-progress);
+}
+
+span[data-semantic-family="in_progress"] > svg {
+  color: var(--app-progress);
+}
+
+div[data-semantic-family="in_progress"] {
+  border-left-color: var(--app-progress);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
