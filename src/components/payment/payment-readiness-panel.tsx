@@ -5,7 +5,6 @@ import { ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
 import { ContextualHelp } from "@/components/help/contextual-help";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { ReadinessBadge } from "@/components/ui/identity-badges";
-import type { PaymentReadinessResponse } from "@/app/api/payments/readiness/route";
 import type { PaymentDetails } from "@/features/bills/payment-details";
 import { useLocalization } from "@/features/localization/provider";
 import {
@@ -14,6 +13,7 @@ import {
 } from "@/features/localization/readiness-catalog";
 import { unitsToDecimal } from "@/features/money/money";
 import type { AssetReadinessAssessment } from "@/features/xrpl/asset-readiness";
+import type { PaymentReadinessResponse } from "@/features/xrpl/payment-readiness-contract";
 
 export function paymentReadinessAllowsHandoff(
   readiness: PaymentReadinessResponse | null,
@@ -36,7 +36,9 @@ function missingDrops(current: unknown, required: unknown) {
     return null;
   }
   const difference = BigInt(required) - BigInt(current);
-  return difference > 0n ? `${unitsToDecimal(difference.toString(), 6)} XRP` : null;
+  return difference > 0n
+    ? `${unitsToDecimal(difference.toString(), 6)} XRP`
+    : null;
 }
 
 function badgeStatus(assessment: AssetReadinessAssessment | null) {
