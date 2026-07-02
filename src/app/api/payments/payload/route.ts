@@ -14,6 +14,7 @@ import {
   XamanConfigurationError,
 } from "@/config/server-env";
 import { createPersistedSlotPayload } from "@/features/bills/create-persisted-payload";
+import { loadPayablePaymentDetails } from "@/features/bills/payment-details";
 import {
   PaymentSlotNotFoundError,
   PaymentSlotStateError,
@@ -24,7 +25,7 @@ import {
   reconcileReplacementPayment,
 } from "@/features/bills/reconcile-replacement-payment";
 import {
-  getPaymentsDatabase,
+  getPaymentsDatabaseContext,
   PaymentsDatabaseUnavailableError,
 } from "@/features/persistence/cloudflare-d1";
 import {
@@ -34,7 +35,17 @@ import {
 import { WalletProviderError } from "@/features/wallet-providers/types";
 import { XamanApiError } from "@/features/xaman/client";
 import { createXamanProvider } from "@/features/xaman/provider";
+import {
+  createXrplAccountReadClient,
+  XrplAccountReadConfigurationError,
+} from "@/features/xrpl/account-read-client";
 import { createXrplAccountTransactionClient } from "@/features/xrpl/account-transaction-client";
+import {
+  PaymentReadinessGateError,
+  requirePaymentReadiness,
+} from "@/features/xrpl/payment-readiness-gate";
+import { PayerReadinessConfigurationError } from "@/features/xrpl/payer-readiness";
+import { RecipientReadinessConfigurationError } from "@/features/xrpl/recipient-readiness";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +63,7 @@ export type SlotPayloadRouteDependencies = {
 const defaultDependencies: SlotPayloadRouteDependencies = {
   async createPayload(paymentToken) {
     assertPaymentOperationAllowed(process.env, "create");
-    const database = await getPaymentsDatabase();
+    const { database, target } = await getPaymentsDatabaseContext();
     const environment = getXamanEnvironment();
     const provider = createXamanProvider(environment);
     const mainnetAccess =
@@ -63,6 +74,25 @@ const defaultDependencies: SlotPayloadRouteDependencies = {
             mainnetGateApproved: true,
           } as const)
         : undefined;
+    if (target.network !== environment.APP_NETWORK) {
+      throw new XamanConfigurationError(
+        "The payment database and wallet provider networks do not match.",
+      );
+    }
+    const details = await loadPayablePaymentDetails(
+      database,
+      paymentToken,
+      environment.XRPL_SOURCE_TAG,
+    );
+    const readinessReader = createXrplAccountReadClient(
+      environment.APP_NETWORK,
+      { mainnetAccess },
+    );
+    await requirePaymentReadiness({
+      details,
+      reader: readinessReader,
+      mainnetAccess,
+    });
     const history = createXrplAccountTransactionClient(
       environment.APP_NETWORK,
       {
@@ -174,6 +204,22 @@ export async function handleCreateSlotPayloadRequest(
         503,
       );
     }
+    if (error instanceof PaymentReadinessGateError) {
+      return json(
+        {
+          error: {
+            code: error.code,
+            message: error.message,
+            payer: error.payer,
+            recipient: error.recipient,
+          },
+        },
+        error.code === "PAYMENT_READINESS_BLOCKED" ? 422 : 503,
+        error.code === "PAYMENT_READINESS_UNAVAILABLE"
+          ? { "Retry-After": "15" }
+          : {},
+      );
+    }
     if (error instanceof PaymentSlotNotFoundError) {
       return json(
         {
@@ -229,6 +275,9 @@ export async function handleCreateSlotPayloadRequest(
     if (
       error instanceof PaymentsDatabaseUnavailableError ||
       error instanceof XamanConfigurationError ||
+      error instanceof XrplAccountReadConfigurationError ||
+      error instanceof PayerReadinessConfigurationError ||
+      error instanceof RecipientReadinessConfigurationError ||
       error instanceof RequestPersistenceError
     ) {
       return json(
