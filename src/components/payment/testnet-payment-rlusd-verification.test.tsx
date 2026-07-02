@@ -164,17 +164,18 @@ describe("RLUSD participant verification", () => {
     );
   });
 
-  it("does not show a verified result when the response differs from frozen details", async () => {
+  it("routes a response mismatch to review without offering another payment", async () => {
     vi.stubGlobal("fetch", prepareFetch(issuedVerification("2500000")));
     vi.stubGlobal("WebSocket", MockWebSocket);
 
     await submitAndVerify();
 
     expect(
-      await screen.findByRole("heading", { name: "Payment could not be verified" }),
+      await screen.findByRole("heading", { name: "This payment needs review" }),
     ).toBeVisible();
     expect(
       screen.getByText(/did not match the frozen participant payment details/i),
     ).toBeVisible();
+    expect(screen.queryByRole("button", { name: /retry/i })).toBeNull();
   });
 });
