@@ -125,7 +125,9 @@ test("reviews a shared bill before freezing it", async ({ page }) => {
   await page
     .getByRole("checkbox", { name: /Include a recipient-funded amount/ })
     .click();
-  await page.getByLabel("Recipient-funded amount").fill("2");
+  await page
+    .getByRole("textbox", { name: "Recipient-funded amount" })
+    .fill("2");
   await page.getByRole("button", { name: "Continue" }).click();
 
   const labels = page.getByLabel("Label");
