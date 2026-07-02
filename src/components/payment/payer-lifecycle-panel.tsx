@@ -64,14 +64,14 @@ function presentation(kind: PayerLifecycleView["kind"]) {
   if (kind === "review_required") {
     return {
       icon: ShieldAlert,
-      family: "attention" as const,
+      family: "action_required" as const,
       iconClass: "text-danger",
     };
   }
   return {
     icon: XCircle,
-    family: "neutral" as const,
-    iconClass: "text-muted",
+    family: "destructive" as const,
+    iconClass: "text-danger",
   };
 }
 
