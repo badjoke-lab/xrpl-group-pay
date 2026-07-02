@@ -11,15 +11,28 @@ import {
   UserRoundCog,
 } from "lucide-react";
 
+import { billProgressSemanticStatus } from "@/components/bills/bill-progress-status";
 import { Button } from "@/components/ui/button";
+import {
+  AssetBadge,
+  LinkTypeBadge,
+  RoleBadge,
+} from "@/components/ui/identity-badges";
+import { NetworkBadge } from "@/components/ui/network-badge";
+import {
+  CardAccent,
+  StatusBadge,
+} from "@/components/ui/semantic-status";
 import type { BillProgress as BillProgressSnapshot } from "@/features/bills/progress";
 import {
   BillProgressRequestError,
   requestBillProgress,
 } from "@/features/bills/progress-client";
 import { useCapabilityToken } from "@/features/capabilities/use-capability-token";
+import { useLocalization } from "@/features/localization/provider";
 import { useProgressLocalization } from "@/features/localization/progress-catalog";
 import { formatMoneyAmount } from "@/features/money/money";
+import { cn } from "@/lib/cn";
 
 export type BillProgressProps = {
   capabilityToken?: string;
@@ -31,8 +44,6 @@ type State =
   | { kind: "error"; message: string };
 
 type Slot = BillProgressSnapshot["slots"][number];
-type SlotStatus = Slot["status"];
-type ProgressTranslator = ReturnType<typeof useProgressLocalization>["gt"];
 
 function shortValue(value: string, start = 12, end = 10) {
   return value.length > start + end + 1
@@ -152,7 +163,9 @@ function ProgressSnapshotView({
   onRefresh(): void;
 }) {
   const { gt } = useProgressLocalization();
+  const { locale } = useLocalization();
   const isAdmin = progress.access === "admin";
+  const isSettled = progress.bill.status === "settled";
   const completion =
     progress.summary.participantCount === 0
       ? 0
@@ -169,15 +182,28 @@ function ProgressSnapshotView({
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-pill bg-brand-subtle px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
-                  {isAdmin ? gt("creatorView") : gt("readOnlyView")}
-                </span>
-                <span className="rounded-pill border border-border px-3 py-1 text-xs font-bold">
-                  {progress.bill.asset.symbol}
-                </span>
-                <span className="rounded-pill border border-border px-3 py-1 text-xs font-bold">
-                  {networkLabel}
-                </span>
+                {isAdmin ? (
+                  <RoleBadge
+                    role="operator"
+                    locale={locale}
+                    label={gt("creatorView")}
+                  />
+                ) : (
+                  <LinkTypeBadge
+                    type="progress"
+                    locale={locale}
+                    label={gt("readOnlyView")}
+                  />
+                )}
+                <AssetBadge
+                  symbol={progress.bill.asset.symbol}
+                  official={progress.bill.asset.symbol === "RLUSD"}
+                  locale={locale}
+                />
+                <NetworkBadge
+                  network={progress.bill.network}
+                  label={networkLabel}
+                />
               </div>
               <h2 className="mt-4 font-heading text-3xl font-semibold sm:text-4xl">
                 {progress.bill.title}
@@ -223,7 +249,10 @@ function ProgressSnapshotView({
               className="mt-3 h-3 overflow-hidden rounded-full bg-border"
             >
               <div
-                className="h-full rounded-full bg-success transition-[width]"
+                className={cn(
+                  "h-full rounded-full transition-[width] motion-reduce:transition-none",
+                  isSettled ? "bg-success" : "bg-brand",
+                )}
                 style={{ width: `${completion}%` }}
               />
             </div>
@@ -231,7 +260,10 @@ function ProgressSnapshotView({
         </div>
 
         <dl className="grid border-t border-border sm:grid-cols-2 lg:grid-cols-4">
-          <Metric label={gt("billTotal")} value={amount(progress.bill.totalAmount)} />
+          <Metric
+            label={gt("billTotal")}
+            value={amount(progress.bill.totalAmount)}
+          />
           <Metric
             label={gt("verified")}
             value={amount(progress.summary.paidAmount)}
@@ -248,8 +280,11 @@ function ProgressSnapshotView({
         </dl>
       </section>
 
-      {progress.bill.status === "settled" && (
-        <section className="rounded-xl border border-success/25 bg-success/10 p-5 text-success sm:p-6">
+      {isSettled && (
+        <CardAccent
+          family="complete"
+          className="rounded-xl border border-success/25 bg-success/10 p-5 text-success sm:p-6"
+        >
           <div className="flex items-start gap-3">
             <CheckCircle2 aria-hidden="true" className="mt-0.5 size-7 shrink-0" />
             <div>
@@ -259,7 +294,7 @@ function ProgressSnapshotView({
               <p className="mt-1 leading-7">{gt("completeBody")}</p>
             </div>
           </div>
-        </section>
+        </CardAccent>
       )}
 
       <section className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8">
@@ -302,11 +337,14 @@ function SlotCard({
   index: number;
 }) {
   const { gt } = useProgressLocalization();
-  const status = slotStatus(slot.status, gt);
+  const status = billProgressSemanticStatus(slot.status, gt);
   const proofUrl = slot.proofToken ? `/proof#token=${slot.proofToken}` : null;
 
   return (
-    <article className="rounded-lg border border-border bg-background p-5">
+    <CardAccent
+      family={status.family}
+      className="rounded-lg border border-border bg-background p-5"
+    >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
@@ -345,7 +383,11 @@ function SlotCard({
           <p className="font-heading text-xl font-semibold text-brand">
             {formatMoneyAmount(slot.expectedAmount)} {slot.expectedAmount.code}
           </p>
-          <span className={status.className}>{status.label}</span>
+          <StatusBadge
+            family={status.family}
+            label={status.label}
+            animated={status.animated}
+          />
           {proofUrl && (
             <a
               href={proofUrl}
@@ -357,71 +399,8 @@ function SlotCard({
           )}
         </div>
       </div>
-    </article>
+    </CardAccent>
   );
-}
-
-function slotStatus(status: SlotStatus, gt: ProgressTranslator) {
-  if (status === "paid") {
-    return {
-      label: gt("paid"),
-      className:
-        "rounded-pill bg-success/10 px-3 py-1 text-xs font-bold text-success",
-    };
-  }
-  if (status === "needs_review") {
-    return {
-      label: gt("needsReview"),
-      className:
-        "rounded-pill bg-danger/10 px-3 py-1 text-xs font-bold text-danger",
-    };
-  }
-  if (status === "verification_failed") {
-    return {
-      label: gt("verificationFailed"),
-      className:
-        "rounded-pill bg-danger/10 px-3 py-1 text-xs font-bold text-danger",
-    };
-  }
-  if (status === "submitted") {
-    return {
-      label: gt("submitted"),
-      className:
-        "rounded-pill bg-action/10 px-3 py-1 text-xs font-bold text-action",
-    };
-  }
-  if (status === "validating") {
-    return {
-      label: gt("validating"),
-      className:
-        "rounded-pill bg-action/10 px-3 py-1 text-xs font-bold text-action",
-    };
-  }
-  if (status === "payload_created" || status === "awaiting_signature") {
-    return {
-      label: gt("awaitingSignature"),
-      className:
-        "rounded-pill bg-action/10 px-3 py-1 text-xs font-bold text-action",
-    };
-  }
-  if (status === "rejected") {
-    return {
-      label: gt("rejected"),
-      className:
-        "rounded-pill bg-danger/10 px-3 py-1 text-xs font-bold text-danger",
-    };
-  }
-  if (status === "expired") {
-    return {
-      label: gt("expired"),
-      className:
-        "rounded-pill bg-border px-3 py-1 text-xs font-bold text-muted",
-    };
-  }
-  return {
-    label: gt("unpaid"),
-    className: "rounded-pill bg-border px-3 py-1 text-xs font-bold text-muted",
-  };
 }
 
 function Metric({
