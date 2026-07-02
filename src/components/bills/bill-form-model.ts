@@ -70,9 +70,9 @@ export const ALLOCATION_STRATEGIES: Array<{
   },
 ];
 
-export function newParticipant(): ParticipantDraft {
+export function newParticipant(id = crypto.randomUUID()): ParticipantDraft {
   return {
-    id: crypto.randomUUID(),
+    id,
     label: "",
     expectedPayerAddress: "",
     amount: "",
@@ -98,7 +98,10 @@ export function newBillDraft(network: XrplNetwork = "testnet"): BillDraft {
     allocationStrategy: mainnet ? "equal" : "custom",
     remainderMode: "",
     remainderParticipantId: "",
-    participants: [newParticipant(), newParticipant()],
+    participants: [
+      newParticipant("payer-1"),
+      newParticipant("payer-2"),
+    ],
   };
 }
 
