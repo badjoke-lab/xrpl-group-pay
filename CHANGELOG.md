@@ -25,6 +25,10 @@ Meaningful user-facing, security, compatibility, persistence, and operational ch
 - Added the machine-readable integrated lifecycle release audit and CI enforcement.
 - Added controlled Mainnet XRP and official RLUSD acceptance evidence.
 - Added a deployment-aware Bill creation route and public Roadmap and Changelog application pages.
+- Added recipient and payer XRPL address inspection with Classic Address checksum validation.
+- Added explicit X-address review, network checks, recipient Destination Tag extraction, and payer-tag rejection.
+- Added user-triggered clipboard paste assistance with direct-entry fallback.
+- Added English, Japanese, and Korean wallet-compatibility guidance for recipient, payer, exchange, and manual-transfer cases.
 
 ### Changed
 
@@ -39,6 +43,8 @@ Meaningful user-facing, security, compatibility, persistence, and operational ch
 - Public and read-only progress now hide management-only payer facts, InvoiceIDs, review details, and recovery controls.
 - Guide and contextual-help URLs use fixed public anchors and never copy active capability fragments or private draft data.
 - Public product copy and release status now match the merged and audited payment lifecycle.
+- Bill review now requires canonical Classic Addresses; an entered X-address must be reviewed and converted before the Bill can continue.
+- Recipient guidance now distinguishes account compatibility from Xaman payer-handoff support.
 
 ### Security
 
@@ -53,6 +59,9 @@ Meaningful user-facing, security, compatibility, persistence, and operational ch
 - Copy-to-revise excludes source Bill, PaymentSlot, capability, InvoiceID, transaction, receipt, proof, and review identities.
 - Mainnet remains protected by isolated configuration and D1, an assigned Source Tag, accepted XRP and RLUSD evidence, a ready release gate, and enabled, verify-only, and halted operational modes.
 - Production UI auditing rejects mixed-language copy, stale Japanese wording, incorrect Mainnet Asset selection, and horizontal overflow at 320px, 390px, and 1280px.
+- Wrong-network X-addresses and conflicting recipient Destination Tags are blocked before Bill review.
+- Clipboard access is initiated only by the user and failure does not disable ordinary address entry.
+- Exchange withdrawals and ordinary manual transfers are not presented as supported PaymentSlot settlement paths.
 
 ### Release audit
 
@@ -64,7 +73,7 @@ Meaningful user-facing, security, compatibility, persistence, and operational ch
 - Verified semantic status, keyboard, responsive, visual, D1, Testnet, Mainnet-safe, Next.js, Storybook, Worker, browser, and production UI gates.
 - Recorded no unresolved high-severity safety, privacy, verification, accessibility, localization, visual, or Mainnet finding.
 
-Runtime availability includes the merged and audited payment lifecycle described in `README.md` and `ROADMAP.md`. Remaining Make Waves work is limited to metrics, video, deck, submission assembly, and evidence links.
+Runtime availability includes the merged and audited payment lifecycle described in `README.md` and `ROADMAP.md`. The bounded PR #150–#152 wallet-input phase precedes Source Tag metrics, video, deck, submission assembly, and evidence links.
 
 ## [0.1.0] — 2026-06-24
 
