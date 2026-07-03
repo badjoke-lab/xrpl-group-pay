@@ -23,8 +23,8 @@ function RecipientHarness({ initialValue = "" }: { initialValue?: string }) {
         onChangeAddress={setAddress}
         onChangeDestinationTag={setTag}
       />
-      <output aria-label="canonical address">{address}</output>
-      <output aria-label="destination tag">{tag}</output>
+      <div data-testid="canonical-address">{address}</div>
+      <div data-testid="destination-tag">{tag}</div>
     </LocalizationProvider>
   );
 }
@@ -39,13 +39,13 @@ describe("XrplAddressField", () => {
     render(<RecipientHarness initialValue={xAddress} />);
 
     expect(screen.getByText("X-address decoded")).toBeVisible();
-    expect(screen.getByLabelText("canonical address")).toHaveTextContent(xAddress);
-    expect(screen.getByLabelText("destination tag")).toHaveTextContent("");
+    expect(screen.getByTestId("canonical-address")).toHaveTextContent(xAddress);
+    expect(screen.getByTestId("destination-tag")).toHaveTextContent("");
 
     fireEvent.click(screen.getByRole("button", { name: "Use decoded address" }));
 
-    expect(screen.getByLabelText("canonical address")).toHaveTextContent(account);
-    expect(screen.getByLabelText("destination tag")).toHaveTextContent("123");
+    expect(screen.getByTestId("canonical-address")).toHaveTextContent(account);
+    expect(screen.getByTestId("destination-tag")).toHaveTextContent("123");
     expect(screen.queryByText("X-address decoded")).toBeNull();
   });
 
@@ -62,7 +62,7 @@ describe("XrplAddressField", () => {
     fireEvent.click(screen.getByRole("button", { name: "Paste" }));
 
     await waitFor(() => expect(readText).toHaveBeenCalledTimes(1));
-    expect(screen.getByLabelText("canonical address")).toHaveTextContent(account);
+    expect(screen.getByTestId("canonical-address")).toHaveTextContent(account);
     expect(screen.getByRole("status")).toHaveTextContent(
       "Address pasted and checked.",
     );
@@ -86,7 +86,7 @@ describe("XrplAddressField", () => {
     fireEvent.change(screen.getByLabelText("Recipient XRPL address"), {
       target: { value: account },
     });
-    expect(screen.getByLabelText("canonical address")).toHaveTextContent(account);
+    expect(screen.getByTestId("canonical-address")).toHaveTextContent(account);
   });
 
   it("rejects a tagged payer X-address with localized guidance", () => {
