@@ -2,14 +2,14 @@
 
 **Status:** Active  
 **Scope:** English, Japanese, and Korean terminology and coverage for PR #132–#149  
-**Last reviewed:** 2026-07-01  
+**Last reviewed:** 2026-07-03  
 **Document class:** Public
 
 ## 1. Relationship to the localization contract
 
 This document supplements `localization.md`. English remains canonical, and English, Japanese, and Korean remain the supported critical-flow languages.
 
-A language is not complete when the new mode, Guide, help, readiness, failure, review, closure, or copied-instruction surfaces fall back unintentionally to another language.
+A language is not complete when payment modes, Guide, help, readiness, failure, review, closure, copied-draft, or security surfaces unintentionally fall back to another language.
 
 ## 2. Canonical role meanings
 
@@ -22,91 +22,129 @@ A language is not complete when the new mode, Guide, help, readiness, failure, r
 | Participants pay a representative recipient | Pay a representative |
 | Participants pay an external recipient | Pay a store or organizer directly |
 
-Translations may use natural wording, but the role meanings must remain separate.
+Translations may use natural wording, but the role meanings must remain separate. Internal compatibility names such as `creator_share` are not public translation sources.
 
-Internal compatibility names such as `creator_share` are not public translation sources.
+## 3. Required critical coverage
 
-## 3. Required new coverage
+All three languages cover:
 
-All three catalogs must cover:
-
-- payment-mode selection and examples;
-- Bill operator, recipient, and payer explanations;
-- recipient-funded amount and the fact that no transfer occurs;
-- representative and direct review summaries;
-- management, read-only, participant, and recipient-readiness link descriptions;
-- payer and recipient readiness;
-- RLUSD TrustSet setup and the distinction from Payment;
-- insufficient RLUSD and insufficient spendable XRP;
+- payment-mode selection and role examples;
+- recipient, Destination Tag, settlement Asset, allocation, and recipient-funded explanations;
+- creation, review, freeze, sharing, signing, verification, and progress;
+- management, read-only, payer, setup, and proof link scopes;
+- payer and recipient XRP/RLUSD readiness;
+- official RLUSD TrustSet and its distinction from Payment;
+- issued balance, spendable XRP, fee, and reserve conditions;
 - cancellation, expiry, pending validation, temporary unavailability, retry, and review;
 - independent payer settlement and partial completion;
-- closed-incomplete and copy-to-revise confirmations;
-- semantic status badges and accessible announcements;
-- the complete Guide, FAQ, and contextual help;
-- copied payment and RLUSD-preparation instructions.
+- expected-versus-observed review and repeated-payment risk;
+- closed-incomplete and copy-to-revise guidance;
+- semantic status text and accessible announcements;
+- the complete searchable Guide, FAQ, and contextual help;
+- copied payment and RLUSD-preparation instructions;
+- security limitations and irreversible Mainnet warnings.
 
-## 4. Stable identifiers
+## 4. Stable Guide identifiers
 
-The following remain language-independent:
-
-- payment-mode enums;
-- Bill and PaymentSlot state enums;
-- recovery-class enums;
-- help identifiers;
-- Guide anchors;
-- API field names;
-- XRPL addresses, hashes, currency codes, issuer addresses, tags, InvoiceIDs, and proof digests.
-
-Example help identifiers:
+The following Guide anchors are language-independent:
 
 ```text
-payment-types
-recipient-role
-recipient-funded-amount
-expected-payer
-rlusd-trustline
-rlusd-balance
-xrp-fees
-payment-cancelled
-request-expired
-ledger-pending
-transaction-failed
-wrong-wallet
-payment-mismatch
-duplicate-payment
-participant-unpaid
-close-incomplete
+overview
+roles
+payment-modes
+create-and-freeze
+capability-links
+xrp
+rlusd
+trustset
+readiness
+payment-flow
+verification
+progress
+status-meanings
+failures
+recovery
+review-required
+partial-completion
+incomplete-closure
+copy-to-revise
+privacy
+security-limitations
+faq
 ```
 
-## 5. Guide and contextual help
+Every locale exposes the same anchors in the same order. Visible titles and explanations are localized.
 
-- `/guide` uses localized content with the same stable anchors.
-- Contextual help uses one identifier for short copy, detailed copy, Guide target, and accessible label.
-- Opening Guide or help must not change locale-sensitive financial state or authorization.
-- Guide URLs must not contain capability, payer, recipient, or draft values.
-- The full Guide opens without replacing or destroying the active private flow.
+## 5. Stable contextual-help identifiers
 
-## 6. Copied instructions
+The typed help registry uses these language-independent identifiers:
+
+```text
+overview
+roles
+payment-modes
+recipient
+destination-tag
+settlement-asset
+allocation
+capability-privacy
+readiness
+xrp-readiness
+rlusd-readiness
+trustset
+payment-status
+verification
+safe-recovery
+review-required
+partial-completion
+incomplete-closure
+copy-to-revise
+destructive-confirmation
+security-limitations
+```
+
+Each identifier resolves to localized short guidance, localized detailed guidance, and one approved stable Guide anchor.
+
+## 6. Guide search and navigation
+
+- `/guide` searches localized titles, paragraphs, and bullet guidance.
+- Search results retain the language-independent Guide anchors.
+- The result count, no-results state, clear action, and search instructions are localized.
+- `/` focuses Guide search when another editable control is not active.
+- `Escape` clears and leaves the focused Guide search control.
+- Search and anchor navigation remain keyboard accessible on mobile and desktop.
+- No Guide section describes an unimplemented capability as currently available.
+
+## 7. Contextual help behavior
+
+- Help opens without submitting a form, creating a wallet handoff, authorizing retry, closing a Bill, or discarding a draft.
+- Mobile uses the bottom-sheet presentation and desktop uses the side-panel presentation.
+- Close button, backdrop, and `Escape` close the help panel.
+- Keyboard focus remains trapped while open and returns to the original trigger after close.
+- The full Guide opens in a protected new tab so the active private flow remains intact.
+- Guide URLs contain only `/guide` and an approved anchor.
+
+## 8. Copied instructions
 
 Copied participant instructions are localized while preserving technical values exactly.
 
 They may contain:
 
 - payer label;
-- amount and asset;
+- amount and Asset;
 - network;
 - expected payer address;
 - recipient address;
-- payment capability;
+- payer capability;
 - RLUSD trust-line requirement;
 - required RLUSD balance;
 - XRP fee and reserve notice.
 
 Management capabilities must never be included in participant instructions.
 
-## 7. Status language
+## 9. Status language
 
-Public status wording must distinguish:
+Public wording distinguishes:
 
 ```text
 Accepting payments
@@ -126,30 +164,35 @@ Closed
 
 `Paid`, `Verified`, and equivalent success wording are reserved for accepted validated-ledger results.
 
-`Retry required` must not be used for uncertain or review-required value movement.
+`Retry required` must not be used for uncertain, pending, or review-required value movement. Those conditions use wait-and-recheck or review guidance.
 
-## 8. Layout and accessibility
+## 10. Layout and accessibility
 
 English, Japanese, and Korean reviews cover:
 
 - 320px and 390px mobile widths;
 - desktop Bill-operator layouts;
-- long mode, status, Guide, and help labels;
+- long mode, status, Guide, help, warning, and FAQ text;
 - multi-line badges without clipping;
 - 200% zoom;
-- keyboard and screen-reader operation of help panels;
+- keyboard and screen-reader operation of Guide search and help panels;
 - translated accessible names and live-region announcements;
 - server-rendered and client-rendered language consistency.
 
-Color is never the only translated status information; the text and accessible label carry the meaning.
+Color is never the only translated status information; text and accessible labels carry the meaning.
 
-## 9. Tests
+## 11. Tests
 
-- every new English key exists in Japanese and Korean;
-- no unknown key is used;
-- no unintended mixed-language screen appears;
-- Guide anchors stay identical across languages;
-- financial and capability values stay byte-identical across locale changes;
-- copied instructions preserve technical values;
+Automated checks require:
+
+- every critical English Guide section exists in Japanese and Korean;
+- every typed help topic exists in all three languages;
+- no unknown Guide anchor or help identifier is used;
+- Guide anchors remain identical across languages;
+- help targets remain fixed public URLs with no capability or query data;
+- Guide search, no-results recovery, slash focus, and Escape behavior pass;
+- help open, close, focus trap, focus restoration, and protected-tab behavior pass;
+- payer state families point to the correct recovery or verification guidance;
+- financial and capability values remain byte-identical across locale changes;
 - locale switching does not create a handoff, authorize retry, close a Bill, or discard a draft;
 - long translated content does not hide primary actions or warnings.
