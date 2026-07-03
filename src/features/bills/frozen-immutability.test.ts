@@ -36,6 +36,13 @@ describe("frozen Bill immutability migration", () => {
     expect(sql).toContain(`OLD.${field} IS NOT NEW.${field}`);
   });
 
+  it("allows only the rollout-compatible recipient-funded normalization", () => {
+    expect(sql).toContain("OLD.recipient_funded_amount_units IS NULL");
+    expect(sql).toContain(
+      "NEW.recipient_funded_amount_units = COALESCE(\n        OLD.creator_share_amount_units,\n        OLD.creator_share_drops,\n        '0'",
+    );
+  });
+
   it("does not block lifecycle, verification, review, or closure updates", () => {
     const triggerHeaders = sql
       .split("ON bills")[0]
