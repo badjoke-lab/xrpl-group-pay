@@ -5,6 +5,9 @@ import { billRecoveryTranslate } from "./bill-recovery-catalog";
 const keys = [
   "title",
   "body",
+  "copyTitle",
+  "copyBody",
+  "copyAction",
   "reviewTitle",
   "expected",
   "observed",
