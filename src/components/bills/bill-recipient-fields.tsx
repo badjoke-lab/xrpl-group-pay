@@ -1,10 +1,12 @@
 "use client";
 
 import { ContextualHelp } from "@/components/help/contextual-help";
+import { publicEnv } from "@/config/public-env";
 import { useLocalization } from "@/features/localization/provider";
 
 import type { BillDraft } from "./bill-form-model";
 import { BillFormField } from "./bill-form-controls";
+import { XrplAddressField } from "./xrpl-address-field";
 
 const copy = {
   en: {
@@ -12,7 +14,8 @@ const copy = {
     directLabel: "Store or organizer name",
     labelDescription: "Optional display label. The XRPL address remains authoritative.",
     destination: "Recipient XRPL address",
-    destinationDescription: "Every payer sends directly to this frozen account.",
+    destinationDescription:
+      "Every payer sends directly to this frozen account. A valid Classic Address is stored after any X-address review.",
     tag: "Destination Tag",
     tagDescription: "Optional UInt32 tag required by some exchanges and custodial recipients.",
     title: "Bill title",
@@ -30,7 +33,8 @@ const copy = {
     directLabel: "店舗または主催者の名前",
     labelDescription: "表示用の任意項目です。送金先としてはXRPLアドレスが優先されます。",
     destination: "受取先XRPLアドレス",
-    destinationDescription: "全支払者がこの確定済みアカウントへ直接送金します。",
+    destinationDescription:
+      "全支払者がこの確定済みアカウントへ直接送金します。X-addressは確認後にClassic Addressとして保存します。",
     tag: "Destination Tag",
     tagDescription: "取引所やカストディ受取先で必要になる場合がある任意のUInt32タグです。",
     title: "請求タイトル",
@@ -48,7 +52,8 @@ const copy = {
     directLabel: "상점 또는 주최자 이름",
     labelDescription: "선택 표시 이름입니다. 실제 전송에는 XRPL 주소가 기준입니다.",
     destination: "수취인 XRPL 주소",
-    destinationDescription: "모든 결제자가 이 고정 계정으로 직접 전송합니다.",
+    destinationDescription:
+      "모든 결제자가 이 고정 계정으로 직접 전송합니다. X-address는 확인 후 Classic Address로 저장됩니다.",
     tag: "Destination Tag",
     tagDescription: "일부 거래소나 수탁 수취인에게 필요한 선택 UInt32 태그입니다.",
     title: "청구 제목",
@@ -100,15 +105,16 @@ export function BillRecipientFields({
           onChange={(value) => onChange("recipientLabel", value)}
           placeholder={representative ? "Alex" : "XRPL Meetup Venue"}
         />
-        <BillFormField
+        <XrplAddressField
           label={text.destination}
           labelAction={<ContextualHelp topic="recipient" variant="inline" />}
           description={text.destinationDescription}
           value={draft.destinationAddress}
-          onChange={(value) => onChange("destinationAddress", value)}
-          placeholder="r..."
-          required
-          mono
+          destinationTag={draft.destinationTag}
+          role="recipient"
+          network={publicEnv.NEXT_PUBLIC_APP_NETWORK}
+          onChangeAddress={(value) => onChange("destinationAddress", value)}
+          onChangeDestinationTag={(value) => onChange("destinationTag", value)}
           error={destinationError}
         />
         <BillFormField
