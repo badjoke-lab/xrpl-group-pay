@@ -44,9 +44,9 @@ This roadmap shows product direction, not promised dates. A capability moves to 
 
 ## In Progress
 
-The completed PR #132–#149 payment-lifecycle revision remains closed and audited.
+No payment-lifecycle revision work remains in progress. The PR #132–#149 revision is merged, tested, audited, and recorded in [`docs/payment-lifecycle-release-audit.md`](docs/payment-lifecycle-release-audit.md).
 
-A bounded PR #150–#152 pre-submission phase is now approved:
+A separate bounded PR #150–#152 pre-submission phase is now approved:
 
 - strict recipient and payer Classic Address validation and checksum handling;
 - X-address decode with explicit network and Destination Tag review;
