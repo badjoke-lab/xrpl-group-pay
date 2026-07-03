@@ -1,0 +1,206 @@
+{
+  "schema_version": 1,
+  "audit_id": "wallet-input-pre-submission-release",
+  "status": "passed",
+  "audited_at": "2026-07-03",
+  "scope": "PR #150–#152 wallet-input safety, browser-local saved wallets, and feature-freeze gate",
+  "audited_merged_prs": [150, 151],
+  "release_audit_pr": 152,
+  "dimensions": {
+    "roles": ["recipient", "payer"],
+    "payment_modes": ["representative", "direct"],
+    "networks": ["testnet", "mainnet"],
+    "assets": ["xrp", "official_rlusd"],
+    "address_inputs": [
+      "classic_address",
+      "x_address",
+      "clipboard",
+      "saved_wallet"
+    ],
+    "saved_wallet_operations": [
+      "save",
+      "select",
+      "search",
+      "favorite",
+      "recent",
+      "edit",
+      "delete",
+      "delete_all",
+      "export",
+      "import"
+    ],
+    "locales": ["en", "ja", "ko"],
+    "viewports_px": [320, 390, 1280],
+    "zoom_percent": [200]
+  },
+  "storage_boundary": {
+    "technology": "indexeddb",
+    "origin_local_only": true,
+    "api_persistence": false,
+    "d1_persistence": false,
+    "analytics_persistence": false,
+    "cross_device_sync": false,
+    "identity_proof": false,
+    "direct_entry_fallback_required": true
+  },
+  "approved_saved_wallet_fields": [
+    "id",
+    "label",
+    "classicAddress",
+    "destinationTag",
+    "role",
+    "network",
+    "favorite",
+    "createdAt",
+    "updatedAt",
+    "lastUsedAt"
+  ],
+  "forbidden_saved_wallet_data": [
+    "bill_id",
+    "payment_slot_id",
+    "capability",
+    "invoice_id",
+    "provider_request_id",
+    "transaction_hash",
+    "receipt",
+    "proof",
+    "balance",
+    "readiness_result",
+    "claimed_identity"
+  ],
+  "controls": [
+    {
+      "id": "classic-address-validation",
+      "status": "passed",
+      "evidence": [
+        "src/features/xrpl/address-input.ts",
+        "src/features/xrpl/address-input.test.ts"
+      ]
+    },
+    {
+      "id": "x-address-network-and-tag-review",
+      "status": "passed",
+      "evidence": [
+        "src/features/xrpl/address-input.ts",
+        "src/components/bills/xrpl-address-field.test.tsx"
+      ]
+    },
+    {
+      "id": "recipient-payer-wallet-boundary",
+      "status": "passed",
+      "evidence": [
+        "docs/wallet-input-and-local-address-book.md",
+        "src/components/bills/xrpl-address-field.tsx",
+        "src/app/guide/page.tsx"
+      ]
+    },
+    {
+      "id": "exchange-and-manual-transfer-warning",
+      "status": "passed",
+      "evidence": [
+        "docs/guide-and-contextual-help.md",
+        "src/components/bills/xrpl-address-field.tsx"
+      ]
+    },
+    {
+      "id": "clipboard-user-action-and-fallback",
+      "status": "passed",
+      "evidence": [
+        "src/components/bills/xrpl-address-field.tsx",
+        "src/components/bills/xrpl-address-field.test.tsx"
+      ]
+    },
+    {
+      "id": "local-only-saved-wallet-storage",
+      "status": "passed",
+      "evidence": [
+        "src/features/saved-wallets/saved-wallets.ts",
+        "docs/privacy-data-map.md"
+      ]
+    },
+    {
+      "id": "saved-wallet-field-allowlist",
+      "status": "passed",
+      "evidence": [
+        "src/features/saved-wallets/saved-wallets.ts",
+        "src/features/saved-wallets/saved-wallets.test.ts"
+      ]
+    },
+    {
+      "id": "role-network-and-tag-isolation",
+      "status": "passed",
+      "evidence": [
+        "src/components/bills/saved-wallet-picker.tsx",
+        "src/components/bills/saved-wallet-picker.test.tsx"
+      ]
+    },
+    {
+      "id": "saved-wallet-management-and-portability",
+      "status": "passed",
+      "evidence": [
+        "src/components/bills/saved-wallet-picker.tsx",
+        "src/features/saved-wallets/saved-wallets.test.ts"
+      ]
+    },
+    {
+      "id": "validation-readiness-and-freeze-not-bypassed",
+      "status": "passed",
+      "evidence": [
+        "src/components/bills/xrpl-address-field.tsx",
+        "src/components/bills/bill-creation-validation.ts",
+        "docs/wallet-input-and-local-address-book.md"
+      ]
+    },
+    {
+      "id": "privacy-and-capability-exclusion",
+      "status": "passed",
+      "evidence": [
+        "docs/privacy-data-map.md",
+        "src/features/saved-wallets/saved-wallets.test.ts"
+      ]
+    },
+    {
+      "id": "multilingual-critical-states",
+      "status": "passed",
+      "evidence": [
+        "src/components/bills/xrpl-address-field.tsx",
+        "src/components/bills/saved-wallet-picker.tsx",
+        "src/app/guide/page.tsx"
+      ]
+    },
+    {
+      "id": "accessibility-responsive-and-zoom",
+      "status": "passed",
+      "evidence": [
+        "src/components/bills/saved-wallet-picker.tsx",
+        "src/components/bills/saved-wallet-picker.test.tsx",
+        "docs/guide-and-contextual-help.md"
+      ]
+    },
+    {
+      "id": "payment-lifecycle-and-mainnet-regression",
+      "status": "passed",
+      "evidence": [
+        "config/payment-lifecycle-release-audit.json",
+        "docs/mainnet-acceptance-audit.md",
+        ".github/workflows/ci.yml"
+      ]
+    }
+  ],
+  "findings": [],
+  "decision": {
+    "feature_freeze": true,
+    "wallet_input_phase_complete": true,
+    "submission_work_may_resume": true,
+    "deferred_features": [
+      "camera_qr_scanning",
+      "xaman_account_discovery",
+      "additional_wallet_providers",
+      "manual_wallet_settlement",
+      "exchange_withdrawal_settlement",
+      "participant_self_registration",
+      "cloud_contact_sync",
+      "user_accounts"
+    ]
+  }
+}
