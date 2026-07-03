@@ -1,15 +1,18 @@
 # Mainnet Acceptance Audit
 
 **Audit status:** Completed  
-**Release decision:** Blocked  
-**Audited:** 2026-06-26  
+**Release decision:** Approved  
+**Audited:** 2026-06-30  
+**Last reconciled:** 2026-07-03  
 **Scope:** Repository controls, release configuration, production evidence, and operational readiness
 
 ## Decision
 
-The repository-level Mainnet safety implementation is substantially complete, but XRPL Group Pay is not approved for a production Mainnet release yet.
+XRPL Group Pay passed the controlled Mainnet acceptance audit.
 
-The Mainnet Gate remains `blocked`. This is an acceptance decision, not an unfinished audit. The unresolved findings below must be closed with production or production-equivalent evidence before the release decision can become `approved` and the gate can become `ready`.
+`config/mainnet-acceptance.json` records every required control as `passed`, every blocking finding as `resolved`, and the release decision as `approved`. `config/mainnet-gate.json` is `ready`, and every required Mainnet release evidence record is accepted.
+
+Approval permits reviewed Mainnet operation. It does not remove the operational kill switch, explicit release configuration, canonical Asset checks, recipient readiness, capability boundaries, reconciliation, or validated-ledger verification.
 
 ## Passed controls
 
@@ -17,138 +20,126 @@ The Mainnet Gate remains `blocked`. This is an acceptance decision, not an unfin
 
 - server and public XRPL network identities must match;
 - Mainnet build and runtime require explicit approval;
-- Mainnet cannot use the Testnet D1 binding;
+- Mainnet selects only the isolated `PAYMENTS_DB_MAINNET` binding;
 - Mainnet cannot inherit the Testnet Source Tag;
-- the release mode and operations mode are independent explicit controls.
+- release mode and operations mode remain separate explicit controls.
 
 ### Asset and recipient safety
 
 - Mainnet XRP and official RLUSD use exact canonical Asset descriptors;
 - recipient account existence and Destination Tag requirements are checked on a validated ledger;
 - Deposit Authorization is checked;
-- RLUSD trust-line issuer, currency, authorization, freeze state, and capacity are checked.
+- RLUSD issuer, currency, authorization, freeze state, balance, and capacity are checked;
+- the payer retains signing authority and sends directly to the recipient.
 
 ### Wallet handoff and verification
 
-- Xaman requests force the selected network;
+- Xaman requests force the selected XRPL network;
 - Mainnet handoffs require explicit gate access;
-- request identity is persisted with network and Asset identity;
+- request identity is persisted with network, Asset, payer, Sequence, and bounded ledger information;
 - Xaman status is not accepted as payment proof;
-- XRP and RLUSD are verified from validated-ledger transactions;
-- payer, destination, amount, delivered amount, Source Tag, Destination Tag, InvoiceID, result, and transaction identity are checked;
-- verified receipts and Bill progress are written through the durable settlement boundary.
+- XRP and official RLUSD are verified from validated-ledger transactions;
+- payer, destination, amount, delivered amount, Asset identity, Source Tag, Destination Tag, InvoiceID, result, and transaction identity are checked;
+- verified receipts and Bill progress use the durable atomic settlement boundary;
+- replacement handoffs require validated-ledger reconciliation.
 
 ### Operational control
 
 - `enabled` permits request creation and verification;
-- `verify-only` stops new requests while allowing existing submitted payments to settle;
+- `verify-only` stops new requests while allowing already-submitted payments to settle;
 - `halted` stops request creation and verification;
 - missing Mainnet operations configuration fails closed;
-- the committed Mainnet target remains halted;
-- a non-secret no-store endpoint reports the operational state.
+- the public status endpoint reports the selected mode without exposing secrets;
+- the committed halted target remains available as the reviewed fail-closed rollback baseline.
 
-### Regression coverage
+### Regression and release coverage
 
 CI covers:
 
 - environment boundaries;
-- D1 migrations and receipt constraints;
+- Mainnet release evidence and acceptance consistency;
+- integrated payment-lifecycle release audit;
+- D1 migrations and constraints;
 - lint and type checking;
-- unit and component tests;
+- unit, component, API, and persistence tests;
 - Next.js build;
 - Storybook smoke;
 - Cloudflare Worker build;
-- browser smoke tests.
+- browser smoke tests;
+- production Bill UI audit.
 
-## Blocking findings
+## Resolved findings
 
-### 1. Production D1 is not provisioned in the release configuration
+### Production D1 provisioning
 
-The committed Mainnet D1 and preview identifiers are placeholders. The isolated production database must be created, all migrations must be applied, and schema checks must pass against the intended deployment before approval.
+The isolated production and preview D1 databases were provisioned, all recorded migrations were applied, and schema checks passed. The accepted non-placeholder identifiers match the `PAYMENTS_DB_MAINNET` binding.
 
-### 2. Production release configuration is not approved
+### Production release configuration
 
-The committed Mainnet target remains intentionally disabled:
+The reviewed Mainnet Worker target, custom domain, explicit network, isolated D1 binding, Source Tag, release control, and operations control were verified. Public operating changes remain separate reviewed deployments; the repository retains the halted rollback configuration.
 
-- Mainnet runtime is not allowed;
-- the Mainnet Gate is not approved;
-- the Mainnet Source Tag is not approved;
-- release mode is disabled;
-- payment operations are halted.
+### Production Xaman attestation
 
-These values must not be enabled merely to satisfy the audit. They should change only after the remaining evidence has been reviewed.
+A non-secret attestation confirmed production credentials outside the repository, forced Mainnet requests, callback behavior, status lookup, and safe cancellation. No credential or private payload identifier was committed.
 
-### 3. Production Xaman configuration is not attested
+### Assigned Mainnet Source Tag
 
-The repository contains the provider boundary and tests, but it does not contain a non-secret acceptance record confirming that the production Xaman application credentials, forced Mainnet payload behavior, and status/callback behavior were validated in the target deployment.
+The assigned UInt32 Source Tag is recorded in `config/mainnet-source-tag.json`, is reproducibly checked, and cannot fall back to the Testnet value.
 
-Secrets must not be committed. The required evidence is an attestation and test result, not credential values.
+### Controlled Mainnet XRP acceptance
 
-### 4. Assigned Mainnet Source Tag is not recorded as approved
+The accepted evidence records one validated `tesSUCCESS` Mainnet XRP transaction, exact frozen payment facts, a durable receipt, idempotent repeat handling, duplicate protection, and cross-slot replay rejection.
 
-The release requires the assigned Mainnet Source Tag to be configured and explicitly approved without a Testnet fallback.
+### Controlled Mainnet RLUSD acceptance
 
-### 5. Live Mainnet XRP acceptance evidence is not recorded
+The accepted evidence records one validated official Mainnet RLUSD transaction with exact issuer, currency, amount, recipient readiness, durable receipt, idempotent repeat handling, duplicate protection, and cross-slot replay rejection.
 
-A controlled XRP payment must demonstrate the complete path:
+### Operational stop drill
 
-1. frozen Mainnet PaymentSlot;
-2. Xaman Mainnet handoff;
-3. participant-controlled signature;
-4. validated `tesSUCCESS` Payment;
-5. exact payer, destination, drops, delivered amount, tags, and InvoiceID;
-6. durable receipt;
-7. atomic PaymentSlot and Bill progress update;
-8. duplicate and replay rejection.
+A production-equivalent drill confirmed verify-only draining, full halt, status reporting, and reviewed restoration behavior.
 
-The evidence record must not expose private keys, seeds, API secrets, or private capability tokens.
+### Final release audit
 
-### 6. Live Mainnet RLUSD acceptance evidence is not recorded
-
-A controlled official RLUSD Mainnet payment must demonstrate the same complete path plus exact official issuer, currency, trust-line readiness, requested amount, and delivered amount.
-
-### 7. Operational stop drill is not recorded
-
-A production or production-equivalent drill must show:
-
-- `verify-only` rejects new wallet handoffs while allowing an already submitted payment to verify and settle;
-- `halted` rejects both creation and verification;
-- the status endpoint reflects the selected mode;
-- restoring operation requires an explicit reviewed configuration change.
+The original Mainnet release audit passed after all evidence records were accepted and all incident remediations were merged. The PR #132–#149 payment-lifecycle revision adds a separate integrated lifecycle audit without weakening the accepted Mainnet boundary.
 
 ## Machine-enforced decision
 
-`config/mainnet-acceptance.json` is the machine-readable acceptance record.
+The machine-readable acceptance record is:
+
+```text
+config/mainnet-acceptance.json
+```
+
+Normal validation:
 
 ```bash
 pnpm check:mainnet-acceptance
 ```
 
-Normal Testnet CI validates that the audit document, Mainnet Gate, and committed safe defaults remain consistent. A blocked release is a valid CI state.
+Deployment-ready validation:
 
 ```bash
 node scripts/check-mainnet-acceptance.mjs --require-ready
 ```
 
-The ready check fails until:
+The ready check requires:
 
-- every required acceptance control is `passed`;
-- every blocking finding is `resolved`;
-- the release decision is `approved`;
-- the Mainnet Gate is `ready`;
-- every Mainnet Gate check is `passed`.
+- every acceptance control to be `passed`;
+- every blocking finding to be `resolved`;
+- `release_decision` to be `approved`;
+- the Mainnet Gate to be `ready`;
+- every Mainnet Gate check to be `passed`.
 
-`pnpm deploy:mainnet` runs this ready check before the Mainnet Gate check and before building or deploying the Mainnet Worker.
+`pnpm deploy:mainnet` also requires complete release evidence, the ready Mainnet Gate, and the integrated lifecycle audit before building or deploying the Mainnet Worker.
 
-## Approval procedure
+## Public operation and rollback
 
-After all findings are resolved:
+The production origin is `https://xgp.badjoke-lab.com`.
 
-1. update each control and finding with concise non-secret evidence;
-2. set `release_decision` to `approved`;
-3. mark `mainnet-acceptance-audit` as `passed`;
-4. set the Mainnet Gate state to `ready` only when every gate check is passed;
-5. run the full validation and Mainnet-ready checks;
-6. review the resulting deployment configuration separately from the application code.
+The production UI audit checks the live Mainnet Bill page at 320px, 390px, and 1280px, including English XRP and Japanese official RLUSD selection, server/client language consistency, selected Asset identity, and horizontal overflow.
 
-Passing this audit permits a controlled release process. It does not remove the operational kill switch, validated-ledger verification, recipient-readiness checks, or any other fail-closed boundary.
+Public operation is controlled by deployment configuration outside normal application requests. The repository's reviewed halted configuration remains the rollback baseline so an incident response can stop new handoffs and verification without removing evidence, receipts, or payment history.
+
+## Trust boundary
+
+Repository validation proves that the required records are structurally complete and mutually consistent. Public XRPL transaction hashes can be independently checked against the ledger. Provider and infrastructure attestations still depend on responsible human review and must never include secrets, seeds, private keys, or capability tokens.
