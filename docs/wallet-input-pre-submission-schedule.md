@@ -1,26 +1,26 @@
 # XRPL Group Pay — Wallet Input Pre-Submission Schedule
 
-**Status:** Approved for implementation  
+**Status:** In progress  
 **Scope:** Ordered pre-submission improvements after the completed PR #132–#149 payment-lifecycle revision  
 **Last reviewed:** 2026-07-03  
 **Document class:** Public  
-**Planned PR range:** #150–#152
+**PR range:** #150–#152
 
 ## 1. Purpose
 
 This schedule adds a bounded wallet-input improvement phase before Make Waves submission assembly resumes.
 
-The completed payment-lifecycle revision remains closed and authoritative. This sequence does not reopen PR #132–#149, change custody, add a new Wallet Provider, weaken verified-ledger settlement, or alter frozen Bill and PaymentSlot facts.
+The completed payment-lifecycle revision remains closed and authoritative. This sequence does not reopen PR #132–#149, change custody, add a new Wallet Provider, weaken validated-ledger settlement, or alter frozen Bill and PaymentSlot facts.
 
 The phase addresses three practical pre-submission risks:
 
 1. users may confuse an XRPL account address with Xaman-specific support;
 2. manually entered recipient and payer addresses may contain avoidable errors;
-3. repeat Bill creators currently need to re-enter labels, addresses, and recipient tags.
+3. repeat Bill operators currently need to re-enter labels, addresses, and recipient tags.
 
 ## 2. Authority and reviewed contracts
 
-Before implementation, each PR must review:
+Each PR reviews the affected higher-precedence documents, including:
 
 - `product-spec.md`;
 - `payment-lifecycle-contract.md`;
@@ -57,7 +57,7 @@ The specific approved behavior for this sequence is defined by `wallet-input-and
 - explicit paste assistance with direct-entry fallback;
 - browser-local saved wallets using IndexedDB;
 - label, Classic Address, optional recipient Destination Tag, role, network, favorite, and use timestamps;
-- search, recent, favorite, edit, delete, delete-all, export, and validated import;
+- search, recent use, favorites, edit, delete, delete-all, export, and validated import;
 - English, Japanese, and Korean coverage;
 - privacy, accessibility, responsive, regression, Mainnet-safe, and production UI audit.
 
@@ -76,67 +76,65 @@ The specific approved behavior for this sequence is defined by `wallet-input-and
 
 | PR | Status | Result |
 |---|---|---|
-| #150 | Planned | Harden recipient and payer address input, clarify wallet compatibility, add paste assistance, update Guide/help/localization, and preserve all existing payment boundaries. |
-| #151 | Planned | Add the browser-local saved-wallet address book, picker, management, explicit save, export/import, privacy controls, and direct-entry fallback. |
-| #152 | Planned | Run and machine-enforce the integrated wallet-input, privacy, accessibility, responsive, localization, regression, Mainnet-safe, and production UI audit; freeze feature work and return to submission assembly. |
+| #150 | Completed | Hardened recipient and payer address input, clarified wallet compatibility, added paste assistance, updated Guide/help/localization, and preserved all existing payment boundaries. Merged as `cfdb89b760958bd5f97f36c653502fdff7a9e3bd`. |
+| #151 | In progress | Adds the browser-local saved-wallet address book, picker, management, explicit save, export/import, privacy controls, and direct-entry fallback. |
+| #152 | Planned | Runs and machine-enforces the integrated wallet-input, privacy, accessibility, responsive, localization, regression, Mainnet-safe, and production UI audit; freezes feature work and returns to submission assembly. |
 
 ## 5. PR #150 — Wallet input safety and compatibility
 
-### 5.1 Domain and validation
+### 5.1 Completed domain and validation work
 
-Implement one shared address-input module used by recipient and payer fields.
+The shared recipient and payer address-input module now:
 
-It must:
+- validates Classic Address format and checksum;
+- decodes supported X-addresses;
+- blocks network mismatch;
+- keeps Destination Tag separate from the Classic Address;
+- rejects embedded payer tags;
+- rejects conflicting recipient tags;
+- preserves duplicate-payer and recipient/payer overlap checks;
+- keeps server review and validated-ledger readiness authoritative.
 
-- validate Classic Address format and checksum;
-- decode supported X-addresses;
-- block network mismatch;
-- keep Destination Tag separate from the Classic Address;
-- reject embedded payer tags;
-- reject conflicting recipient tags;
-- preserve existing duplicate-payer and recipient/payer overlap checks;
-- keep server review and validated-ledger readiness authoritative.
+### 5.2 Completed user interface work
 
-### 5.2 User interface
+The Bill form now provides:
 
-Add:
-
-- paste actions;
+- user-triggered paste actions;
 - immediate localized validation;
 - a decoded X-address review state;
 - concise recipient and payer compatibility notices;
 - exchange/custodial and unsupported manual-transfer warnings;
-- links to the matching Guide and contextual-help sections.
+- Guide coverage in English, Japanese, and Korean.
 
-### 5.3 Tests
+### 5.3 Completed validation
 
-Cover:
+PR #150 passed:
 
-- valid and invalid Classic Addresses;
-- checksum failures;
-- recipient and payer X-addresses;
-- Mainnet/Testnet mismatch;
-- Destination Tag conflicts;
-- clipboard success and failure;
-- duplicate and overlap validation;
-- EN/JA/KO messages;
+- valid and invalid Classic Address tests;
+- checksum and malformed-address tests;
+- recipient and payer X-address tests;
+- Mainnet/Testnet mismatch tests;
+- Destination Tag conflict tests;
+- clipboard success and failure tests;
+- duplicate and overlap protection;
+- EN/JA/KO coverage;
 - server-side review compatibility;
-- no regression in representative/direct, XRP/RLUSD, and Xaman handoff flows.
+- representative/direct, XRP/RLUSD, Xaman, D1, Mainnet-safe, browser, and production UI regression.
 
-### Gate A
+### Gate A — Passed
 
-PR #150 passes only when direct entry remains fully usable and no unsupported wallet path is described as supported.
+Direct entry remains fully usable and no unsupported wallet path is described as supported.
 
 ## 6. PR #151 — Browser-local saved wallets
 
 ### 6.1 Local persistence
 
-Add a versioned IndexedDB repository for the approved saved-wallet record shape.
+PR #151 adds a versioned IndexedDB repository for the approved saved-wallet record shape.
 
 Requirements:
 
 - local origin only;
-- no API or D1 persistence;
+- no API, D1, or analytics persistence;
 - bounded record and import sizes;
 - schema validation;
 - versioned migration boundary;
@@ -145,21 +143,21 @@ Requirements:
 
 ### 6.2 Save and select
 
-Add:
+PR #151 adds:
 
-- explicit `Save this wallet`;
-- optional post-creation save prompt;
+- explicit `Save this wallet` actions;
+- optional post-creation save of the wallets used in the Bill;
 - role-aware saved-wallet picker;
 - label/address search;
 - favorites and recent use;
 - Mainnet/Testnet filtering;
 - recipient Destination Tag filling only in recipient fields;
-- duplicate update confirmation;
+- duplicate reuse and update handling;
 - validation and readiness recheck after selection.
 
 ### 6.3 Manage and move local data
 
-Add:
+PR #151 adds:
 
 - edit;
 - favorite/unfavorite;
@@ -168,14 +166,14 @@ Add:
 - reviewable JSON export;
 - schema-validated import preview and confirmation.
 
-Exports and imports must exclude Bill, capability, PaymentSlot, transaction, provider, receipt, proof, and management data.
+Exports and imports exclude Bill, capability, PaymentSlot, transaction, provider, receipt, proof, management, readiness, and balance data.
 
-### 6.4 Tests
+### 6.4 Required tests
 
-Cover:
+PR #151 must cover:
 
 - create, read, update, delete, and clear;
-- duplicate address handling;
+- duplicate address and role handling;
 - role and network filtering;
 - recipient tag isolation;
 - favorites and recent ordering;
@@ -188,7 +186,7 @@ Cover:
 
 ### Gate B
 
-PR #151 passes only when all saved-wallet functionality is optional, local-only, and unable to bypass financial validation or freeze review.
+PR #151 passes only when all saved-wallet functionality is optional, local-only, and unable to bypass financial validation, readiness, review, or freeze.
 
 ## 7. PR #152 — Integrated audit and feature freeze
 
@@ -216,7 +214,7 @@ The final audit covers:
 
 ### 7.2 Machine-readable audit
 
-Add a machine-readable audit record and a CI checker that confirms:
+PR #152 adds a machine-readable audit record and a CI checker that confirms:
 
 - PR #150 and #151 are merged;
 - required controls passed;
@@ -224,7 +222,7 @@ Add a machine-readable audit record and a CI checker that confirms:
 - no new Wallet Provider claim was introduced;
 - no address-book server persistence exists;
 - no capability or Bill identity is stored in the local address book;
-- current README, Roadmap, Changelog, Guide, privacy, and schedule statements agree.
+- README, Roadmap, Changelog, Guide, privacy, and schedule statements agree.
 
 ### 7.3 Feature freeze
 
@@ -253,7 +251,7 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
-pnpm storybook:build
+pnpm build-storybook
 pnpm build:worker
 pnpm test:e2e
 ```
