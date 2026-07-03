@@ -60,6 +60,7 @@ These documents define approved behavior. They may describe target behavior that
 - `payment-failure-taxonomy.md` — current PR #138 stable failure codes, recovery dispositions, replacement rules, and localization contract.
 - `operator-progress-dashboard.md` — current PR #145 mode-correct totals, capability-scoped details, semantic states, safe payer actions, refresh, and link handling.
 - `review-retry-closure.md` — current PR #146 expected-versus-observed review facts, explicit retry authorization, immutable incomplete closure, audit records, and privacy controls.
+- `copy-to-revise-and-frozen-immutability.md` — current PR #147 browser-local copy-to-revise, identity regeneration, source preservation, and D1 frozen-field enforcement.
 - `d1-provisioning.md` — local, Testnet, and Mainnet D1 provisioning and migration controls.
 - `transaction-proof.md` — public proof fields, digest contracts, privacy boundary, and integrity checks.
 - `payment-reconciliation.md` — validated-ledger reconciliation required before replacing a prior Wallet Handoff.
