@@ -1,5 +1,9 @@
 import type { AssetDescriptor } from "@/features/assets/types";
 import { decimalToUnits } from "@/features/money/money";
+import {
+  inspectXrplAddressInput,
+  isCanonicalClassicAddress,
+} from "@/features/xrpl/address-input";
 
 import {
   recipientFundedValue,
@@ -8,6 +12,7 @@ import {
 
 export type PayerAddressIssue =
   | "required"
+  | "invalid"
   | "recipient_conflict"
   | "duplicate";
 
@@ -29,13 +34,23 @@ export function payerAddressIssues(
 
   for (const participant of draft.participants) {
     const address = participant.expectedPayerAddress.trim();
-    if (address) counts.set(address, (counts.get(address) ?? 0) + 1);
+    if (isCanonicalClassicAddress(address)) {
+      counts.set(address, (counts.get(address) ?? 0) + 1);
+    }
   }
 
   for (const participant of draft.participants) {
     const address = participant.expectedPayerAddress.trim();
+    const inspection = inspectXrplAddressInput({
+      value: address,
+      network: draft.network,
+      role: "payer",
+    });
+
     if (!address) {
       result[participant.id] = "required";
+    } else if (inspection.status !== "valid_classic") {
+      result[participant.id] = "invalid";
     } else if (destination && address === destination) {
       result[participant.id] = "recipient_conflict";
     } else if ((counts.get(address) ?? 0) > 1) {
@@ -97,7 +112,7 @@ export function billDetailsAreComplete(
   return Boolean(
     draft.paymentMode &&
       draft.title.trim() &&
-      draft.destinationAddress.trim() &&
+      isCanonicalClassicAddress(draft.destinationAddress) &&
       positiveUnits(draft.totalAmount, asset.precision) !== null &&
       recipientFundedAmountIssue(draft, asset) === null &&
       expectedPayerTotalIsPositive(draft, asset),
