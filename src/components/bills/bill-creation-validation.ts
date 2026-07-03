@@ -16,6 +16,12 @@ export type PayerAddressIssue =
   | "recipient_conflict"
   | "duplicate";
 
+function draftNetwork(draft: BillDraft) {
+  return draft.settlementAssetId.includes(":mainnet:")
+    ? ("mainnet" as const)
+    : ("testnet" as const);
+}
+
 function positiveUnits(value: string, scale: number): bigint | null {
   try {
     const units = BigInt(decimalToUnits(value, scale));
@@ -43,7 +49,7 @@ export function payerAddressIssues(
     const address = participant.expectedPayerAddress.trim();
     const inspection = inspectXrplAddressInput({
       value: address,
-      network: draft.network,
+      network: draftNetwork(draft),
       role: "payer",
     });
 
