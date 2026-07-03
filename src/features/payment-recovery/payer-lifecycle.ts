@@ -34,6 +34,15 @@ type RecoveryLike = {
   requiresSetup: boolean;
 };
 
+function helpTopic(kind: PayerLifecycleKind): HelpTopicId {
+  if (kind === "setup_required") return "readiness";
+  if (kind === "wait_recheck") return "payment-status";
+  if (kind === "review_required") return "review-required";
+  if (kind === "already_paid") return "verification";
+  if (kind === "terminal") return "security-limitations";
+  return "safe-recovery";
+}
+
 function view(
   kind: PayerLifecycleKind,
   code: string,
@@ -51,13 +60,7 @@ function view(
     setupAllowed: options.setupAllowed ?? setupAllowed,
     replacementRule:
       options.replacementRule ?? (retryAllowed ? "reconcile_first" : "blocked"),
-    helpTopic:
-      options.helpTopic ??
-      (kind === "setup_required"
-        ? "rlusd-readiness"
-        : kind === "wait_recheck" || kind === "already_paid"
-          ? "payment-status"
-          : "safe-recovery"),
+    helpTopic: options.helpTopic ?? helpTopic(kind),
   };
 }
 

@@ -71,7 +71,7 @@ export function BillCreationMode({
       </legend>
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
         <p className="max-w-2xl leading-7 text-muted">{text.description}</p>
-        <ContextualHelp topic="roles" variant="inline" />
+        <ContextualHelp topic="payment-modes" variant="inline" />
       </div>
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <BillFormChoiceCard

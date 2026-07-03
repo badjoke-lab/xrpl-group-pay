@@ -42,23 +42,39 @@ describe("ContextualHelp", () => {
     fireEvent.click(screen.getByRole("button", { name: "ヘルプ" }));
     const link = screen.getByRole("link", { name: "完全版ガイドを開く" });
 
-    expect(link).toHaveAttribute("href", "/guide#privacy");
+    expect(link).toHaveAttribute("href", "/guide#capability-links");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
     expect(link).toHaveAttribute("referrerpolicy", "no-referrer");
     expect(link.getAttribute("href")).not.toContain("token=");
   });
 
-  it("closes on Escape", () => {
+  it("closes on Escape and restores trigger focus", () => {
     render(
       <LocalizationProvider initialLocale="ko">
         <ContextualHelp topic="payment-status" />
       </LocalizationProvider>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "도움말" }));
+    const trigger = screen.getByRole("button", { name: "도움말" });
+    fireEvent.click(trigger);
     expect(screen.getByRole("dialog")).toBeVisible();
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("links destructive confirmation help to incomplete closure guidance", () => {
+    render(
+      <LocalizationProvider initialLocale="en">
+        <ContextualHelp topic="destructive-confirmation" />
+      </LocalizationProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Help" }));
+    expect(screen.getByRole("link", { name: "Open full Guide" })).toHaveAttribute(
+      "href",
+      "/guide#incomplete-closure",
+    );
   });
 });
