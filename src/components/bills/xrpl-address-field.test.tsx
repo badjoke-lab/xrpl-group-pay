@@ -96,6 +96,14 @@ describe("XrplAddressField", () => {
     expect(screen.getByTestId("canonical-address")).toHaveTextContent(account);
   });
 
+  it("links to public address and saved-wallet troubleshooting", () => {
+    render(<RecipientHarness />);
+
+    expect(
+      screen.getByRole("link", { name: "Address and saved-wallet help" }),
+    ).toHaveAttribute("href", "/troubleshooting#wallet-addresses");
+  });
+
   it("rejects a tagged payer X-address with localized guidance", () => {
     const tagged = classicAddressToXAddress(account, 55, false);
     render(
@@ -113,5 +121,10 @@ describe("XrplAddressField", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "支払者アドレスにDestination Tagを含めることはできません。",
     );
+    expect(
+      screen.getByRole("link", {
+        name: "アドレスと保存済みウォレットのヘルプ",
+      }),
+    ).toHaveAttribute("href", "/troubleshooting#wallet-addresses");
   });
 });
