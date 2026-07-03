@@ -63,7 +63,7 @@ export function CreatedBillSaveWallets({ created }: { created: CreatedBill }) {
     try {
       let count = 0;
       await saveSavedWallet({
-        label: created.bill.recipientLabel.trim() || text.unnamedRecipient,
+        label: created.bill.recipientLabel?.trim() || text.unnamedRecipient,
         classicAddress: created.bill.destinationAddress,
         destinationTag:
           created.bill.destinationTag === null
@@ -77,7 +77,7 @@ export function CreatedBillSaveWallets({ created }: { created: CreatedBill }) {
 
       for (const [index, slot] of created.slots.entries()) {
         await saveSavedWallet({
-          label: slot.participantLabel.trim() || text.unnamedPayer(index + 1),
+          label: slot.participantLabel?.trim() || text.unnamedPayer(index + 1),
           classicAddress: slot.expectedPayerAddress,
           destinationTag: null,
           role: "payer",
