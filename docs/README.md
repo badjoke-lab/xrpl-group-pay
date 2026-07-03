@@ -25,6 +25,8 @@ A lower-precedence document cannot silently weaken a higher-precedence safety or
 
 Within the product and architecture class, `payment-lifecycle-contract.md` is the specific contract for the PR #132–#149 revision and controls where older general creator-centric wording assumes that the Bill creator is always the recipient.
 
+For the PR #150–#152 pre-submission phase, `wallet-input-and-local-address-book.md` is the specific cross-cutting contract for address roles, Wallet Provider compatibility, direct input, X-address handling, clipboard assistance, browser-local saved wallets, privacy, localization, accessibility, and deferred work. It cannot weaken the completed payment-lifecycle or Mainnet controls.
+
 ## 3. External requirements
 
 - `make-waves-requirements.md` — official challenge requirements, unresolved organizer questions, metrics assumptions, and submission gates.
@@ -35,6 +37,7 @@ External requirements describe obligations imposed on the project. They do not r
 
 - `product-spec.md` — public product scope, Make Waves v1 target, actors, domain model, acceptance criteria, and post-submission direction.
 - `payment-lifecycle-contract.md` — specific role, payment-mode, lifecycle, recovery, Guide, help, and semantic-status contract for the completed revision.
+- `wallet-input-and-local-address-book.md` — specific pre-submission address-entry, Wallet Provider boundary, X-address, clipboard, browser-local saved-wallet, privacy, and acceptance contract.
 - `architecture.md` — dependency direction and extension boundaries for the Group Pay core, payment domain, adapters, and payment rails.
 - `payment-contracts.md` — logical contracts for assets, Payment Intents, Wallet Providers, verification, receipts, quotes, and rails.
 - `money-and-allocation.md` — fixed-precision money model, Accounting Currency, Settlement Asset, allocation strategies, and future quote behavior.
@@ -93,6 +96,7 @@ A feature contract documents the exact behavior of a shipped or actively impleme
 ## 8. Implementation schedules
 
 - `payment-lifecycle-revision-schedule.md` — completed PR #132–#149 sequence for the payment-lifecycle revision.
+- `wallet-input-pre-submission-schedule.md` — approved PR #150–#152 sequence for wallet-input safety, browser-local saved wallets, integrated audit, and return to submission work.
 - `mainnet-release-plan.md` — specialized Mainnet release sequence, not the general product-development schedule.
 
 Schedules order approved work but do not override the documents above. Before each scheduled PR, review all affected higher-precedence documents and correct any conflict before implementation continues.
