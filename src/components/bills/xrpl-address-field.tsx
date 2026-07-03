@@ -1,6 +1,7 @@
 "use client";
 
-import { ClipboardPaste, Replace } from "lucide-react";
+import { ClipboardPaste, CircleHelp, Replace } from "lucide-react";
+import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ const copy = {
       "The recipient may use any compatible XRPL wallet. Xaman is not required to receive funds.",
     payerNote:
       "Payment uses Xaman in this release. The account selected in Xaman must match this address. Exchange withdrawals and ordinary manual transfers are not supported settlement paths.",
+    helpLink: "Address and saved-wallet help",
   },
   ja: {
     paste: "貼り付け",
@@ -59,6 +61,7 @@ const copy = {
       "受取人はXaman以外の互換XRPLウォレットでも受け取れます。受け取りにXamanは必須ではありません。",
     payerNote:
       "このリリースの支払い操作はXaman対応です。Xamanで選ぶアカウントはこのアドレスと一致する必要があります。取引所出金や通常の手動送金は対応済みの精算経路ではありません。",
+    helpLink: "アドレスと保存済みウォレットのヘルプ",
   },
   ko: {
     paste: "붙여넣기",
@@ -82,6 +85,7 @@ const copy = {
       "수취인은 Xaman 이외의 호환 XRPL 지갑으로도 받을 수 있습니다. 수취에 Xaman은 필수가 아닙니다.",
     payerNote:
       "이 릴리스의 결제 동작은 Xaman을 지원합니다. Xaman에서 선택한 계정은 이 주소와 일치해야 합니다. 거래소 출금이나 일반 수동 전송은 지원되는 정산 경로가 아닙니다.",
+    helpLink: "주소 및 저장된 지갑 도움말",
   },
 } as const;
 
@@ -244,6 +248,13 @@ export function XrplAddressField({
       <p className="mt-2 text-xs leading-5 text-muted">
         {role === "recipient" ? text.recipientNote : text.payerNote}
       </p>
+      <Link
+        href="/troubleshooting#wallet-addresses"
+        className="mt-1 inline-flex min-h-9 items-center gap-1.5 text-xs font-semibold text-brand underline-offset-4 hover:underline"
+      >
+        <CircleHelp aria-hidden="true" className="size-3.5" />
+        {text.helpLink}
+      </Link>
     </div>
   );
 }
