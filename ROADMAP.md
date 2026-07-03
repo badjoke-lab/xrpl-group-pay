@@ -34,55 +34,55 @@ This roadmap shows product direction, not promised dates. A capability moves to 
 - D1 enforcement of frozen Bill and PaymentSlot facts.
 - Shared semantic statuses using text, icons, and restrained state color.
 - Searchable English, Japanese, and Korean Guide and contextual help.
-- Public XRP transaction proof.
+- Public transaction proof.
 - Controlled Mainnet XRP and official RLUSD acceptance evidence.
 - Assigned Mainnet Source Tag, isolated Mainnet D1, operational kill switch, and approved release gate.
 - Deployment-aware public Mainnet Bill creation UI.
 - Automated 320px, 390px, and 1280px production UI audits.
 - Public Roadmap and Changelog pages in the application interface.
 - Completed PR #132–#149 integrated payment-lifecycle release audit.
-- PR #150 wallet-input safety:
+- Completed PR #150–#152 wallet-input pre-submission phase:
   - Classic Address checksum validation;
-  - explicit X-address review;
-  - network and Destination Tag conflict blocking;
+  - explicit X-address review with network and Destination Tag safeguards;
   - recipient versus Xaman payer compatibility guidance;
-  - clipboard assistance with direct-entry fallback.
+  - exchange and unsupported manual-transfer warnings;
+  - clipboard assistance with direct-entry fallback;
+  - browser-local saved wallets using only approved fields;
+  - role/network filtering, search, favorites, recent use, edit, delete, delete-all, export, and validated import;
+  - no API, D1, analytics, cross-device synchronization, identity proof, capability, Bill, transaction, receipt, proof, balance, or readiness storage;
+  - integrated privacy, accessibility, localization, responsive, Mainnet-safe, and payment-regression audit.
 
 ## In Progress
 
-No payment-lifecycle revision work remains in progress. The PR #132–#149 revision is merged, tested, audited, and recorded in [`docs/payment-lifecycle-release-audit.md`](docs/payment-lifecycle-release-audit.md).
+No payment-lifecycle revision work remains in progress.
 
-PR #151 is implementing the browser-local saved-wallet layer:
+No wallet-input implementation work remains in progress.
 
-- IndexedDB storage on the current origin only;
-- labels, canonical addresses, optional recipient tags, roles, network, favorites, and use timestamps;
-- role- and network-aware selection from recipient and payer fields;
-- search, recent use, favorites, edit, delete, and delete-all;
-- explicit per-field and post-creation save actions;
-- reviewable JSON export and validated import;
-- no API, D1, analytics, Capability, Bill, PaymentSlot, transaction, receipt, or proof persistence;
-- safe direct-entry fallback when local storage is unavailable.
+The completed decisions are recorded in:
 
-PR #152 remains the final integrated privacy, accessibility, localization, responsive, Mainnet-safe, and payment-regression audit. The implementation order and deferred features are fixed in [`docs/wallet-input-pre-submission-schedule.md`](docs/wallet-input-pre-submission-schedule.md).
+- [`docs/payment-lifecycle-release-audit.md`](docs/payment-lifecycle-release-audit.md);
+- [`docs/wallet-input-release-audit.md`](docs/wallet-input-release-audit.md).
+
+Wallet-input feature work is frozen until after the Make Waves submission.
 
 ## Release blockers
 
-No open payment-lifecycle or Mainnet settlement blocker remains. The reviewed halted configuration remains available as the fail-closed production rollback baseline.
+No open payment-lifecycle, wallet-input, or Mainnet settlement blocker remains. The reviewed halted configuration remains available as the fail-closed production rollback baseline.
 
-The wallet-input phase is a submission-readiness improvement rather than a custody, verification, or settlement unblocker. It must complete before the final submission package is frozen.
+## Make Waves submission work
 
-## Make Waves v1 completion
+The remaining sequence is:
 
-After PR #150–#152:
-
-- confirm registration, project approval, and assigned Source Tag status;
-- produce the Source Tag metrics summary for distinct successful signers, transaction count, XRP volume, and RLUSD volume;
-- collect controlled real-user usage and evidence;
-- capture XRP and RLUSD demonstrations;
-- prepare the submission video and pitch deck;
-- assemble final submission text and evidence links.
+1. confirm registration, project approval, and assigned Source Tag;
+2. produce the Source Tag metrics summary for distinct successful signers, transaction count, XRP volume, and RLUSD volume;
+3. collect controlled real-user usage and evidence;
+4. capture XRP and official RLUSD demonstrations;
+5. prepare the submission video and pitch deck;
+6. assemble final submission text and evidence links.
 
 ## Next
+
+These items remain deferred until after submission:
 
 - Camera-based QR scanning for Bill-creation address entry.
 - Xaman Sign-In or account discovery for filling the user's own address.
