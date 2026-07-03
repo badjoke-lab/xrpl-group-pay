@@ -129,7 +129,7 @@ export function BillRecipientFields({
         />
         <BillFormField
           label={text.tag}
-          labelAction={<ContextualHelp topic="recipient" variant="inline" />}
+          labelAction={<ContextualHelp topic="destination-tag" variant="inline" />}
           description={text.tagDescription}
           value={draft.destinationTag}
           onChange={(value) => onChange("destinationTag", value)}
@@ -150,7 +150,7 @@ export function BillRecipientFields({
             <span className="min-w-0 flex-1">
               <span className="flex flex-wrap items-center gap-2 font-semibold">
                 {text.fundedToggle}
-                <ContextualHelp topic="overview" variant="inline" />
+                <ContextualHelp topic="allocation" variant="inline" />
               </span>
               <span className="mt-1 block text-sm leading-6 text-muted">
                 {text.fundedDescription}
