@@ -12,6 +12,7 @@ import {
 } from "@/features/xrpl/address-input";
 
 import { BillFormField } from "./bill-form-controls";
+import { SavedWalletPicker } from "./saved-wallet-picker";
 
 const copy = {
   en: {
@@ -89,22 +90,26 @@ export function XrplAddressField({
   labelAction,
   description,
   value,
+  displayLabel = "",
   role,
   network,
   destinationTag,
   error,
   onChangeAddress,
+  onChangeDisplayLabel,
   onChangeDestinationTag,
 }: {
   label: string;
   labelAction?: ReactNode;
   description?: string;
   value: string;
+  displayLabel?: string;
   role: XrplAddressRole;
   network: XrplNetwork;
   destinationTag?: string | null;
   error?: string | null;
   onChangeAddress(value: string): void;
+  onChangeDisplayLabel?(value: string): void;
   onChangeDestinationTag?(value: string): void;
 }) {
   const { locale } = useLocalization();
@@ -179,6 +184,20 @@ export function XrplAddressField({
           <ClipboardPaste aria-hidden="true" className="size-4" />
           {clipboardStatus === "reading" ? text.pasting : text.paste}
         </Button>
+        <SavedWalletPicker
+          role={role}
+          network={network}
+          currentLabel={displayLabel}
+          currentAddress={value}
+          currentDestinationTag={destinationTag}
+          onSelect={(record) => {
+            onChangeDisplayLabel?.(record.label);
+            onChangeAddress(record.classicAddress);
+            if (role === "recipient") {
+              onChangeDestinationTag?.(record.destinationTag ?? "");
+            }
+          }}
+        />
         {clipboardStatus === "success" && (
           <span role="status" className="text-xs font-semibold text-success">
             {text.pasted}

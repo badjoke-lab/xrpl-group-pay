@@ -1,7 +1,7 @@
 # XRPL Group Pay — Guide and Contextual Help
 
 **Status:** Active  
-**Scope:** Current implementation through PR #150  
+**Scope:** Current implementation through PR #151  
 **Last reviewed:** 2026-07-03  
 **Document class:** Public
 
@@ -9,11 +9,11 @@
 
 This contract defines the public, searchable, multilingual explanation of the current XRPL Group Pay product and the contextual-help links embedded in critical flows.
 
-The Guide describes only behavior implemented by the merged payment-lifecycle revision and the current wallet-input safety phase. Future product directions remain in the Roadmap and are not presented as currently available Guide functionality.
+The Guide describes only behavior implemented by the merged payment-lifecycle revision and the current wallet-input phase. Future product directions remain in the Roadmap and are not presented as currently available Guide functionality.
 
 ## 2. Supported languages
 
-Critical Guide and contextual-help content is available in:
+Critical Guide, address-input, saved-wallet, and contextual-help content is available in:
 
 - English;
 - Japanese;
@@ -65,6 +65,10 @@ The Guide explains:
 - Classic Address checksum validation and X-address review;
 - X-address network and Destination Tag handling;
 - clipboard assistance and direct-entry fallback;
+- browser-local saved-wallet purpose and limits;
+- explicit save, selection, search, favorites, recent use, edit, delete, delete-all, export, and import;
+- local-only storage, shared-browser exposure, browser-cleanup loss, and no identity proof;
+- saved-wallet exclusion of Bills, capabilities, amounts, provider requests, transactions, receipts, proofs, balances, and readiness observations;
 - XRP and official network-specific RLUSD identity;
 - TrustSet, trust lines, issued balance, XRP fee, and reserve behavior;
 - management, read-only progress, payer, setup, and proof capability scopes;
@@ -78,7 +82,7 @@ The Guide explains:
 
 ## 5. Address-input guidance
 
-The Guide and contextual help must communicate these distinctions consistently:
+The Guide and contextual help communicate these distinctions consistently:
 
 - **Recipient address:** the frozen destination account. Receiving does not require Xaman when the account and selected Asset are compatible.
 - **Expected payer address:** the exact sender account that must match the validated transaction. The payer must select the same account in Xaman.
@@ -89,7 +93,25 @@ The Guide and contextual help must communicate these distinctions consistently:
 - **Wrong-network X-address:** is blocked.
 - **Clipboard failure:** does not block direct typing or ordinary paste.
 
-## 6. Search and navigation
+## 6. Saved-wallet guidance
+
+The Guide and inline saved-wallet UI explain that:
+
+- saving is explicit and never automatic;
+- records remain in IndexedDB for the current origin and browser profile;
+- records are filtered by recipient/payer role and Mainnet/Testnet identity;
+- selecting a record fills only role-appropriate fields;
+- a recipient record may fill label, Classic Address, and Destination Tag;
+- a payer record fills label and Classic Address only;
+- selecting a record never skips validation, readiness, review, freeze, wallet handoff, or validated-ledger verification;
+- the same network and address may be reused for recipient and payer roles in one local record;
+- edit and delete affect only future input assistance, not frozen Bills or ledger history;
+- export and import are user-controlled and schema-validated;
+- IndexedDB, quota, import, or local-record failure leaves direct address entry available;
+- other users of the same browser profile may see local labels;
+- private browsing, browser cleanup, storage eviction, or profile removal may erase records.
+
+## 7. Search and navigation
 
 Guide search matches localized section titles, paragraphs, and bullet guidance.
 
@@ -103,7 +125,7 @@ The search experience:
 - keeps all displayed result links keyboard reachable;
 - works in the mobile single-column and desktop sticky-navigation layouts.
 
-## 7. Contextual-help topics
+## 8. Contextual-help topics
 
 The typed help registry covers:
 
@@ -119,11 +141,11 @@ The typed help registry covers:
 - copy-to-revise;
 - security limitations.
 
-Recipient and payer address fields may also provide localized inline guidance when the complete explanation does not justify a new stable help-topic identifier.
+Recipient, payer, and saved-wallet surfaces may also provide localized inline guidance when the complete explanation does not justify a new stable help-topic identifier.
 
 Each typed topic contains localized short guidance, localized detailed guidance, and one stable Guide target.
 
-## 8. Private-flow safety
+## 9. Private-flow safety
 
 Opening contextual help:
 
@@ -140,11 +162,20 @@ Using address paste or X-address review:
 - does not submit or freeze a Bill;
 - does not create a wallet handoff;
 - does not read the clipboard before explicit user interaction;
-- does not store the address in a future saved-wallet list automatically.
+- does not save the address automatically.
 
-The help panel supports close-button, backdrop, and `Escape` dismissal and traps keyboard focus while open.
+Using saved wallets:
 
-## 9. URL and capability privacy
+- does not call the Group Pay API or D1;
+- does not change a frozen Bill or PaymentSlot;
+- does not create or expose a capability link;
+- does not create a Xaman request;
+- does not attest account ownership;
+- does not accept a payment or mark a slot paid.
+
+The help and saved-wallet panels support close-button, backdrop, and `Escape` dismissal and trap keyboard focus while open.
+
+## 10. URL and capability privacy
 
 Guide and help URLs consist only of the public `/guide` path and an approved stable anchor.
 
@@ -153,28 +184,33 @@ They must not include:
 - management, progress, payer, setup, or proof capabilities;
 - query parameters copied from the active flow;
 - payer or recipient addresses;
+- saved-wallet labels or records;
 - Bill titles or draft values;
 - InvoiceIDs, transaction identifiers, or proof data.
 
+Saved-wallet exports must also exclude all capability and Bill identity data.
+
 Full Guide links open in a protected new tab with `noopener`, `noreferrer`, and no referrer policy so the active private flow remains intact.
 
-## 10. Accessibility and responsive behavior
+## 11. Accessibility and responsive behavior
 
-The Guide, contextual help, and address-input assistance require:
+The Guide, contextual help, address-input assistance, and saved-wallet picker require:
 
 - visible keyboard focus;
 - semantic headings and navigation labels;
 - accessible search and clear controls;
-- a modal dialog name and description;
-- focus restoration after close;
-- live status for clipboard success or failure;
+- a modal dialog or sheet name and description;
+- focus trapping and restoration after close;
+- live status for clipboard, selection, save, import, delete, and storage failure;
 - an explicit action before applying decoded X-address values;
 - readable long Japanese and Korean text;
-- mobile bottom-sheet and desktop side-panel help layouts;
+- mobile bottom-sheet and desktop side-panel layouts;
 - no reliance on color alone;
-- no horizontal overflow for addresses and decoded details.
+- keyboard-accessible record actions;
+- no horizontal overflow for addresses, decoded details, or saved-wallet records;
+- usable behavior at 200% zoom.
 
-## 11. Validation
+## 12. Validation
 
 Automated coverage verifies:
 
@@ -185,5 +221,8 @@ Automated coverage verifies:
 - search filtering, no-results recovery, slash focus, and Escape behavior;
 - help open, close, protected-tab, and focus-restoration behavior;
 - critical payer states resolve to the correct help family;
-- address-format, X-address, network, tag, and clipboard guidance is key-equivalent in English, Japanese, and Korean;
-- address assistance does not submit, freeze, create a handoff, or expose capability data.
+- address-format, X-address, network, tag, clipboard, and saved-wallet guidance is key-equivalent in English, Japanese, and Korean;
+- address assistance does not submit, freeze, create a handoff, or expose capability data;
+- saved-wallet selection respects role and network filters;
+- saved-wallet failure preserves direct input;
+- exports contain only the approved local record fields.

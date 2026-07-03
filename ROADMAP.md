@@ -41,21 +41,29 @@ This roadmap shows product direction, not promised dates. A capability moves to 
 - Automated 320px, 390px, and 1280px production UI audits.
 - Public Roadmap and Changelog pages in the application interface.
 - Completed PR #132–#149 integrated payment-lifecycle release audit.
+- PR #150 wallet-input safety:
+  - Classic Address checksum validation;
+  - explicit X-address review;
+  - network and Destination Tag conflict blocking;
+  - recipient versus Xaman payer compatibility guidance;
+  - clipboard assistance with direct-entry fallback.
 
 ## In Progress
 
 No payment-lifecycle revision work remains in progress. The PR #132–#149 revision is merged, tested, audited, and recorded in [`docs/payment-lifecycle-release-audit.md`](docs/payment-lifecycle-release-audit.md).
 
-A separate bounded PR #150–#152 pre-submission phase is now approved:
+PR #151 is implementing the browser-local saved-wallet layer:
 
-- strict recipient and payer Classic Address validation and checksum handling;
-- X-address decode with explicit network and Destination Tag review;
-- clearer recipient, payer, Xaman, exchange, and unsupported manual-transfer guidance;
-- explicit clipboard paste assistance while preserving direct entry;
-- browser-local saved wallets with labels, addresses, recipient tags, roles, network, favorites, recent use, edit, delete, export, and validated import;
-- integrated privacy, accessibility, localization, responsive, Mainnet-safe, and payment-regression audit.
+- IndexedDB storage on the current origin only;
+- labels, canonical addresses, optional recipient tags, roles, network, favorites, and use timestamps;
+- role- and network-aware selection from recipient and payer fields;
+- search, recent use, favorites, edit, delete, and delete-all;
+- explicit per-field and post-creation save actions;
+- reviewable JSON export and validated import;
+- no API, D1, analytics, Capability, Bill, PaymentSlot, transaction, receipt, or proof persistence;
+- safe direct-entry fallback when local storage is unavailable.
 
-The implementation order and deferred features are fixed in [`docs/wallet-input-pre-submission-schedule.md`](docs/wallet-input-pre-submission-schedule.md).
+PR #152 remains the final integrated privacy, accessibility, localization, responsive, Mainnet-safe, and payment-regression audit. The implementation order and deferred features are fixed in [`docs/wallet-input-pre-submission-schedule.md`](docs/wallet-input-pre-submission-schedule.md).
 
 ## Release blockers
 

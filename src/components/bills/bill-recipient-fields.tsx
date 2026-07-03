@@ -110,10 +110,12 @@ export function BillRecipientFields({
           labelAction={<ContextualHelp topic="recipient" variant="inline" />}
           description={text.destinationDescription}
           value={draft.destinationAddress}
+          displayLabel={draft.recipientLabel}
           destinationTag={draft.destinationTag}
           role="recipient"
           network={publicEnv.NEXT_PUBLIC_APP_NETWORK}
           onChangeAddress={(value) => onChange("destinationAddress", value)}
+          onChangeDisplayLabel={(value) => onChange("recipientLabel", value)}
           onChangeDestinationTag={(value) => onChange("destinationTag", value)}
           error={destinationError}
         />
