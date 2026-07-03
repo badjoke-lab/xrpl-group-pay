@@ -34,12 +34,12 @@ External requirements describe obligations imposed on the project. They do not r
 ## 4. Product and architecture
 
 - `product-spec.md` — public product scope, Make Waves v1 target, actors, domain model, acceptance criteria, and post-submission direction.
-- `payment-lifecycle-contract.md` — specific role, payment-mode, lifecycle, recovery, Guide, help, and semantic-status contract for the active revision.
+- `payment-lifecycle-contract.md` — specific role, payment-mode, lifecycle, recovery, Guide, help, and semantic-status contract for the completed revision.
 - `architecture.md` — dependency direction and extension boundaries for the Group Pay core, payment domain, adapters, and payment rails.
 - `payment-contracts.md` — logical contracts for assets, Payment Intents, Wallet Providers, verification, receipts, quotes, and rails.
 - `money-and-allocation.md` — fixed-precision money model, Accounting Currency, Settlement Asset, allocation strategies, and future quote behavior.
 - `localization.md` — base English, Japanese, and Korean localization contract.
-- `payment-lifecycle-localization.md` — terminology, Guide, help, status, copied-instruction, and recovery coverage for the active revision.
+- `payment-lifecycle-localization.md` — terminology, Guide, help, status, copied-instruction, and recovery coverage for the completed revision.
 - `open-decisions.md` — active, blocked, superseded, and decided implementation questions.
 
 These documents define approved behavior. They may describe target behavior that is not yet available. Current availability must be stated separately in the root `README.md`, `ROADMAP.md`, and `CHANGELOG.md`.
@@ -48,26 +48,27 @@ These documents define approved behavior. They may describe target behavior that
 
 - `non-custodial-boundary.md` — capabilities the product may and must not acquire.
 - `threat-model.md` — protected assets, trust boundaries, abuse cases, mitigations, and release gates.
-- `payment-lifecycle-security.md` — added role, retry, TrustSet, Guide, closure, copy, and Mainnet-progress controls for the active revision.
+- `payment-lifecycle-security.md` — role, retry, TrustSet, Guide, closure, copy, and Mainnet-progress controls for the completed revision.
+- `payment-lifecycle-release-audit.md` — current PR #149 integrated lifecycle, multilingual, visual, privacy, Testnet, Mainnet-safe, and public-availability decision.
 - `privacy-data-map.md` — data classification, storage, disclosure, retention, and deletion.
 - `state-machine.md` — Bill, PaymentSlot, wallet-handoff, transaction-observation, recovery, and verification states.
 - `persistence-scope.md` — durable records, compatibility guarantees, and current database scope.
-- `payment-mode-persistence.md` — current PR #133 payment-mode, recipient-funded, closure, and review storage contract.
-- `network-progress-and-routes.md` — current PR #134 network-derived progress, canonical routes, and legacy fragment-preserving redirects.
-- `xaman-lifecycle-persistence.md` — current PR #135 durable Xaman state, callback and polling synchronization, resume, and retry boundaries.
-- `asset-readiness.md` — current PR #136 recipient and payer XRP/RLUSD preflight, reserve, fee, trust-line, and balance contract.
-- `rlusd-trustset-preparation.md` — current PR #137 official RLUSD TrustSet planning, shareable capability flow, Xaman lifecycle, and validated-ledger readiness contract.
-- `payment-failure-taxonomy.md` — current PR #138 stable failure codes, recovery dispositions, replacement rules, and localization contract.
-- `operator-progress-dashboard.md` — current PR #145 mode-correct totals, capability-scoped details, semantic states, safe payer actions, refresh, and link handling.
-- `review-retry-closure.md` — current PR #146 expected-versus-observed review facts, explicit retry authorization, immutable incomplete closure, audit records, and privacy controls.
-- `copy-to-revise-and-frozen-immutability.md` — current PR #147 browser-local copy-to-revise, identity regeneration, source preservation, and D1 frozen-field enforcement.
+- `payment-mode-persistence.md` — PR #133 payment-mode, recipient-funded, closure, and review storage contract.
+- `network-progress-and-routes.md` — PR #134 network-derived progress, canonical routes, and legacy fragment-preserving redirects.
+- `xaman-lifecycle-persistence.md` — PR #135 durable Xaman state, callback and polling synchronization, resume, and retry boundaries.
+- `asset-readiness.md` — PR #136 recipient and payer XRP/RLUSD preflight, reserve, fee, trust-line, and balance contract.
+- `rlusd-trustset-preparation.md` — PR #137 official RLUSD TrustSet planning, shareable capability flow, Xaman lifecycle, and validated-ledger readiness contract.
+- `payment-failure-taxonomy.md` — PR #138 stable failure codes, recovery dispositions, replacement rules, and localization contract.
+- `operator-progress-dashboard.md` — PR #145 mode-correct totals, capability-scoped details, semantic states, safe payer actions, refresh, and link handling.
+- `review-retry-closure.md` — PR #146 expected-versus-observed review facts, explicit retry authorization, immutable incomplete closure, audit records, and privacy controls.
+- `copy-to-revise-and-frozen-immutability.md` — PR #147 browser-local copy-to-revise, identity regeneration, source preservation, and D1 frozen-field enforcement.
 - `d1-provisioning.md` — local, Testnet, and Mainnet D1 provisioning and migration controls.
 - `transaction-proof.md` — public proof fields, digest contracts, privacy boundary, and integrity checks.
 - `payment-reconciliation.md` — validated-ledger reconciliation required before replacing a prior Wallet Handoff.
 - `mainnet-operational-controls.md` — Mainnet enabled, verify-only, and halted runtime behavior.
-- `mainnet-acceptance-audit.md` — final cross-control audit, current release decision, unresolved findings, and approval procedure.
+- `mainnet-acceptance-audit.md` — approved Mainnet cross-control audit, resolved findings, and operational trust boundary.
 - `mainnet-release-evidence.md` — non-secret production evidence contracts, acceptance fields, and update discipline.
-- `mainnet-production-target.md` — fixed public origin, guarded Xaman callback boundary, and halted deployment sequence.
+- `mainnet-production-target.md` — fixed public origin, guarded Xaman callback boundary, and halted rollback sequence.
 - `mainnet-xaman-attestation.md` — provider credential, application configuration, callback alignment, and safe lifecycle attestation.
 
 Any change to custody, asset identity, wallet authority, expected payment facts, ledger verification, receipt compatibility, public proof, Mainnet operations, release evidence, or release acceptance requires all affected documents in this section to be updated before implementation.
@@ -82,7 +83,7 @@ A feature contract documents the exact behavior of a shipped or actively impleme
 ## 7. User experience
 
 - `ui-ux-spec.md` — experience principles, content order, contextual help, status presentation, and wallet/asset display.
-- `guide-and-contextual-help.md` — current PR #148 searchable multilingual Guide, stable anchors, typed help coverage, private-flow safety, and keyboard/mobile behavior.
+- `guide-and-contextual-help.md` — PR #148 searchable multilingual Guide, stable anchors, typed help coverage, private-flow safety, and keyboard/mobile behavior.
 - `screen-inventory.md` — required screens, actors, priorities, states, and fixtures.
 - `accessibility-spec.md` — WCAG target and critical-flow accessibility requirements.
 - `responsive-behavior.md` — viewport, reflow, navigation, table, and visual-regression behavior.
@@ -91,7 +92,7 @@ A feature contract documents the exact behavior of a shipped or actively impleme
 
 ## 8. Implementation schedules
 
-- `payment-lifecycle-revision-schedule.md` — active PR #132–#149 sequence for the payment-lifecycle revision.
+- `payment-lifecycle-revision-schedule.md` — completed PR #132–#149 sequence for the payment-lifecycle revision.
 - `mainnet-release-plan.md` — specialized Mainnet release sequence, not the general product-development schedule.
 
 Schedules order approved work but do not override the documents above. Before each scheduled PR, review all affected higher-precedence documents and correct any conflict before implementation continues.
