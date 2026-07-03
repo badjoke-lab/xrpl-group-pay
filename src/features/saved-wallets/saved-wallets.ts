@@ -61,39 +61,48 @@ export class SavedWalletStorageError extends Error {
 const uint32TagSchema = z
   .string()
   .regex(/^\d+$/)
-  .refine((value) => BigInt(value) <= 4_294_967_295n, "Destination Tag exceeds UInt32");
+  .refine(
+    (value) => BigInt(value) <= 4_294_967_295n,
+    "Destination Tag exceeds UInt32",
+  );
 
 const roleSchema = z.enum(["recipient", "payer", "both"]);
 const networkSchema = z.enum(["mainnet", "testnet"]);
 
-const draftSchema = z
-  .object({
-    label: z.string().trim().min(1).max(120),
-    classicAddress: z
-      .string()
-      .trim()
-      .refine(isCanonicalClassicAddress, "Invalid XRPL Classic Address"),
-    destinationTag: z.union([uint32TagSchema, z.null()]),
-    role: roleSchema,
-    network: networkSchema,
-    favorite: z.boolean(),
-  })
-  .superRefine((value, context) => {
-    if (value.role === "payer" && value.destinationTag !== null) {
-      context.addIssue({
-        code: "custom",
-        path: ["destinationTag"],
-        message: "Payer-only records cannot store a Destination Tag",
-      });
-    }
-  });
-
-const recordSchema = draftSchema.extend({
-  id: z.string().min(1).max(128),
-  createdAt: z.iso.datetime(),
-  updatedAt: z.iso.datetime(),
-  lastUsedAt: z.union([z.iso.datetime(), z.null()]),
+const draftObjectSchema = z.object({
+  label: z.string().trim().min(1).max(120),
+  classicAddress: z
+    .string()
+    .trim()
+    .refine(isCanonicalClassicAddress, "Invalid XRPL Classic Address"),
+  destinationTag: z.union([uint32TagSchema, z.null()]),
+  role: roleSchema,
+  network: networkSchema,
+  favorite: z.boolean(),
 });
+
+function addRoleTagIssue(
+  value: { role: SavedWalletRole; destinationTag: string | null },
+  context: z.RefinementCtx,
+) {
+  if (value.role === "payer" && value.destinationTag !== null) {
+    context.addIssue({
+      code: "custom",
+      path: ["destinationTag"],
+      message: "Payer-only records cannot store a Destination Tag",
+    });
+  }
+}
+
+const draftSchema = draftObjectSchema.superRefine(addRoleTagIssue);
+const recordSchema = draftObjectSchema
+  .extend({
+    id: z.string().min(1).max(128),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+    lastUsedAt: z.union([z.iso.datetime(), z.null()]),
+  })
+  .superRefine(addRoleTagIssue);
 
 const importSchema = z.object({
   schemaVersion: z.literal(SAVED_WALLET_SCHEMA_VERSION),
@@ -109,6 +118,13 @@ const NETWORK_ADDRESS_INDEX = "network-address";
 function normalizeDestinationTag(value: string | null | undefined) {
   const trimmed = value?.trim() ?? "";
   return trimmed || null;
+}
+
+export function mergeSavedWalletRoles(
+  left: SavedWalletRole,
+  right: SavedWalletRole,
+): SavedWalletRole {
+  return left === right ? left : "both";
 }
 
 export function validateSavedWalletDraft(input: SavedWalletDraft): SavedWalletDraft {
@@ -141,7 +157,10 @@ export function validateSavedWalletRecord(input: unknown): SavedWalletRecord {
 
 export function parseSavedWalletImport(text: string): SavedWalletImportPayload {
   if (new TextEncoder().encode(text).byteLength > SAVED_WALLET_MAX_IMPORT_BYTES) {
-    throw new SavedWalletStorageError("too_large", "Saved-wallet import is too large");
+    throw new SavedWalletStorageError(
+      "too_large",
+      "Saved-wallet import is too large",
+    );
   }
 
   let parsed: unknown;
@@ -161,7 +180,8 @@ export function parseSavedWalletImport(text: string): SavedWalletImportPayload {
       typeof parsed === "object" &&
       parsed !== null &&
       Array.isArray((parsed as { wallets?: unknown }).wallets) &&
-      ((parsed as { wallets: unknown[] }).wallets.length > SAVED_WALLET_MAX_RECORDS);
+      (parsed as { wallets: unknown[] }).wallets.length >
+        SAVED_WALLET_MAX_RECORDS;
     throw new SavedWalletStorageError(
       tooMany ? "too_many_records" : "invalid_import",
       result.error.issues[0]?.message ?? "Saved-wallet import is invalid",
@@ -198,9 +218,11 @@ export function serializeSavedWalletExport(
 function storageError(error: unknown): SavedWalletStorageError {
   if (error instanceof SavedWalletStorageError) return error;
   if (error instanceof DOMException && error.name === "QuotaExceededError") {
-    return new SavedWalletStorageError("quota", "Browser storage quota was exceeded", {
-      cause: error,
-    });
+    return new SavedWalletStorageError(
+      "quota",
+      "Browser storage quota was exceeded",
+      { cause: error },
+    );
   }
   return new SavedWalletStorageError("unknown", "Saved-wallet storage failed", {
     cause: error,
@@ -209,7 +231,9 @@ function storageError(error: unknown): SavedWalletStorageError {
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
-    request.addEventListener("success", () => resolve(request.result), { once: true });
+    request.addEventListener("success", () => resolve(request.result), {
+      once: true,
+    });
     request.addEventListener("error", () => reject(request.error), { once: true });
   });
 }
@@ -217,8 +241,12 @@ function requestResult<T>(request: IDBRequest<T>): Promise<T> {
 function transactionComplete(transaction: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
     transaction.addEventListener("complete", () => resolve(), { once: true });
-    transaction.addEventListener("abort", () => reject(transaction.error), { once: true });
-    transaction.addEventListener("error", () => reject(transaction.error), { once: true });
+    transaction.addEventListener("abort", () => reject(transaction.error), {
+      once: true,
+    });
+    transaction.addEventListener("error", () => reject(transaction.error), {
+      once: true,
+    });
   });
 }
 
@@ -251,7 +279,9 @@ function openSavedWalletDatabase(): Promise<IDBDatabase> {
       },
       { once: true },
     );
-    request.addEventListener("success", () => resolve(request.result), { once: true });
+    request.addEventListener("success", () => resolve(request.result), {
+      once: true,
+    });
     request.addEventListener(
       "error",
       () =>
@@ -305,6 +335,7 @@ export async function listSavedWallets(): Promise<SavedWalletRecord[]> {
 
 export async function saveSavedWallet(
   draftInput: SavedWalletDraft,
+  options: { replaceRole?: boolean } = {},
 ): Promise<{ record: SavedWalletRecord; created: boolean }> {
   const draft = validateSavedWalletDraft(draftInput);
   let database: IDBDatabase | null = null;
@@ -319,10 +350,22 @@ export async function saveSavedWallet(
     );
     const existing = existingRaw ? validateSavedWalletRecord(existingRaw) : null;
     const now = new Date().toISOString();
+    const role =
+      existing && !options.replaceRole
+        ? mergeSavedWalletRoles(existing.role, draft.role)
+        : draft.role;
+    const destinationTag =
+      role === "payer"
+        ? null
+        : draft.role === "payer" && existing
+          ? existing.destinationTag
+          : draft.destinationTag;
     const record: SavedWalletRecord = existing
       ? {
           ...existing,
           ...draft,
+          role,
+          destinationTag,
           updatedAt: now,
         }
       : {
@@ -402,14 +445,17 @@ export async function importSavedWallets(
   let created = 0;
   let updated = 0;
   for (const record of validated.wallets) {
-    const result = await saveSavedWallet({
-      label: record.label,
-      classicAddress: record.classicAddress,
-      destinationTag: record.destinationTag,
-      role: record.role,
-      network: record.network,
-      favorite: record.favorite,
-    });
+    const result = await saveSavedWallet(
+      {
+        label: record.label,
+        classicAddress: record.classicAddress,
+        destinationTag: record.destinationTag,
+        role: record.role,
+        network: record.network,
+        favorite: record.favorite,
+      },
+      { replaceRole: true },
+    );
     if (result.created) created += 1;
     else updated += 1;
   }
