@@ -3,6 +3,7 @@
 import { CopyCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { ContextualHelp } from "@/components/help/contextual-help";
 import { publicEnv } from "@/config/public-env";
 import { useLocalization } from "@/features/localization/provider";
 
@@ -51,8 +52,11 @@ export function BillCopyNotice() {
     >
       <div className="flex items-start gap-3">
         <CopyCheck aria-hidden="true" className="mt-0.5 size-6 shrink-0 text-brand" />
-        <div>
-          <h2 className="font-heading text-xl font-semibold">{text.title}</h2>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-heading text-xl font-semibold">{text.title}</h2>
+            <ContextualHelp topic="copy-to-revise" variant="inline" />
+          </div>
           <p className="mt-2 max-w-3xl leading-7 text-muted">{text.body}</p>
         </div>
       </div>
