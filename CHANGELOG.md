@@ -29,6 +29,11 @@ Meaningful user-facing, security, compatibility, persistence, and operational ch
 - Added explicit X-address review, network checks, recipient Destination Tag extraction, and payer-tag rejection.
 - Added user-triggered clipboard paste assistance with direct-entry fallback.
 - Added English, Japanese, and Korean wallet-compatibility guidance for recipient, payer, exchange, and manual-transfer cases.
+- Added a versioned browser-local IndexedDB saved-wallet repository.
+- Added explicit per-field and post-Bill save actions for recipient and payer labels and addresses.
+- Added role- and network-aware saved-wallet selection with search, favorites, and recent use.
+- Added saved-wallet edit, delete, delete-all, JSON export, and schema-validated import controls.
+- Added English, Japanese, and Korean saved-wallet, local-storage, import, deletion, and shared-browser privacy guidance.
 
 ### Changed
 
@@ -45,6 +50,8 @@ Meaningful user-facing, security, compatibility, persistence, and operational ch
 - Public product copy and release status now match the merged and audited payment lifecycle.
 - Bill review now requires canonical Classic Addresses; an entered X-address must be reviewed and converted before the Bill can continue.
 - Recipient guidance now distinguishes account compatibility from Xaman payer-handoff support.
+- Selecting a saved wallet fills only the role-appropriate label, canonical address, and optional recipient Destination Tag, then reuses the normal validation, readiness, review, and freeze path.
+- Reusing the same network and address merges recipient and payer use into one local record unless an explicit edit replaces the role.
 
 ### Security
 
@@ -62,6 +69,10 @@ Meaningful user-facing, security, compatibility, persistence, and operational ch
 - Wrong-network X-addresses and conflicting recipient Destination Tags are blocked before Bill review.
 - Clipboard access is initiated only by the user and failure does not disable ordinary address entry.
 - Exchange withdrawals and ordinary manual transfers are not presented as supported PaymentSlot settlement paths.
+- Saved-wallet records stay in the current browser origin and are not sent to the API, D1, or analytics.
+- Saved-wallet schemas and exports exclude Bills, PaymentSlots, capabilities, InvoiceIDs, provider requests, transactions, receipts, proofs, balances, readiness results, and claimed identity.
+- IndexedDB, quota, import, or local-record failures do not block direct address entry or alter an already created Bill.
+- Mainnet and Testnet saved wallets remain separately filtered and recipient Destination Tags never populate payer fields.
 
 ### Release audit
 
@@ -73,7 +84,7 @@ Meaningful user-facing, security, compatibility, persistence, and operational ch
 - Verified semantic status, keyboard, responsive, visual, D1, Testnet, Mainnet-safe, Next.js, Storybook, Worker, browser, and production UI gates.
 - Recorded no unresolved high-severity safety, privacy, verification, accessibility, localization, visual, or Mainnet finding.
 
-Runtime availability includes the merged and audited payment lifecycle described in `README.md` and `ROADMAP.md`. The bounded PR #150–#152 wallet-input phase precedes Source Tag metrics, video, deck, submission assembly, and evidence links.
+Runtime availability includes the merged and audited payment lifecycle and PR #150 wallet-input safety described in `README.md` and `ROADMAP.md`. PR #151 adds browser-local saved wallets; PR #152 remains the final pre-submission audit before Source Tag metrics, video, deck, submission assembly, and evidence links.
 
 ## [0.1.0] — 2026-06-24
 
