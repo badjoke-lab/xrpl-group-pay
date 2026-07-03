@@ -19,6 +19,9 @@ Meaningful user-facing, security, compatibility, persistence, and operational ch
 - Added saved-wallet edit, delete, delete-all, JSON export, and schema-validated import.
 - Added English, Japanese, and Korean saved-wallet and local-storage guidance.
 - Added the machine-readable wallet-input release audit and CI, build, and Mainnet-deploy enforcement.
+- Added an in-application wallet help and troubleshooting page in English, Japanese, and Korean.
+- Added direct troubleshooting links from the Guide, Changelog, and recipient and payer address fields.
+- Added symptom-based recovery guidance for invalid addresses, X-address network and tag errors, clipboard permissions, missing local records, storage limits, invalid imports, Xaman account mismatches, exchange or manual transfers, and RLUSD readiness.
 
 ### Changed
 
@@ -26,6 +29,7 @@ Meaningful user-facing, security, compatibility, persistence, and operational ch
 - Compatible recipients do not need Xaman merely to receive, while payer Payment and TrustSet handoff remains Xaman-only for this release.
 - Selecting a saved wallet fills only role-appropriate fields and reuses the normal validation, readiness, review, freeze, wallet-handoff, and verification path.
 - Reusing the same network and address can combine recipient and payer use in one local record.
+- The public in-application Changelog now records the PR #150–#152 wallet-input release, saved-wallet recovery behavior, and the new troubleshooting surface.
 - Wallet-input feature work is frozen for the Make Waves submission after the integrated PR #152 audit.
 
 ### Security
@@ -38,6 +42,7 @@ Meaningful user-facing, security, compatibility, persistence, and operational ch
 - Saved-wallet schemas and exports exclude Bills, PaymentSlots, capabilities, InvoiceIDs, provider requests, transactions, receipts, proofs, balances, readiness results, and claimed identity.
 - IndexedDB, quota, import, or local-record failures do not block direct address entry or alter an already created Bill.
 - Mainnet and Testnet saved wallets remain separately filtered and recipient Destination Tags never populate payer fields.
+- Troubleshooting URLs contain no Bill, PaymentSlot, address, capability, InvoiceID, provider, transaction, receipt, proof, or draft data.
 - Existing Mainnet, D1, Payment Intent, Xaman, validated-ledger, duplicate, replay, receipt, proof, capability, and frozen-fact controls remain unchanged.
 
 ### Release audit

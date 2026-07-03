@@ -31,6 +31,9 @@ export default async function Home() {
     network === "testnet" ||
     (["limited", "public"].includes(releaseMode) && operations.creationEnabled);
   const networkLabel = network === "mainnet" ? "Mainnet" : "Testnet";
+  const guideLabel = locale === "ja" ? "使い方" : locale === "ko" ? "사용 방법" : "Guide";
+  const helpLabel =
+    locale === "ja" ? "トラブル対処" : locale === "ko" ? "문제 해결" : "Troubleshooting";
   const principles = [
     {
       icon: WalletCards,
@@ -65,6 +68,15 @@ export default async function Home() {
         </div>
         <div className="flex flex-wrap items-center justify-end gap-4">
           <nav className="hidden items-center gap-4 text-sm font-semibold md:flex">
+            <Link href="/guide" className="text-muted hover:text-foreground">
+              {guideLabel}
+            </Link>
+            <Link
+              href="/troubleshooting"
+              className="text-muted hover:text-foreground"
+            >
+              {helpLabel}
+            </Link>
             <Link href="/roadmap" className="text-muted hover:text-foreground">
               {t("nav.roadmap")}
             </Link>
@@ -104,15 +116,15 @@ export default async function Home() {
                 : t("home.cta.status")}
               <ArrowRight aria-hidden="true" className="size-4" />
             </Link>
-            <a
-              href="https://github.com/badjoke-lab/xrpl-group-pay/tree/main/docs"
+            <Link
+              href="/guide"
               className={buttonStyles({
                 variant: "secondary",
                 className: "min-h-13",
               })}
             >
-              {t("home.cta.docs")}
-            </a>
+              {guideLabel}
+            </Link>
           </div>
 
           <div className="mt-10 grid gap-5 sm:grid-cols-3">
@@ -163,7 +175,13 @@ export default async function Home() {
       <footer className="border-t border-border bg-background">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-5 py-8 text-sm text-muted sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10">
           <p>{t("home.footer")}</p>
-          <div className="flex gap-5 font-semibold">
+          <div className="flex flex-wrap gap-5 font-semibold">
+            <Link href="/guide" className="hover:text-foreground">
+              {guideLabel}
+            </Link>
+            <Link href="/troubleshooting" className="hover:text-foreground">
+              {helpLabel}
+            </Link>
             <Link href="/roadmap" className="hover:text-foreground">
               {t("nav.roadmap")}
             </Link>
