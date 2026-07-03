@@ -13,7 +13,7 @@ import { getRequestLocale } from "@/features/localization/server";
 export const metadata = {
   title: "Guide",
   description:
-    "How XRPL Group Pay coordinates direct XRP and official RLUSD settlement, wallet address entry, verification, progress, and safe recovery.",
+    "How XRPL Group Pay coordinates direct XRP and official RLUSD settlement, wallet address entry, saved wallets, verification, progress, and safe recovery.",
 };
 
 const walletInputCopy = {
@@ -27,6 +27,8 @@ const walletInputCopy = {
       "A manual transfer from another wallet may move funds without settling the intended PaymentSlot.",
       "Classic Addresses are checksum-validated. X-addresses are decoded and reviewed before the canonical address and optional recipient Destination Tag are applied.",
       "Clipboard assistance is optional. Direct typing and normal paste remain available.",
+      "Saved wallets are optional input shortcuts stored only in this browser profile. They are not uploaded, synchronized, treated as identity proof, or allowed to bypass validation and readiness.",
+      "Saved-wallet exports contain only the approved local address-book fields and exclude Bills, capabilities, amounts, provider requests, transactions, receipts, and proofs.",
     ],
   },
   ja: {
@@ -39,6 +41,8 @@ const walletInputCopy = {
       "別ウォレットからの通常の手動送金は、資金が移動しても対象PaymentSlotを精算できない場合があります。",
       "Classic Addressはチェックサムを検証します。X-addressはネットワークとタグを確認し、Classic Addressと任意の受取先Destination Tagへ明示的に変換します。",
       "貼り付け補助は任意です。直接入力と通常の貼り付けは常に利用できます。",
+      "保存済みウォレットは、このブラウザプロファイル内だけに置く任意の入力補助です。サーバー送信、端末間同期、本人確認、検証やreadinessの省略には使用しません。",
+      "住所録の書き出しには許可されたローカル項目だけを含め、請求、Capability、金額、プロバイダー要求、取引、Receipt、Proofは含めません。",
     ],
   },
   ko: {
@@ -51,6 +55,8 @@ const walletInputCopy = {
       "다른 지갑의 일반 수동 전송은 자금이 이동해도 의도한 PaymentSlot을 정산하지 못할 수 있습니다.",
       "Classic Address는 체크섬을 검증합니다. X-address는 네트워크와 태그를 검토한 뒤 Classic Address와 선택적 수취인 Destination Tag로 명시적으로 변환합니다.",
       "클립보드 보조는 선택 사항입니다. 직접 입력과 일반 붙여넣기는 항상 사용할 수 있습니다.",
+      "저장된 지갑은 이 브라우저 프로필에만 보관되는 선택적 입력 보조입니다. 서버 업로드, 기기 간 동기화, 신원 증명 또는 검증과 readiness 우회에 사용되지 않습니다.",
+      "주소록 내보내기에는 승인된 로컬 필드만 포함되며 청구, Capability, 금액, 공급자 요청, 거래, Receipt 및 Proof는 포함되지 않습니다.",
     ],
   },
 } as const;
