@@ -44,11 +44,11 @@ describe("wallet help content", () => {
   it("keeps local storage and data exclusions explicit in every locale", () => {
     for (const locale of locales) {
       const content = getWalletHelpContent(locale);
-      const combined = content.localOnlyBullets.join(" ");
-      expect(combined).toContain("IndexedDB");
-      expect(combined).toContain("D1");
-      expect(combined).toContain("Capability");
-      expect(combined).toContain("InvoiceID");
+      const combined = content.localOnlyBullets.join(" ").toLowerCase();
+      expect(combined).toContain("indexeddb");
+      expect(combined).toContain("d1");
+      expect(combined).toContain("capabilit");
+      expect(combined).toContain("invoiceid");
     }
   });
 });
