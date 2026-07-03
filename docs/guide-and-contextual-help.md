@@ -1,7 +1,7 @@
 # XRPL Group Pay — Guide and Contextual Help
 
 **Status:** Active  
-**Scope:** Current implementation for PR #148  
+**Scope:** Current implementation through PR #150  
 **Last reviewed:** 2026-07-03  
 **Document class:** Public
 
@@ -9,7 +9,7 @@
 
 This contract defines the public, searchable, multilingual explanation of the current XRPL Group Pay product and the contextual-help links embedded in critical flows.
 
-The Guide describes only behavior implemented by the merged payment-lifecycle revision. Future product directions remain in the Roadmap and are not presented as currently available Guide functionality.
+The Guide describes only behavior implemented by the merged payment-lifecycle revision and the current wallet-input safety phase. Future product directions remain in the Roadmap and are not presented as currently available Guide functionality.
 
 ## 2. Supported languages
 
@@ -58,6 +58,13 @@ The Guide explains:
 - Bill operator, recipient, and payer roles;
 - representative and direct-recipient payment modes;
 - creation, allocation, review, freeze, sharing, signing, verification, and progress;
+- recipient versus expected-payer address semantics;
+- that an XRPL account address is not specific to Xaman;
+- that recipients may use another compatible XRPL wallet while the current payer handoff is Xaman-only;
+- why exchange withdrawals and ordinary manual transfers are not supported PaymentSlot settlement paths;
+- Classic Address checksum validation and X-address review;
+- X-address network and Destination Tag handling;
+- clipboard assistance and direct-entry fallback;
 - XRP and official network-specific RLUSD identity;
 - TrustSet, trust lines, issued balance, XRP fee, and reserve behavior;
 - management, read-only progress, payer, setup, and proof capability scopes;
@@ -69,7 +76,20 @@ The Guide explains:
 - copy-to-revise and new-identity generation;
 - privacy boundaries, security checks, product limitations, and FAQ.
 
-## 5. Search and navigation
+## 5. Address-input guidance
+
+The Guide and contextual help must communicate these distinctions consistently:
+
+- **Recipient address:** the frozen destination account. Receiving does not require Xaman when the account and selected Asset are compatible.
+- **Expected payer address:** the exact sender account that must match the validated transaction. The payer must select the same account in Xaman.
+- **Exchange withdrawal:** may originate from a shared hot wallet and may not preserve required tags, InvoiceID, Source Tag, Asset, or exact amount.
+- **Manual transfer:** may move funds without settling the intended PaymentSlot and must not be suggested as a retry path.
+- **X-address:** is decoded and reviewed before the canonical Classic Address and optional recipient Destination Tag are used.
+- **Payer X-address with tag:** is rejected because Destination Tag semantics apply to the recipient, not the sender.
+- **Wrong-network X-address:** is blocked.
+- **Clipboard failure:** does not block direct typing or ordinary paste.
+
+## 6. Search and navigation
 
 Guide search matches localized section titles, paragraphs, and bullet guidance.
 
@@ -83,7 +103,7 @@ The search experience:
 - keeps all displayed result links keyboard reachable;
 - works in the mobile single-column and desktop sticky-navigation layouts.
 
-## 6. Contextual-help topics
+## 7. Contextual-help topics
 
 The typed help registry covers:
 
@@ -99,9 +119,11 @@ The typed help registry covers:
 - copy-to-revise;
 - security limitations.
 
-Each topic contains localized short guidance, localized detailed guidance, and one stable Guide target.
+Recipient and payer address fields may also provide localized inline guidance when the complete explanation does not justify a new stable help-topic identifier.
 
-## 7. Private-flow safety
+Each typed topic contains localized short guidance, localized detailed guidance, and one stable Guide target.
+
+## 8. Private-flow safety
 
 Opening contextual help:
 
@@ -113,9 +135,16 @@ Opening contextual help:
 - does not replace the active private page;
 - restores focus to the trigger when closed.
 
+Using address paste or X-address review:
+
+- does not submit or freeze a Bill;
+- does not create a wallet handoff;
+- does not read the clipboard before explicit user interaction;
+- does not store the address in a future saved-wallet list automatically.
+
 The help panel supports close-button, backdrop, and `Escape` dismissal and traps keyboard focus while open.
 
-## 8. URL and capability privacy
+## 9. URL and capability privacy
 
 Guide and help URLs consist only of the public `/guide` path and an approved stable anchor.
 
@@ -129,20 +158,23 @@ They must not include:
 
 Full Guide links open in a protected new tab with `noopener`, `noreferrer`, and no referrer policy so the active private flow remains intact.
 
-## 9. Accessibility and responsive behavior
+## 10. Accessibility and responsive behavior
 
-The Guide and contextual help require:
+The Guide, contextual help, and address-input assistance require:
 
 - visible keyboard focus;
 - semantic headings and navigation labels;
 - accessible search and clear controls;
 - a modal dialog name and description;
 - focus restoration after close;
+- live status for clipboard success or failure;
+- an explicit action before applying decoded X-address values;
 - readable long Japanese and Korean text;
 - mobile bottom-sheet and desktop side-panel help layouts;
-- no reliance on color alone.
+- no reliance on color alone;
+- no horizontal overflow for addresses and decoded details.
 
-## 10. Validation
+## 11. Validation
 
 Automated coverage verifies:
 
@@ -152,4 +184,6 @@ Automated coverage verifies:
 - Guide and help links contain no query or capability fragment;
 - search filtering, no-results recovery, slash focus, and Escape behavior;
 - help open, close, protected-tab, and focus-restoration behavior;
-- critical payer states resolve to the correct help family.
+- critical payer states resolve to the correct help family;
+- address-format, X-address, network, tag, and clipboard guidance is key-equivalent in English, Japanese, and Korean;
+- address assistance does not submit, freeze, create a handoff, or expose capability data.
