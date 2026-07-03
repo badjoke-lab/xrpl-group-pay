@@ -60,6 +60,8 @@ const copy = {
     deleteConfirm: "Delete this saved wallet from this browser?",
     deleteAll: "Delete all",
     deleteAllConfirm: "Delete every saved wallet from this browser profile?",
+    duplicateConfirm: (label: string) =>
+      `A saved wallet already exists for this network and address (${label}). Update or combine that record?`,
     export: "Export JSON",
     import: "Import JSON",
     importConfirm: (count: number) =>
@@ -108,6 +110,8 @@ const copy = {
     deleteConfirm: "この保存済みウォレットをブラウザから削除しますか？",
     deleteAll: "すべて削除",
     deleteAllConfirm: "このブラウザプロファイルの保存済みウォレットをすべて削除しますか？",
+    duplicateConfirm: (label: string) =>
+      `同じネットワークとアドレスの保存済みウォレット（${label}）があります。この記録を更新または統合しますか？`,
     export: "JSONを書き出す",
     import: "JSONを読み込む",
     importConfirm: (count: number) =>
@@ -156,6 +160,8 @@ const copy = {
     deleteConfirm: "이 저장된 지갑을 브라우저에서 삭제하시겠습니까?",
     deleteAll: "모두 삭제",
     deleteAllConfirm: "이 브라우저 프로필의 모든 저장된 지갑을 삭제하시겠습니까?",
+    duplicateConfirm: (label: string) =>
+      `같은 네트워크와 주소의 저장된 지갑(${label})이 있습니다. 해당 기록을 업데이트하거나 통합하시겠습니까?`,
     export: "JSON 내보내기",
     import: "JSON 가져오기",
     importConfirm: (count: number) =>
@@ -189,13 +195,9 @@ const copy = {
 } as const;
 
 type FieldRole = "recipient" | "payer";
-
 type EditorState = SavedWalletDraft & { existingId?: string };
 
-function storageMessage(
-  error: unknown,
-  text: (typeof copy)["en"],
-): string {
+function storageMessage(error: unknown, text: (typeof copy)["en"]): string {
   const code = (error as SavedWalletStorageError | undefined)?.code;
   if (code === "quota") return text.storageQuota;
   if (code === "invalid_record") return text.invalid;
@@ -231,8 +233,7 @@ function initialEditor({
   return {
     label,
     classicAddress: address.trim(),
-    destinationTag:
-      role === "recipient" ? destinationTag?.trim() || null : null,
+    destinationTag: role === "recipient" ? destinationTag?.trim() || null : null,
     role,
     network,
     favorite: false,
@@ -291,6 +292,7 @@ export function SavedWalletPicker({
     setMessage(null);
     setError(null);
     setOpen(true);
+    void refresh();
   }
 
   function openSaveCurrent() {
@@ -306,11 +308,11 @@ export function SavedWalletPicker({
     setMessage(null);
     setError(null);
     setOpen(true);
+    void refresh();
   }
 
   useEffect(() => {
     if (!open) return;
-    void refresh();
     const previousOverflow = document.body.style.overflow;
     const trigger = triggerRef.current;
     document.body.style.overflow = "hidden";
@@ -344,8 +346,6 @@ export function SavedWalletPicker({
       document.removeEventListener("keydown", onKeyDown);
       trigger?.focus();
     };
-    // `text` is locale-bound for the lifetime of one open panel.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const visibleRecords = useMemo(() => {
@@ -364,15 +364,26 @@ export function SavedWalletPicker({
 
   async function submitEditor() {
     if (!editor) return;
+    const duplicate = records.find(
+      (record) =>
+        record.id !== editor.existingId &&
+        record.network === editor.network &&
+        record.classicAddress === editor.classicAddress,
+    );
+    if (duplicate && !window.confirm(text.duplicateConfirm(duplicate.label))) return;
+
     setBusy(true);
     setError(null);
     setMessage(null);
     try {
-      await saveSavedWallet({
-        ...editor,
-        destinationTag:
-          editor.role === "payer" ? null : editor.destinationTag?.trim() || null,
-      });
+      await saveSavedWallet(
+        {
+          ...editor,
+          destinationTag:
+            editor.role === "payer" ? null : editor.destinationTag?.trim() || null,
+        },
+        { replaceRole: Boolean(editor.existingId) },
+      );
       setEditor(null);
       setMessage(text.saved);
       await refresh();
@@ -402,14 +413,17 @@ export function SavedWalletPicker({
     setBusy(true);
     setError(null);
     try {
-      await saveSavedWallet({
-        label: record.label,
-        classicAddress: record.classicAddress,
-        destinationTag: record.destinationTag,
-        role: record.role,
-        network: record.network,
-        favorite: !record.favorite,
-      });
+      await saveSavedWallet(
+        {
+          label: record.label,
+          classicAddress: record.classicAddress,
+          destinationTag: record.destinationTag,
+          role: record.role,
+          network: record.network,
+          favorite: !record.favorite,
+        },
+        { replaceRole: true },
+      );
       await refresh();
     } catch (nextError) {
       setError(storageMessage(nextError, text));
@@ -508,23 +522,11 @@ export function SavedWalletPicker({
   return (
     <>
       <div className="flex flex-wrap gap-2">
-        <Button
-          ref={triggerRef}
-          type="button"
-          variant="secondary"
-          onClick={openPicker}
-          className="min-h-9 px-3 py-1.5 text-sm"
-        >
+        <Button ref={triggerRef} type="button" variant="secondary" onClick={openPicker} className="min-h-9 px-3 py-1.5 text-sm">
           <FolderHeart aria-hidden="true" className="size-4" />
           {text.choose}
         </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={openSaveCurrent}
-          disabled={!canSaveCurrent}
-          className="min-h-9 px-3 py-1.5 text-sm"
-        >
+        <Button type="button" variant="ghost" onClick={openSaveCurrent} disabled={!canSaveCurrent} className="min-h-9 px-3 py-1.5 text-sm">
           <UserRoundPlus aria-hidden="true" className="size-4" />
           {text.saveCurrent}
         </Button>
@@ -532,218 +534,50 @@ export function SavedWalletPicker({
 
       {canUsePortal && open
         ? createPortal(
-            <div
-              className="fixed inset-0 z-50 flex items-end bg-foreground/35 md:items-stretch md:justify-end"
-              onMouseDown={(event) => {
-                if (event.target === event.currentTarget) setOpen(false);
-              }}
-            >
-              <div
-                ref={panelRef}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby={titleId}
-                aria-describedby={descriptionId}
-                className="max-h-[92dvh] w-full overflow-y-auto rounded-t-xl border border-border bg-surface p-5 shadow-md md:h-full md:max-h-none md:max-w-2xl md:rounded-none md:rounded-l-xl md:p-7"
-              >
+            <div className="fixed inset-0 z-50 flex items-end bg-foreground/35 md:items-stretch md:justify-end" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
+              <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} className="max-h-[92dvh] w-full overflow-y-auto rounded-t-xl border border-border bg-surface p-5 shadow-md md:h-full md:max-h-none md:max-w-2xl md:rounded-none md:rounded-l-xl md:p-7">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand">
-                      {text.localOnly}
-                    </p>
-                    <h2 id={titleId} className="mt-2 font-heading text-2xl font-semibold">
-                      {text.title}
-                    </h2>
-                    <p id={descriptionId} className="mt-2 max-w-xl text-sm leading-6 text-muted">
-                      {text.description}
-                    </p>
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand">{text.localOnly}</p>
+                    <h2 id={titleId} className="mt-2 font-heading text-2xl font-semibold">{text.title}</h2>
+                    <p id={descriptionId} className="mt-2 max-w-xl text-sm leading-6 text-muted">{text.description}</p>
                   </div>
-                  <button
-                    ref={closeRef}
-                    type="button"
-                    onClick={() => setOpen(false)}
-                    className="inline-flex size-11 shrink-0 items-center justify-center rounded-md border border-border bg-background outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-focus"
-                  >
+                  <button ref={closeRef} type="button" onClick={() => setOpen(false)} className="inline-flex size-11 shrink-0 items-center justify-center rounded-md border border-border bg-background outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-focus">
                     <X aria-hidden="true" className="size-5" />
                     <span className="sr-only">{text.close}</span>
                   </button>
                 </div>
 
-                {message && (
-                  <p role="status" className="mt-4 rounded-lg border border-success/25 bg-success-subtle p-3 text-sm font-semibold text-success">
-                    {message}
-                  </p>
-                )}
-                {error && (
-                  <p role="alert" className="mt-4 rounded-lg border border-danger/25 bg-danger-subtle p-3 text-sm font-semibold text-danger">
-                    {error}
-                  </p>
-                )}
+                {message && <p role="status" className="mt-4 rounded-lg border border-success/25 bg-success-subtle p-3 text-sm font-semibold text-success">{message}</p>}
+                {error && <p role="alert" className="mt-4 rounded-lg border border-danger/25 bg-danger-subtle p-3 text-sm font-semibold text-danger">{error}</p>}
 
                 {editor ? (
                   <section className="mt-6 rounded-xl border border-border bg-background p-4 sm:p-5">
-                    <h3 className="font-heading text-xl font-semibold">
-                      {editor.existingId ? text.formTitleEdit : text.formTitleNew}
-                    </h3>
+                    <h3 className="font-heading text-xl font-semibold">{editor.existingId ? text.formTitleEdit : text.formTitleNew}</h3>
                     <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <label className="text-sm font-semibold">
-                        {text.label}
-                        <input
-                          value={editor.label}
-                          onChange={(event) =>
-                            setEditor({ ...editor, label: event.target.value })
-                          }
-                          maxLength={120}
-                          className="mt-2 min-h-12 w-full rounded-md border border-border bg-surface px-3 py-2 font-normal outline-none focus-visible:ring-2 focus-visible:ring-focus"
-                        />
-                      </label>
-                      <label className="text-sm font-semibold">
-                        {text.role}
-                        <select
-                          value={editor.role}
-                          onChange={(event) => {
-                            const nextRole = event.target.value as SavedWalletRole;
-                            setEditor({
-                              ...editor,
-                              role: nextRole,
-                              destinationTag:
-                                nextRole === "payer" ? null : editor.destinationTag,
-                            });
-                          }}
-                          className="mt-2 min-h-12 w-full rounded-md border border-border bg-surface px-3 py-2 font-normal outline-none focus-visible:ring-2 focus-visible:ring-focus"
-                        >
-                          <option value="recipient">{text.recipient}</option>
-                          <option value="payer">{text.payer}</option>
-                          <option value="both">{text.both}</option>
-                        </select>
-                      </label>
-                      <label className="text-sm font-semibold sm:col-span-2">
-                        {text.address}
-                        <input
-                          value={editor.classicAddress}
-                          readOnly
-                          className="mt-2 min-h-12 w-full rounded-md border border-border bg-surface-subtle px-3 py-2 font-mono text-sm"
-                        />
-                      </label>
-                      {editor.role !== "payer" && (
-                        <label className="text-sm font-semibold">
-                          {text.destinationTag}
-                          <input
-                            value={editor.destinationTag ?? ""}
-                            onChange={(event) =>
-                              setEditor({
-                                ...editor,
-                                destinationTag: event.target.value,
-                              })
-                            }
-                            inputMode="numeric"
-                            className="mt-2 min-h-12 w-full rounded-md border border-border bg-surface px-3 py-2 font-mono font-normal outline-none focus-visible:ring-2 focus-visible:ring-focus"
-                          />
-                          <span className="mt-1 block text-xs font-normal leading-5 text-muted">
-                            {text.destinationTagHint}
-                          </span>
-                        </label>
-                      )}
+                      <label className="text-sm font-semibold">{text.label}<input value={editor.label} onChange={(event) => setEditor({ ...editor, label: event.target.value })} maxLength={120} className="mt-2 min-h-12 w-full rounded-md border border-border bg-surface px-3 py-2 font-normal outline-none focus-visible:ring-2 focus-visible:ring-focus" /></label>
+                      <label className="text-sm font-semibold">{text.role}<select value={editor.role} onChange={(event) => { const nextRole = event.target.value as SavedWalletRole; setEditor({ ...editor, role: nextRole, destinationTag: nextRole === "payer" ? null : editor.destinationTag }); }} className="mt-2 min-h-12 w-full rounded-md border border-border bg-surface px-3 py-2 font-normal outline-none focus-visible:ring-2 focus-visible:ring-focus"><option value="recipient">{text.recipient}</option><option value="payer">{text.payer}</option><option value="both">{text.both}</option></select></label>
+                      <label className="text-sm font-semibold sm:col-span-2">{text.address}<input value={editor.classicAddress} readOnly className="mt-2 min-h-12 w-full rounded-md border border-border bg-surface-subtle px-3 py-2 font-mono text-sm" /></label>
+                      {editor.role !== "payer" && <label className="text-sm font-semibold">{text.destinationTag}<input value={editor.destinationTag ?? ""} onChange={(event) => setEditor({ ...editor, destinationTag: event.target.value })} inputMode="numeric" className="mt-2 min-h-12 w-full rounded-md border border-border bg-surface px-3 py-2 font-mono font-normal outline-none focus-visible:ring-2 focus-visible:ring-focus" /><span className="mt-1 block text-xs font-normal leading-5 text-muted">{text.destinationTagHint}</span></label>}
                     </div>
-                    <div className="mt-5 flex flex-wrap gap-2">
-                      <Button type="button" onClick={() => void submitEditor()} disabled={busy}>
-                        {text.save}
-                      </Button>
-                      <Button type="button" variant="secondary" onClick={() => setEditor(null)} disabled={busy}>
-                        {text.cancel}
-                      </Button>
-                    </div>
+                    <div className="mt-5 flex flex-wrap gap-2"><Button type="button" onClick={() => void submitEditor()} disabled={busy}>{text.save}</Button><Button type="button" variant="secondary" onClick={() => setEditor(null)} disabled={busy}>{text.cancel}</Button></div>
                   </section>
                 ) : (
                   <>
                     <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <label className="relative min-w-0 flex-1">
-                        <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3.5 size-5 text-muted" />
-                        <span className="sr-only">{text.search}</span>
-                        <input
-                          value={query}
-                          onChange={(event) => setQuery(event.target.value)}
-                          placeholder={text.search}
-                          className="min-h-12 w-full rounded-md border border-border bg-background py-2 pl-11 pr-3 outline-none focus-visible:ring-2 focus-visible:ring-focus"
-                        />
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        <Button type="button" variant="secondary" onClick={() => void exportRecords()} disabled={busy || records.length === 0} className="min-h-10 px-3 py-2">
-                          <Download aria-hidden="true" className="size-4" />
-                          {text.export}
-                        </Button>
-                        <Button type="button" variant="secondary" onClick={() => importRef.current?.click()} disabled={busy} className="min-h-10 px-3 py-2">
-                          <Upload aria-hidden="true" className="size-4" />
-                          {text.import}
-                        </Button>
-                        <input
-                          ref={importRef}
-                          type="file"
-                          accept="application/json,.json"
-                          className="sr-only"
-                          onChange={(event) => void importFile(event)}
-                        />
-                      </div>
+                      <label className="relative min-w-0 flex-1"><Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3.5 size-5 text-muted" /><span className="sr-only">{text.search}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={text.search} className="min-h-12 w-full rounded-md border border-border bg-background py-2 pl-11 pr-3 outline-none focus-visible:ring-2 focus-visible:ring-focus" /></label>
+                      <div className="flex flex-wrap gap-2"><Button type="button" variant="secondary" onClick={() => void exportRecords()} disabled={busy || records.length === 0} className="min-h-10 px-3 py-2"><Download aria-hidden="true" className="size-4" />{text.export}</Button><Button type="button" variant="secondary" onClick={() => importRef.current?.click()} disabled={busy} className="min-h-10 px-3 py-2"><Upload aria-hidden="true" className="size-4" />{text.import}</Button><input ref={importRef} type="file" accept="application/json,.json" className="sr-only" onChange={(event) => void importFile(event)} /></div>
                     </div>
 
                     <div className="mt-5 space-y-3" aria-busy={loading || busy}>
-                      {loading ? (
-                        <p role="status" className="rounded-lg border border-border bg-background p-4 text-sm text-muted">
-                          {text.loading}
-                        </p>
-                      ) : visibleRecords.length === 0 ? (
-                        <p className="rounded-lg border border-dashed border-border bg-background p-5 text-sm text-muted">
-                          {text.empty}
-                        </p>
-                      ) : (
-                        visibleRecords.map((record) => (
-                          <article key={record.id} className="rounded-xl border border-border bg-background p-4">
-                            <div className="flex min-w-0 items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <h3 className="font-heading text-lg font-semibold">{record.label}</h3>
-                                  {record.favorite && <Star aria-label={text.favorite} className="size-4 fill-current text-warning" />}
-                                </div>
-                                <p className="mt-1 break-all font-mono text-xs text-muted">{record.classicAddress}</p>
-                                <p className="mt-2 text-xs text-muted">
-                                  {roleLabel(record.role, text)} · {record.network} · {text.recent}: {record.lastUsedAt ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(record.lastUsedAt)) : text.never}
-                                </p>
-                                {role === "recipient" && record.destinationTag && (
-                                  <p className="mt-1 text-xs font-semibold text-muted">
-                                    Destination Tag: <span className="font-mono">{record.destinationTag}</span>
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="mt-4 flex flex-wrap gap-2">
-                              <Button type="button" onClick={() => void selectRecord(record)} disabled={busy} className="min-h-10 px-3 py-2">
-                                {text.select}
-                              </Button>
-                              <Button type="button" variant="ghost" onClick={() => void toggleFavorite(record)} disabled={busy} className="min-h-10 px-3 py-2" aria-label={record.favorite ? text.unfavorite : text.favorite}>
-                                <Star aria-hidden="true" className={record.favorite ? "size-4 fill-current" : "size-4"} />
-                              </Button>
-                              <Button type="button" variant="secondary" onClick={() => beginEdit(record)} disabled={busy} className="min-h-10 px-3 py-2">
-                                <Edit3 aria-hidden="true" className="size-4" />
-                                {text.edit}
-                              </Button>
-                              <Button type="button" variant="ghost" onClick={() => void removeRecord(record)} disabled={busy} className="min-h-10 px-3 py-2 text-danger">
-                                <Trash2 aria-hidden="true" className="size-4" />
-                                {text.delete}
-                              </Button>
-                            </div>
-                          </article>
-                        ))
-                      )}
+                      {loading ? <p role="status" className="rounded-lg border border-border bg-background p-4 text-sm text-muted">{text.loading}</p> : visibleRecords.length === 0 ? <p className="rounded-lg border border-dashed border-border bg-background p-5 text-sm text-muted">{text.empty}</p> : visibleRecords.map((record) => (
+                        <article key={record.id} className="rounded-xl border border-border bg-background p-4">
+                          <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-heading text-lg font-semibold">{record.label}</h3>{record.favorite && <Star aria-label={text.favorite} className="size-4 fill-current text-warning" />}</div><p className="mt-1 break-all font-mono text-xs text-muted">{record.classicAddress}</p><p className="mt-2 text-xs text-muted">{roleLabel(record.role, text)} · {record.network} · {text.recent}: {record.lastUsedAt ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(record.lastUsedAt)) : text.never}</p>{role === "recipient" && record.destinationTag && <p className="mt-1 text-xs font-semibold text-muted">Destination Tag: <span className="font-mono">{record.destinationTag}</span></p>}</div>
+                          <div className="mt-4 flex flex-wrap gap-2"><Button type="button" onClick={() => void selectRecord(record)} disabled={busy} className="min-h-10 px-3 py-2">{text.select}</Button><Button type="button" variant="ghost" onClick={() => void toggleFavorite(record)} disabled={busy} className="min-h-10 px-3 py-2" aria-label={record.favorite ? text.unfavorite : text.favorite}><Star aria-hidden="true" className={record.favorite ? "size-4 fill-current" : "size-4"} /></Button><Button type="button" variant="secondary" onClick={() => beginEdit(record)} disabled={busy} className="min-h-10 px-3 py-2"><Edit3 aria-hidden="true" className="size-4" />{text.edit}</Button><Button type="button" variant="ghost" onClick={() => void removeRecord(record)} disabled={busy} className="min-h-10 px-3 py-2 text-danger"><Trash2 aria-hidden="true" className="size-4" />{text.delete}</Button></div>
+                        </article>
+                      ))}
                     </div>
-
-                    {records.length > 0 && (
-                      <div className="mt-6 border-t border-border pt-5">
-                        <Button type="button" variant="danger" onClick={() => void removeAll()} disabled={busy}>
-                          <Trash2 aria-hidden="true" className="size-4" />
-                          {text.deleteAll}
-                        </Button>
-                      </div>
-                    )}
+                    {records.length > 0 && <div className="mt-6 border-t border-border pt-5"><Button type="button" variant="danger" onClick={() => void removeAll()} disabled={busy}><Trash2 aria-hidden="true" className="size-4" />{text.deleteAll}</Button></div>}
                   </>
                 )}
               </div>
