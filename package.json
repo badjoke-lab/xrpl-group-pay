@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "pnpm check:env && pnpm check:production-target && pnpm check:mainnet-assets && pnpm check:mainnet-source-tag && pnpm check:mainnet-release-plan && pnpm check:mainnet-gate && pnpm check:mainnet-evidence && pnpm check:mainnet-acceptance && pnpm check:lifecycle-audit && pnpm check:mainnet-xrp-operator-boundary && pnpm check:mainnet-xrp-preparation && pnpm check:mainnet-rlusd-operator-boundary && pnpm check:mainnet-rlusd-preparation && next build",
+    "build": "pnpm check:env && pnpm check:production-target && pnpm check:mainnet-assets && pnpm check:mainnet-source-tag && pnpm check:mainnet-release-plan && pnpm check:mainnet-gate && pnpm check:mainnet-evidence && pnpm check:mainnet-acceptance && pnpm check:lifecycle-audit && pnpm check:wallet-input-audit && pnpm check:mainnet-xrp-operator-boundary && pnpm check:mainnet-xrp-preparation && pnpm check:mainnet-rlusd-operator-boundary && pnpm check:mainnet-rlusd-preparation && next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
@@ -23,6 +23,7 @@
     "check:mainnet-evidence": "node scripts/check-mainnet-release-evidence.mjs",
     "check:mainnet-acceptance": "node scripts/check-mainnet-acceptance.mjs",
     "check:lifecycle-audit": "node scripts/check-payment-lifecycle-release-audit.mjs",
+    "check:wallet-input-audit": "node scripts/check-wallet-input-release-audit.mjs",
     "check:mainnet-xrp-operator-boundary": "node scripts/check-mainnet-xrp-operator-boundary.mjs",
     "check:mainnet-xrp-preparation": "node scripts/prepare-mainnet-xrp-acceptance.mjs --check",
     "prepare:mainnet-xrp-acceptance": "node scripts/prepare-mainnet-xrp-acceptance.mjs",
@@ -41,10 +42,10 @@
     "build:worker": "opennextjs-cloudflare build",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "deploy:mainnet": "pnpm check:production-target && pnpm check:mainnet-assets && pnpm check:mainnet-source-tag && pnpm check:mainnet-release-plan && node scripts/check-mainnet-release-evidence.mjs --require-complete && node scripts/check-mainnet-acceptance.mjs --require-ready && node scripts/check-mainnet-gate.mjs --require-mainnet && pnpm check:lifecycle-audit && opennextjs-cloudflare build && opennextjs-cloudflare deploy --env mainnet",
+    "deploy:mainnet": "pnpm check:production-target && pnpm check:mainnet-assets && pnpm check:mainnet-source-tag && pnpm check:mainnet-release-plan && node scripts/check-mainnet-release-evidence.mjs --require-complete && node scripts/check-mainnet-acceptance.mjs --require-ready && node scripts/check-mainnet-gate.mjs --require-mainnet && pnpm check:lifecycle-audit && pnpm check:wallet-input-audit && opennextjs-cloudflare build && opennextjs-cloudflare deploy --env mainnet",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "validate": "pnpm db:migrate:local && pnpm db:check:local && pnpm check:production-target && pnpm check:mainnet-assets && pnpm check:mainnet-source-tag && pnpm check:mainnet-release-plan && pnpm check:mainnet-gate && pnpm check:mainnet-evidence && pnpm check:mainnet-acceptance && pnpm check:lifecycle-audit && pnpm check:mainnet-xrp-operator-boundary && pnpm check:mainnet-xrp-preparation && pnpm check:mainnet-rlusd-operator-boundary && pnpm check:mainnet-rlusd-preparation && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "validate": "pnpm db:migrate:local && pnpm db:check:local && pnpm check:production-target && pnpm check:mainnet-assets && pnpm check:mainnet-source-tag && pnpm check:mainnet-release-plan && pnpm check:mainnet-gate && pnpm check:mainnet-evidence && pnpm check:mainnet-acceptance && pnpm check:lifecycle-audit && pnpm check:wallet-input-audit && pnpm check:mainnet-xrp-operator-boundary && pnpm check:mainnet-xrp-preparation && pnpm check:mainnet-rlusd-operator-boundary && pnpm check:mainnet-rlusd-preparation && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "dependencies": {
     "clsx": "2.1.1",
