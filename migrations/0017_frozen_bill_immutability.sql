@@ -45,7 +45,17 @@ WHEN
   OR OLD.settlement_amount_scale IS NOT NEW.settlement_amount_scale
   OR OLD.total_amount_units IS NOT NEW.total_amount_units
   OR OLD.creator_share_amount_units IS NOT NEW.creator_share_amount_units
-  OR OLD.recipient_funded_amount_units IS NOT NEW.recipient_funded_amount_units
+  OR (
+    OLD.recipient_funded_amount_units IS NOT NEW.recipient_funded_amount_units
+    AND NOT (
+      OLD.recipient_funded_amount_units IS NULL
+      AND NEW.recipient_funded_amount_units = COALESCE(
+        OLD.creator_share_amount_units,
+        OLD.creator_share_drops,
+        '0'
+      )
+    )
+  )
   OR OLD.revision IS NOT NEW.revision
   OR OLD.frozen_at IS NOT NEW.frozen_at
   OR OLD.created_at IS NOT NEW.created_at
