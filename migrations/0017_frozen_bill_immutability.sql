@@ -37,14 +37,29 @@ WHEN
   OR OLD.destination_tag IS NOT NEW.destination_tag
   OR OLD.total_drops IS NOT NEW.total_drops
   OR OLD.creator_share_drops IS NOT NEW.creator_share_drops
-  OR OLD.settlement_contract_version IS NOT NEW.settlement_contract_version
-  OR OLD.settlement_asset_id IS NOT NEW.settlement_asset_id
-  OR OLD.settlement_asset_type IS NOT NEW.settlement_asset_type
-  OR OLD.settlement_currency IS NOT NEW.settlement_currency
-  OR OLD.settlement_issuer IS NOT NEW.settlement_issuer
-  OR OLD.settlement_amount_scale IS NOT NEW.settlement_amount_scale
-  OR OLD.total_amount_units IS NOT NEW.total_amount_units
-  OR OLD.creator_share_amount_units IS NOT NEW.creator_share_amount_units
+  OR (
+    (
+      OLD.settlement_contract_version IS NOT NEW.settlement_contract_version
+      OR OLD.settlement_asset_id IS NOT NEW.settlement_asset_id
+      OR OLD.settlement_asset_type IS NOT NEW.settlement_asset_type
+      OR OLD.settlement_currency IS NOT NEW.settlement_currency
+      OR OLD.settlement_issuer IS NOT NEW.settlement_issuer
+      OR OLD.settlement_amount_scale IS NOT NEW.settlement_amount_scale
+      OR OLD.total_amount_units IS NOT NEW.total_amount_units
+      OR OLD.creator_share_amount_units IS NOT NEW.creator_share_amount_units
+    )
+    AND NOT (
+      OLD.settlement_asset_id IS NULL
+      AND NEW.settlement_contract_version = 'xrpl-group-pay:bill-settlement:v1'
+      AND NEW.settlement_asset_id = 'xrpl:testnet:xrp'
+      AND NEW.settlement_asset_type = 'native'
+      AND NEW.settlement_currency = 'XRP'
+      AND NEW.settlement_issuer IS NULL
+      AND NEW.settlement_amount_scale = 6
+      AND NEW.total_amount_units = OLD.total_drops
+      AND NEW.creator_share_amount_units = OLD.creator_share_drops
+    )
+  )
   OR (
     OLD.recipient_funded_amount_units IS NOT NEW.recipient_funded_amount_units
     AND NOT (
@@ -90,13 +105,41 @@ WHEN
   OR OLD.expected_payer_address IS NOT NEW.expected_payer_address
   OR OLD.expected_amount_drops IS NOT NEW.expected_amount_drops
   OR OLD.invoice_id IS NOT NEW.invoice_id
-  OR OLD.payment_contract_version IS NOT NEW.payment_contract_version
-  OR OLD.asset_id IS NOT NEW.asset_id
-  OR OLD.asset_type IS NOT NEW.asset_type
-  OR OLD.currency_code IS NOT NEW.currency_code
-  OR OLD.issuer IS NOT NEW.issuer
-  OR OLD.amount_scale IS NOT NEW.amount_scale
-  OR OLD.expected_amount_units IS NOT NEW.expected_amount_units
+  OR (
+    (
+      OLD.payment_contract_version IS NOT NEW.payment_contract_version
+      OR OLD.asset_id IS NOT NEW.asset_id
+      OR OLD.asset_type IS NOT NEW.asset_type
+      OR OLD.currency_code IS NOT NEW.currency_code
+      OR OLD.issuer IS NOT NEW.issuer
+      OR OLD.amount_scale IS NOT NEW.amount_scale
+      OR OLD.expected_amount_units IS NOT NEW.expected_amount_units
+    )
+    AND NOT (
+      OLD.asset_id IS NULL
+      AND NEW.payment_contract_version = 'xrpl-group-pay:payment-slot:v1'
+      AND NEW.asset_id = COALESCE(
+        (SELECT settlement_asset_id FROM bills WHERE id = OLD.bill_id),
+        'xrpl:testnet:xrp'
+      )
+      AND NEW.asset_type = COALESCE(
+        (SELECT settlement_asset_type FROM bills WHERE id = OLD.bill_id),
+        'native'
+      )
+      AND NEW.currency_code = COALESCE(
+        (SELECT settlement_currency FROM bills WHERE id = OLD.bill_id),
+        'XRP'
+      )
+      AND NEW.issuer IS (
+        SELECT settlement_issuer FROM bills WHERE id = OLD.bill_id
+      )
+      AND NEW.amount_scale = COALESCE(
+        (SELECT settlement_amount_scale FROM bills WHERE id = OLD.bill_id),
+        6
+      )
+      AND NEW.expected_amount_units = OLD.expected_amount_drops
+    )
+  )
   OR OLD.created_at IS NOT NEW.created_at
 BEGIN
   SELECT RAISE(ABORT, 'frozen PaymentSlot content is immutable; create a new Bill');
