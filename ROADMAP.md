@@ -1,45 +1,50 @@
 # XRPL Group Pay Roadmap
 
 **Status:** Active  
-**Last reviewed:** 2026-07-01
+**Last reviewed:** 2026-07-03
 
 This roadmap shows product direction, not promised dates. A capability moves to **Available** only after it is merged, tested, and usable in the intended environment.
 
 ## Available
 
-- XRP and official RLUSD Bills with one frozen Settlement Asset.
+- Two explicit payment modes:
+  - participants pay a representative recipient;
+  - participants pay a store, organizer, or other external recipient directly.
+- Separate Bill-operator, recipient, and payer roles.
+- XRP and official network-specific RLUSD Bills with one frozen Settlement Asset.
 - Custom Amount, Equal, Percentage, and Shares allocation.
 - Explicit deterministic remainder assignment.
-- Immutable allocation records and participant PaymentSlots.
+- Optional recipient-funded accounting without a self-transfer in representative mode.
+- Immutable allocation records and independent participant PaymentSlots.
+- Capability-separated management, read-only progress, payer, RLUSD setup, and public-proof surfaces.
 - Xaman signing handoff for native XRP and issued RLUSD Payments.
-- Validated-ledger XRP and issued-asset verification.
-- Durable Asset-aware payment records and atomic Bill progress.
-- Public XRP transaction proof.
-- Direct payer-to-recipient settlement with capability separation.
-- Controlled Mainnet XRP and official RLUSD acceptance evidence.
+- Durable Xaman lifecycle, resume, and provider synchronization.
 - One-shot Xaman transaction binding to the expected payer, one XRPL Sequence, and a bounded ledger window.
+- Validated-ledger XRP and issued-asset verification.
 - Validated-ledger reconciliation before replacement Wallet Handoff creation.
+- Durable Asset-aware payment records and atomic Bill progress.
 - Duplicate settlement and cross-slot replay protection.
-- Deployment-aware Bill creation UI.
-- English, Japanese, and Korean critical creator and payer flows.
+- XRP and RLUSD payer and recipient readiness checks.
+- Official RLUSD TrustSet preparation assistance.
+- Safe retry, wait-and-recheck, setup-required, review-required, already-paid, and terminal recovery.
+- Mode-correct operator and read-only progress dashboards.
+- Expected-versus-observed review and explicit repeated-payment authorization.
+- Incomplete closure that preserves verified receipts and stops new unpaid handoffs.
+- Copy-to-revise with new Bill, PaymentSlot, capability, InvoiceID, and link identities.
+- D1 enforcement of frozen Bill and PaymentSlot facts.
+- Shared semantic statuses using text, icons, and restrained state color.
+- Searchable English, Japanese, and Korean Guide and contextual help.
+- Public XRP transaction proof.
+- Controlled Mainnet XRP and official RLUSD acceptance evidence.
+- Assigned Mainnet Source Tag, isolated Mainnet D1, operational kill switch, and approved release gate.
+- Deployment-aware public Mainnet Bill creation UI.
+- Automated 320px, 390px, and 1280px production UI audits.
 - Public Roadmap and Changelog pages in the application interface.
-- Approved Mainnet release gate and verified public operating deployment.
+- Completed PR #132–#149 integrated payment-lifecycle release audit.
 
 ## In Progress
 
-The approved payment-lifecycle revision is scheduled in [`docs/payment-lifecycle-revision-schedule.md`](docs/payment-lifecycle-revision-schedule.md). Planned work includes:
-
-- distinct Bill-operator, recipient, and payer roles;
-- representative-payment and direct-recipient Bill modes;
-- Mainnet-safe progress and durable Xaman lifecycle synchronization;
-- XRP and RLUSD recipient and payer readiness checks;
-- official RLUSD TrustSet preparation assistance;
-- failure classification, safe retry, review, incomplete closure, and copy-to-revise behavior;
-- semantic status badges and restrained state colors;
-- a complete English, Japanese, and Korean Guide with contextual in-flow help;
-- integrated lifecycle, accessibility, privacy, visual, Testnet, and Mainnet-safe audit.
-
-These capabilities remain planned until their individual PRs are merged, tested, and usable in the intended environment.
+No payment-lifecycle revision work remains in progress. The PR #132–#149 revision is merged, tested, audited, and recorded in [`docs/payment-lifecycle-release-audit.md`](docs/payment-lifecycle-release-audit.md).
 
 ## Release blockers
 

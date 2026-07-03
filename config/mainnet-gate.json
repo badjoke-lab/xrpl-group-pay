@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "state": "ready",
-  "updated_at": "2026-06-30",
+  "updated_at": "2026-07-03",
   "checks": [
     {
       "id": "network-config-isolation",
@@ -51,7 +51,7 @@
     {
       "id": "mainnet-acceptance-audit",
       "status": "passed",
-      "evidence": "All 14 Mainnet acceptance controls passed, all seven release evidence records are accepted, all blocking findings are resolved, and PR #117 CI run https://github.com/badjoke-lab/xrpl-group-pay/actions/runs/28450369791 passed. The committed and deployed production target remains internal and halted pending a separate public operating deployment."
+      "evidence": "All 14 Mainnet acceptance controls passed, all seven release evidence records are accepted, and all blocking findings are resolved. The public Mainnet Bill UI is audited at https://xgp.badjoke-lab.com, while the committed internal + halted target remains the reviewed fail-closed rollback baseline. The PR #132–#149 integrated lifecycle audit is enforced by config/payment-lifecycle-release-audit.json."
     }
   ]
 }
