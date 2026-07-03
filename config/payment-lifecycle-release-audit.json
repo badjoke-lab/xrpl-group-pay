@@ -1,0 +1,210 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "audited_at": "2026-07-03",
+  "revision_prs": [
+    { "number": 132, "status": "merged" },
+    { "number": 133, "status": "merged" },
+    { "number": 134, "status": "merged" },
+    { "number": 135, "status": "merged" },
+    { "number": 136, "status": "merged" },
+    { "number": 137, "status": "merged" },
+    { "number": 138, "status": "merged" },
+    { "number": 139, "status": "merged" },
+    { "number": 140, "status": "merged" },
+    { "number": 141, "status": "merged" },
+    { "number": 142, "status": "merged" },
+    { "number": 143, "status": "merged" },
+    { "number": 144, "status": "merged" },
+    { "number": 145, "status": "merged" },
+    { "number": 146, "status": "merged" },
+    { "number": 147, "status": "merged" },
+    { "number": 148, "status": "merged" }
+  ],
+  "dimensions": {
+    "payment_modes": ["representative", "direct"],
+    "settlement_assets": [
+      "xrpl:testnet:xrp",
+      "xrpl:testnet:rlusd",
+      "xrpl:mainnet:xrp",
+      "xrpl:mainnet:rlusd"
+    ],
+    "lifecycle_states": [
+      "unpaid",
+      "payload_created",
+      "awaiting_signature",
+      "rejected",
+      "expired",
+      "submitted",
+      "validating",
+      "paid",
+      "verification_failed",
+      "needs_review",
+      "closed_incomplete"
+    ],
+    "recovery_dispositions": [
+      "safe_retry",
+      "wait_recheck",
+      "setup_required",
+      "review_required",
+      "already_paid",
+      "terminal"
+    ],
+    "capability_surfaces": [
+      "management",
+      "read_only_progress",
+      "payer",
+      "rlusd_setup",
+      "public_proof",
+      "guide",
+      "contextual_help"
+    ],
+    "locales": ["en", "ja", "ko"],
+    "viewports": [320, 390, 1280]
+  },
+  "controls": [
+    {
+      "id": "domain-and-persistence",
+      "status": "passed",
+      "evidence": [
+        "docs/payment-lifecycle-contract.md",
+        "docs/payment-mode-persistence.md",
+        "migrations/0017_frozen_bill_immutability.sql",
+        "src/features/bills/frozen-immutability.test.ts"
+      ]
+    },
+    {
+      "id": "two-mode-creation-and-sharing",
+      "status": "passed",
+      "evidence": [
+        "src/components/bills/two-mode-bill-creation.test.ts",
+        "src/features/bills/sharing-instructions.test.ts",
+        "tests/e2e/foundation-and-bill.spec.ts"
+      ]
+    },
+    {
+      "id": "xrp-and-rlusd-readiness",
+      "status": "passed",
+      "evidence": [
+        "src/app/api/payments/readiness/route.test.ts",
+        "src/components/payment/payment-readiness-panel.test.tsx",
+        "src/components/payment/testnet-payment-rlusd-verification.test.tsx",
+        "tests/e2e/payment-confirmation.spec.ts"
+      ]
+    },
+    {
+      "id": "trustset-and-xaman-lifecycle",
+      "status": "passed",
+      "evidence": [
+        "docs/rlusd-trustset-preparation.md",
+        "docs/xaman-lifecycle-persistence.md",
+        "src/components/payment/testnet-payment-retry.test.tsx"
+      ]
+    },
+    {
+      "id": "verification-reconciliation-and-duplicates",
+      "status": "passed",
+      "evidence": [
+        "docs/payment-reconciliation.md",
+        "docs/transaction-proof.md",
+        "src/features/bills/verify-and-settle-review.test.ts",
+        "scripts/check-d1-receipt-schema.mjs"
+      ]
+    },
+    {
+      "id": "failure-retry-and-review",
+      "status": "passed",
+      "evidence": [
+        "docs/payment-failure-taxonomy.md",
+        "src/features/payment-recovery/payer-lifecycle.test.ts",
+        "src/components/payment/payer-lifecycle-panel.test.tsx",
+        "src/features/bills/bill-recovery-management.test.ts"
+      ]
+    },
+    {
+      "id": "progress-partial-completion-and-closure",
+      "status": "passed",
+      "evidence": [
+        "docs/operator-progress-dashboard.md",
+        "docs/review-retry-closure.md",
+        "src/features/bills/progress.test.ts",
+        "src/components/bills/bill-recovery-controls.test.tsx"
+      ]
+    },
+    {
+      "id": "copy-to-revise-and-immutability",
+      "status": "passed",
+      "evidence": [
+        "docs/copy-to-revise-and-frozen-immutability.md",
+        "src/components/bills/bill-copy-draft.test.ts",
+        "src/components/bills/bill-copy-session.test.tsx",
+        "src/features/bills/frozen-immutability.test.ts"
+      ]
+    },
+    {
+      "id": "multilingual-guide-help-and-accessibility",
+      "status": "passed",
+      "evidence": [
+        "docs/guide-and-contextual-help.md",
+        "src/features/guide/guide-content.test.ts",
+        "src/features/help/help-registry.test.ts",
+        "src/components/help/contextual-help.test.tsx",
+        "tests/e2e/guide.spec.ts"
+      ]
+    },
+    {
+      "id": "visual-and-responsive-production-ui",
+      "status": "passed",
+      "evidence": [
+        "scripts/capture-production-bill-ui.mjs",
+        ".github/workflows/ci.yml",
+        "docs/responsive-behavior.md",
+        "docs/accessibility-spec.md"
+      ]
+    },
+    {
+      "id": "testnet-lifecycle-evidence",
+      "status": "passed",
+      "evidence": [
+        "tests/e2e/foundation-and-bill.spec.ts",
+        "tests/e2e/payment-confirmation.spec.ts",
+        "src/components/payment/testnet-payment-retry.test.tsx",
+        "src/components/payment/testnet-payment-rlusd-verification.test.tsx"
+      ]
+    },
+    {
+      "id": "mainnet-safe-acceptance",
+      "status": "passed",
+      "evidence": [
+        "config/mainnet-gate.json",
+        "config/mainnet-acceptance.json",
+        "config/mainnet-release-evidence.json",
+        "docs/mainnet-operational-controls.md"
+      ]
+    },
+    {
+      "id": "privacy-and-public-surface",
+      "status": "passed",
+      "evidence": [
+        "docs/privacy-data-map.md",
+        "docs/non-custodial-boundary.md",
+        "docs/threat-model.md",
+        ".github/pull_request_template.md"
+      ]
+    },
+    {
+      "id": "build-and-runtime-suite",
+      "status": "passed",
+      "evidence": [
+        ".github/workflows/ci.yml",
+        "package.json"
+      ]
+    }
+  ],
+  "findings": [],
+  "public_availability": {
+    "readme": "aligned",
+    "roadmap": "aligned",
+    "changelog": "aligned"
+  }
+}
