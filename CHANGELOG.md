@@ -6,35 +6,65 @@ Meaningful user-facing, security, compatibility, persistence, and operational ch
 
 ### Added
 
+- Added two explicit Bill modes: participants pay a representative recipient, or participants pay an external store or organizer directly.
+- Added separate Bill-operator, recipient, and payer role language and persistence.
 - Added official network-specific RLUSD Asset descriptors and issued-Payment construction.
 - Added wallet-neutral Payment Intent contracts and a Xaman adapter for native XRP and official RLUSD.
-- Added strict validated-ledger verification for XRP and issued RLUSD Payments.
-- Added generic Asset-aware verified-payment records and issued-asset PaymentSlot settlement.
-- Added XRP or official RLUSD selection with one frozen Settlement Asset across every participant slot.
-- Added fixed-precision Custom Amount, Equal, Percentage, and Shares allocation.
-- Added explicit deterministic remainder assignment and immutable allocation records.
-- Added durable provider-request lifecycle records with one active request allowed per PaymentSlot.
-- Added controlled Mainnet XRP acceptance evidence.
+- Added XRP and official RLUSD recipient and payer readiness checks covering account existence, reserve, fee, spendable XRP, trust line, authorization, freeze state, balance, and recipient capacity.
+- Added capability-bound official RLUSD TrustSet preparation and validated-ledger confirmation.
+- Added durable Xaman request lifecycle, resume, callback, polling, and provider-synchronization records.
+- Added safe retry, wait-and-recheck, setup-required, review-required, already-paid, and terminal recovery classifications.
+- Added shared semantic status badges and card accents using text, icons, and restrained state color.
+- Added mode-aware Bill creation, review, participant instructions, and sharing.
+- Added mode-correct management and read-only progress dashboards.
+- Added expected-versus-observed review details and explicit repeated-payment authorization.
+- Added incomplete Bill closure that preserves verified receipts and stops new unpaid handoffs.
+- Added copy-to-revise using a separate browser-local draft and regenerated Bill, PaymentSlot, capability, InvoiceID, and link identities.
+- Added D1 triggers that reject in-place changes to frozen Bill and PaymentSlot facts.
+- Added a complete searchable Guide, FAQ, and contextual help in English, Japanese, and Korean.
+- Added the machine-readable integrated lifecycle release audit and CI enforcement.
+- Added controlled Mainnet XRP and official RLUSD acceptance evidence.
 - Added a deployment-aware Bill creation route and public Roadmap and Changelog application pages.
 
 ### Changed
 
-- Bill totals, creator shares, and participant obligations use canonical fixed-precision Asset units while retaining bounded legacy XRP compatibility fields.
+- Bill totals, recipient-funded amounts, and participant obligations use canonical fixed-precision Asset units while retaining bounded legacy XRP compatibility fields.
+- Representative mode may record a recipient-funded accounting amount without creating a self-transfer; direct mode assigns the full Bill total to payer slots.
 - Existing slot-bound Xaman requests are derived from frozen Payment Intents and canonical Asset identity.
-- Payment request creation records provider ID, provider request ID, Payment Intent identity and revision, status, expiry, and submitted transaction identity when available.
-- Bill progress and verification responses normalize legacy XRP shapes into the shared Asset-aware contracts.
-- Bill creation UI now selects Testnet or Mainnet XRP and RLUSD descriptors from the deployment network instead of hard-coding Testnet Assets.
-- Public product copy and release status now distinguish merged Mainnet capability from the still-halted production release.
+- Payment requests bind the expected payer, one XRPL Sequence, and a bounded `LastLedgerSequence` to prevent repeated validated transfers from one handoff.
+- Replacement wallet handoffs require validated-ledger reconciliation before creation.
+- Payment request creation records provider ID, request ID, Payment Intent identity and revision, status, expiry, and submitted transaction identity when available.
+- Bill progress and verification responses normalize legacy XRP shapes into shared Asset-aware contracts.
+- Bill creation selects Testnet or Mainnet XRP and official RLUSD descriptors from the deployment network.
+- Public and read-only progress now hide management-only payer facts, InvoiceIDs, review details, and recovery controls.
+- Guide and contextual-help URLs use fixed public anchors and never copy active capability fragments or private draft data.
+- Public product copy and release status now match the merged and audited payment lifecycle.
 
 ### Security
 
 - Official RLUSD currency and network-specific issuer identity are frozen and verified without floating-point arithmetic.
 - A Bill cannot mix Settlement Assets across participant PaymentSlots.
 - Issued-asset delivered values, destination, sender, tags, InvoiceID, network, result, and unsupported path fields are verified before settlement.
-- Xaman Payment requests now pin the expected payer `Account`, one validated XRPL `Sequence`, and a bounded `LastLedgerSequence` so a reused handoff cannot produce two validated Payments.
-- The controlled Mainnet RLUSD duplicate-transfer incident is documented as a release blocker without exposing private operator material.
+- Xaman status, signature, payload resolution, or transaction identifier alone is never accepted as proof of payment.
+- Verified receipts, PaymentSlot status, and Bill progress are written through the atomic settlement boundary.
+- Duplicate transaction, InvoiceID reuse, and cross-slot replay are rejected.
+- Pending, mismatched, duplicate, and multiple-candidate observations cannot be silently replaced or manually marked paid.
+- Incomplete closure cannot reopen a Bill, revert paid slots, reverse transfers, or create automatic refunds.
+- Copy-to-revise excludes source Bill, PaymentSlot, capability, InvoiceID, transaction, receipt, proof, and review identities.
+- Mainnet remains protected by isolated configuration and D1, an assigned Source Tag, accepted XRP and RLUSD evidence, a ready release gate, and enabled, verify-only, and halted operational modes.
+- Production UI auditing rejects mixed-language copy, stale Japanese wording, incorrect Mainnet Asset selection, and horizontal overflow at 320px, 390px, and 1280px.
 
-Runtime availability includes XRP and official RLUSD Bills, all four allocation strategies, participant capabilities, Xaman handoffs, and validated-ledger settlement in merged code. The production Mainnet Worker remains halted pending replacement-handoff reconciliation, a fresh RLUSD ceremony, and final release approval. Japanese and Korean critical flows remain planned until separately merged and tested.
+### Release audit
+
+- Completed the PR #132–#149 payment-lifecycle revision.
+- Verified representative and direct modes across XRP and official RLUSD contracts.
+- Verified readiness, TrustSet, cancellation, expiry, pending validation, failure, mismatch, duplicate protection, partial completion, review, closure, and copy-to-revise coverage.
+- Verified management, read-only, payer, setup, proof, Guide, and contextual-help capability boundaries.
+- Verified English, Japanese, and Korean critical coverage and server/client language consistency.
+- Verified semantic status, keyboard, responsive, visual, D1, Testnet, Mainnet-safe, Next.js, Storybook, Worker, browser, and production UI gates.
+- Recorded no unresolved high-severity safety, privacy, verification, accessibility, localization, visual, or Mainnet finding.
+
+Runtime availability includes the merged and audited payment lifecycle described in `README.md` and `ROADMAP.md`. Remaining Make Waves work is limited to metrics, video, deck, submission assembly, and evidence links.
 
 ## [0.1.0] — 2026-06-24
 
@@ -59,5 +89,5 @@ Runtime availability includes XRP and official RLUSD Bills, all four allocation 
 
 ## Version policy
 
-- `0.x` covers Testnet and pre-Mainnet milestones.
-- `1.0.0` is reserved for the controlled Make Waves Mainnet release.
+- `0.x` covers Testnet and controlled pre-1.0 Mainnet milestones.
+- `1.0.0` is reserved for the completed Make Waves public release package.
