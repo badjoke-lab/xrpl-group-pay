@@ -3,12 +3,14 @@
 import { ChevronDown, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { publicEnv } from "@/config/public-env";
 import type { AllocationFormStrategy } from "@/features/bills/allocation-form";
 import { useLocalization } from "@/features/localization/provider";
 import { unitsToDecimal } from "@/features/money/money";
 
 import type { ParticipantDraft } from "./bill-form-model";
 import { BillFormField } from "./bill-form-controls";
+import { XrplAddressField } from "./xrpl-address-field";
 
 export function ParticipantAllocationCard({
   item,
@@ -83,13 +85,12 @@ export function ParticipantAllocationCard({
             onChange={(value) => onChange("label", value)}
             placeholder="Alex"
           />
-          <BillFormField
+          <XrplAddressField
             label={t("bill.participant.payer")}
             value={item.expectedPayerAddress}
-            onChange={(value) => onChange("expectedPayerAddress", value)}
-            placeholder="r..."
-            required
-            mono
+            role="payer"
+            network={publicEnv.NEXT_PUBLIC_APP_NETWORK}
+            onChangeAddress={(value) => onChange("expectedPayerAddress", value)}
           />
 
           {strategy === "custom" && (

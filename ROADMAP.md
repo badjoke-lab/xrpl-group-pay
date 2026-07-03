@@ -46,18 +46,39 @@ This roadmap shows product direction, not promised dates. A capability moves to 
 
 No payment-lifecycle revision work remains in progress. The PR #132–#149 revision is merged, tested, audited, and recorded in [`docs/payment-lifecycle-release-audit.md`](docs/payment-lifecycle-release-audit.md).
 
+A separate bounded PR #150–#152 pre-submission phase is now approved:
+
+- strict recipient and payer Classic Address validation and checksum handling;
+- X-address decode with explicit network and Destination Tag review;
+- clearer recipient, payer, Xaman, exchange, and unsupported manual-transfer guidance;
+- explicit clipboard paste assistance while preserving direct entry;
+- browser-local saved wallets with labels, addresses, recipient tags, roles, network, favorites, recent use, edit, delete, export, and validated import;
+- integrated privacy, accessibility, localization, responsive, Mainnet-safe, and payment-regression audit.
+
+The implementation order and deferred features are fixed in [`docs/wallet-input-pre-submission-schedule.md`](docs/wallet-input-pre-submission-schedule.md).
+
 ## Release blockers
 
-No open v1 runtime release blockers remain. The reviewed halted configuration remains available as the fail-closed production rollback baseline.
+No open payment-lifecycle or Mainnet settlement blocker remains. The reviewed halted configuration remains available as the fail-closed production rollback baseline.
+
+The wallet-input phase is a submission-readiness improvement rather than a custody, verification, or settlement unblocker. It must complete before the final submission package is frozen.
 
 ## Make Waves v1 completion
 
-- Source Tag metrics summary for distinct successful signers, transaction count, XRP volume, and RLUSD volume.
-- Submission video and pitch deck.
-- Final submission-form assembly and evidence links.
+After PR #150–#152:
+
+- confirm registration, project approval, and assigned Source Tag status;
+- produce the Source Tag metrics summary for distinct successful signers, transaction count, XRP volume, and RLUSD volume;
+- collect controlled real-user usage and evidence;
+- capture XRP and RLUSD demonstrations;
+- prepare the submission video and pitch deck;
+- assemble final submission text and evidence links.
 
 ## Next
 
+- Camera-based QR scanning for Bill-creation address entry.
+- Xaman Sign-In or account discovery for filling the user's own address.
+- Participant self-registration before Bill freeze.
 - Additional tested XRPL Wallet Providers.
 - JPY, USD, KRW, and EUR Accounting Currencies.
 - Versioned Settlement Quotes.
@@ -66,6 +87,7 @@ No open v1 runtime release blockers remain. The reviewed halted configuration re
 
 ## Later
 
+- Cloud-synchronized contacts with a separately approved account and privacy model.
 - Persistent Groups and recurring expenses.
 - Settlement Circles with periods, net balances, and reduced settlement routes.
 - Event Collection.
