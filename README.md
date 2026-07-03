@@ -6,7 +6,7 @@ A Bill operator prepares a Bill, chooses who receives the payments, allocates pa
 
 ## Current implementation
 
-The merged application provides:
+The merged and audited application provides:
 
 - two explicit payment modes:
   - **Pay a representative** for reimbursements, fees, shared purchases, and collections received by one person;
@@ -48,7 +48,7 @@ The merged application provides:
   - role- and network-aware search, selection, favorites, and recent use;
   - edit, delete, delete-all, JSON export, and validated import;
   - explicit per-field and post-Bill save actions;
-  - no API, D1, analytics, cross-device sync, identity proof, Capability, Bill, PaymentSlot, transaction, receipt, proof, balance, or readiness storage;
+  - no API, D1, analytics, cross-device sync, identity proof, capability, Bill, PaymentSlot, transaction, receipt, proof, balance, or readiness storage;
 - a searchable Guide and contextual help in English, Japanese, and Korean;
 - responsive payer, operator, progress, proof, Guide, help, and saved-wallet experiences;
 - deployment-aware Bill creation UI;
@@ -66,36 +66,31 @@ The merged application provides:
 | Interface language | English, Japanese, and Korean critical flows, Guide, help, and saved-wallet states |
 | Custody | None; each payer sends directly to the frozen recipient |
 
-The PR #132–#149 payment-lifecycle revision passed its integrated lifecycle, multilingual, accessibility, visual, privacy, Testnet, and Mainnet-safe audit. The machine-readable audit is `config/payment-lifecycle-release-audit.json`.
+The PR #132–#149 payment-lifecycle revision passed its integrated lifecycle, multilingual, accessibility, visual, privacy, Testnet, and Mainnet-safe audit. Its machine-readable record is `config/payment-lifecycle-release-audit.json`.
 
-PR #150 completed the wallet-address safety layer. PR #151 adds the browser-local saved-wallet layer. PR #152 remains the final integrated wallet-input audit and feature-freeze gate.
+The PR #150–#152 wallet-input pre-submission phase passed its integrated audit. Its machine-readable record is `config/wallet-input-release-audit.json`, and its public decision is [Wallet Input Release Audit](docs/wallet-input-release-audit.md).
 
 The production Mainnet Worker is publicly available at `https://xgp.badjoke-lab.com`. The reviewed deployment exposes Mainnet Bill creation and uses the accepted Mainnet payment and verification controls. The committed `internal + halted` configuration remains the fail-closed rollback baseline and is not a description of the currently displayed public creation UI.
 
 ## Remaining Make Waves v1 work
 
-No payment-lifecycle runtime work remains in progress for the completed revision.
+No payment-lifecycle or wallet-input implementation work remains in progress for the submission release. Wallet-input feature work is frozen until after submission.
 
-Before submission assembly resumes, the bounded wallet-input phase requires only:
-
-- PR #152 integrated privacy, accessibility, localization, responsive, Mainnet-safe, and payment-regression audit;
-- feature freeze after that audit.
-
-Remaining submission work then consists of:
+Remaining submission work consists of:
 
 - registration, project approval, and assigned Source Tag confirmation;
 - Source Tag metrics for the approved measurement range;
 - controlled real-user usage and evidence;
-- XRP and RLUSD demonstration capture;
+- XRP and official RLUSD demonstration capture;
 - final pitch video;
 - final pitch deck;
 - final submission-form assembly and evidence links.
 
 ## Product direction
 
-The completed payment-lifecycle revision is defined by the [payment lifecycle contract](docs/payment-lifecycle-contract.md), recorded in the [integrated release audit](docs/payment-lifecycle-release-audit.md), and preserved in the [PR #132–#149 implementation schedule](docs/payment-lifecycle-revision-schedule.md).
+The completed payment-lifecycle revision is defined by the [payment lifecycle contract](docs/payment-lifecycle-contract.md), recorded in the [integrated payment-lifecycle audit](docs/payment-lifecycle-release-audit.md), and preserved in the [PR #132–#149 implementation schedule](docs/payment-lifecycle-revision-schedule.md).
 
-The bounded wallet-input phase is defined by the [wallet input and local address-book contract](docs/wallet-input-and-local-address-book.md) and tracked in the [PR #150–#152 schedule](docs/wallet-input-pre-submission-schedule.md).
+The completed wallet-input phase is defined by the [wallet input and local address-book contract](docs/wallet-input-and-local-address-book.md), recorded in the [wallet-input release audit](docs/wallet-input-release-audit.md), and preserved in the [PR #150–#152 schedule](docs/wallet-input-pre-submission-schedule.md).
 
 Later work includes camera QR scanning for Bill-entry assistance, Xaman account discovery, participant self-registration, more tested XRPL Wallet Providers, cloud-synchronized contacts under a separate privacy model, fiat-denominated Bills, participant Asset choice, Settlement Quotes, Persistent Groups, Settlement Circles, Event Collection, curated additional XRPL assets, and research into additional Payment Rails.
 
@@ -133,6 +128,7 @@ Start with [docs/README.md](docs/README.md).
 - [Payment lifecycle contract](docs/payment-lifecycle-contract.md)
 - [Integrated payment lifecycle release audit](docs/payment-lifecycle-release-audit.md)
 - [Wallet input and local address-book contract](docs/wallet-input-and-local-address-book.md)
+- [Wallet input release audit](docs/wallet-input-release-audit.md)
 - [Wallet input pre-submission schedule](docs/wallet-input-pre-submission-schedule.md)
 - [Architecture](docs/architecture.md)
 - [Payment contracts](docs/payment-contracts.md)
@@ -175,6 +171,7 @@ pnpm db:check:local
 pnpm check:mainnet-evidence
 pnpm check:mainnet-acceptance
 pnpm check:lifecycle-audit
+pnpm check:wallet-input-audit
 pnpm lint
 pnpm typecheck
 pnpm test
@@ -185,7 +182,7 @@ node scripts/capture-production-bill-ui.mjs
 
 ## Environment and deployment
 
-Testnet and Mainnet use separate configuration, databases, XRPL endpoints, Source Tag values, and Asset Registry entries. Testnet Bills are not copied automatically to Mainnet. Saved-wallet records are also filtered by network and remain browser-local.
+Testnet and Mainnet use separate configuration, databases, XRPL endpoints, Source Tag values, and Asset Registry entries. Testnet Bills are not copied automatically to Mainnet. Saved-wallet records are filtered by network and remain browser-local.
 
 The public Mainnet Worker is deployed at `https://xgp.badjoke-lab.com` with the isolated Mainnet D1 binding. Mainnet operation remains subject to the release gate and enabled, verify-only, and halted modes. The committed production configuration remains `internal + halted` so the reviewed fail-closed target can be restored during an incident.
 

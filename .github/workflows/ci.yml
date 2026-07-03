@@ -55,6 +55,9 @@ jobs:
       - name: Validate integrated lifecycle release audit
         run: pnpm check:lifecycle-audit
 
+      - name: Validate wallet-input release audit
+        run: pnpm check:wallet-input-audit
+
       - name: Apply D1 migrations locally
         run: pnpm db:migrate:local
 
