@@ -1,50 +1,47 @@
 # Mainnet Release Evidence
 
 **Status:** Active  
-**Scope:** Production Mainnet release evidence contract  
-**Last reviewed:** 2026-06-26
+**Scope:** Accepted production Mainnet release evidence contract  
+**Last reviewed:** 2026-07-03
 
 ## Purpose
 
-`config/mainnet-release-evidence.json` records the non-secret facts required to close the production findings in `config/mainnet-acceptance.json`.
+`config/mainnet-release-evidence.json` records the non-secret facts required by the Mainnet acceptance audit.
 
-The evidence file is not a place for credentials or private wallet material. It records only public identifiers, validation outcomes, and operational attestations that can safely exist in a public repository.
+All seven required evidence records are accepted. The evidence file is not a place for credentials or private wallet material. It records only public identifiers, validation outcomes, and operational attestations that can safely exist in a public repository.
 
-A record has one of two states:
-
-- `pending` — the production check has not been accepted;
-- `accepted` — every required fact for that record is present and the matching acceptance control and finding have been updated in the same change.
+The accepted evidence supports the controlled Mainnet release decision. It does not remove runtime approval, readiness, verification, reconciliation, duplicate protection, or the operational kill switch.
 
 ## Validation commands
 
-Normal validation accepts a correctly documented blocked release:
+Normal validation:
 
 ```bash
 pnpm check:mainnet-evidence
 ```
 
-Mainnet deployment requires all seven evidence records to be accepted:
+Deployment requires every record to remain accepted:
 
 ```bash
 node scripts/check-mainnet-release-evidence.mjs --require-complete
 ```
 
-`pnpm deploy:mainnet` runs the complete evidence check before the acceptance and Mainnet Gate checks.
+`pnpm deploy:mainnet` runs the complete evidence check before the acceptance, Mainnet Gate, and integrated lifecycle checks.
 
 ## Prohibited content
 
-Never store any of the following in the evidence file, documentation, pull request, issue, workflow artifact, or test fixture derived from a real environment:
+Never store any of the following in the evidence file, documentation, pull request, issue, workflow artifact, or real-environment fixture:
 
 - XRPL family seed or private key;
 - Xaman API key or API secret;
 - bearer token, session token, or webhook secret;
-- creator or participant capability token;
+- management, progress, payer, setup, or proof capability token;
 - full private request or callback payload containing credentials;
-- wallet backup, mnemonic, or signing material.
+- wallet backup, mnemonic, QR code, deeplink, or signing material.
 
-The evidence checker uses strict record schemas and rejects secret-like values. This is a secondary safeguard, not permission to paste secrets and rely on detection.
+The evidence checker rejects secret-like values as a secondary safeguard. It is not permission to paste secrets and rely on detection.
 
-## Evidence records
+## Accepted evidence records
 
 ### Production D1 provisioning
 
@@ -54,15 +51,14 @@ Record:
 production-d1-provisioning
 ```
 
-Acceptance requires:
+The accepted record confirms:
 
 - the exact `xrpl-group-pay-mainnet` database name;
 - non-placeholder production and preview D1 identifiers;
 - a positive migration count;
-- confirmation that all migrations were applied;
-- confirmation that the receipt schema check passed.
-
-When accepted, the identifiers must exactly match the `PAYMENTS_DB_MAINNET` binding in `wrangler.jsonc`.
+- all recorded migrations applied;
+- receipt schema checks passed;
+- exact agreement with the `PAYMENTS_DB_MAINNET` binding.
 
 ### Production release configuration
 
@@ -72,17 +68,9 @@ Record:
 production-release-configuration
 ```
 
-Acceptance requires:
+The accepted record confirms the reviewed Mainnet origin, network identity, isolated database binding, explicit runtime and gate approval, assigned Source Tag approval, release mode, and operations mode used by the acceptance deployment.
 
-- a non-local HTTPS public URL;
-- `APP_NETWORK=mainnet`;
-- `NEXT_PUBLIC_APP_NETWORK=mainnet`;
-- `PAYMENTS_DATABASE_BINDING=PAYMENTS_DB_MAINNET`;
-- explicit runtime, gate, and Source Tag approval;
-- a release mode other than `disabled`;
-- an explicitly selected operations mode.
-
-When accepted, every value must match the committed Mainnet Wrangler environment.
+This record captures the reviewed deployment state at the time of acceptance. Later public operation remains subject to reviewed deployment configuration and continuous production UI checks. The committed `internal + halted` target remains the fail-closed rollback baseline.
 
 ### Production Xaman provider attestation
 
@@ -92,15 +80,16 @@ Record:
 production-provider-attestation
 ```
 
-Acceptance requires a non-secret reference confirming that:
+The accepted non-secret attestation confirms:
 
 - production credentials were configured outside the repository;
 - wallet requests were forced to XRPL Mainnet;
 - callback behavior was checked;
 - payload status lookup was checked;
+- cancellation behavior was checked;
 - no secret was committed.
 
-The reference may be a review identifier or a concise public-safe test record. It must never contain credential values.
+The evidence reference must never contain credential values, private payload identifiers, QR data, or deeplinks.
 
 ### Assigned Mainnet Source Tag
 
@@ -110,15 +99,14 @@ Record:
 assigned-mainnet-source-tag
 ```
 
-Acceptance requires:
+The accepted record confirms:
 
 - the assigned UInt32 Source Tag;
-- a non-secret assignment reference;
-- confirmation that no Testnet fallback exists.
+- a reproducible non-secret assignment reference;
+- no Testnet fallback;
+- consistency with the reviewed Mainnet deployment configuration.
 
-The accepted value must match `XRPL_MAINNET_SOURCE_TAG` in the Mainnet deployment configuration.
-
-### Live Mainnet XRP acceptance
+### Controlled Mainnet XRP acceptance
 
 Record:
 
@@ -126,7 +114,7 @@ Record:
 live-mainnet-xrp-acceptance
 ```
 
-Acceptance requires:
+The accepted record contains only public-safe ledger and verification facts:
 
 - a 64-character Mainnet transaction hash;
 - validated ledger index;
@@ -134,13 +122,13 @@ Acceptance requires:
 - `tesSUCCESS`;
 - positive XRP amount in drops;
 - receipt identity equal to `mainnet:<transaction hash>`;
-- the public proof digest;
-- duplicate rejection confirmation;
-- replay rejection confirmation.
+- public proof digest;
+- duplicate rejection;
+- cross-slot replay rejection.
 
-Do not record payer capability links or private wallet data. The transaction hash and ledger index are public ledger identifiers.
+The transaction hash and ledger index are public XRPL identifiers. Payer capabilities and private wallet data are prohibited.
 
-### Live Mainnet RLUSD acceptance
+### Controlled Mainnet official RLUSD acceptance
 
 Record:
 
@@ -148,14 +136,13 @@ Record:
 live-mainnet-rlusd-acceptance
 ```
 
-Acceptance requires the same transaction, receipt, duplicate, and replay facts as XRP, plus:
+The accepted record confirms the same transaction, receipt, duplicate, and replay facts as XRP, plus:
 
 - official Mainnet RLUSD currency code;
 - official Mainnet RLUSD issuer;
-- positive issued-asset value with no more than six decimal places;
-- recipient-readiness confirmation.
-
-The issuer and currency must exactly match `config/xrpl-mainnet-assets.json`.
+- positive issued amount within supported precision;
+- recipient-readiness confirmation;
+- exact agreement with `config/xrpl-mainnet-assets.json`.
 
 ### Operational stop drill
 
@@ -165,30 +152,49 @@ Record:
 operational-stop-drill
 ```
 
-The drill may run against Mainnet or a production-equivalent isolated environment. Acceptance requires confirmation that:
+The accepted production-equivalent drill confirms:
 
 - `verify-only` rejected new handoff creation;
-- an already submitted payment could still verify and settle in `verify-only`;
-- the public status endpoint reported `verify-only` correctly;
+- an already-submitted Payment could still verify and settle;
+- the status endpoint reported `verify-only`;
 - `halted` rejected new handoff creation;
 - `halted` rejected verification;
-- the public status endpoint reported `halted` correctly;
-- restoring operation used a reviewed configuration change.
+- the status endpoint reported `halted`;
+- restoration required a reviewed configuration change.
+
+## Public production UI evidence
+
+The CI production UI audit checks `https://xgp.badjoke-lab.com/bill` without creating a Bill or moving funds.
+
+It captures and validates:
+
+- 320px mobile;
+- 390px mobile;
+- 1280px desktop;
+- English XRP creation;
+- Japanese official RLUSD creation;
+- Mainnet Asset selection;
+- server/client language consistency;
+- stale-copy rejection;
+- horizontal-overflow rejection.
+
+This visual evidence supplements, but does not replace, the accepted transaction, provider, D1, and operational evidence records.
 
 ## Update discipline
 
-Each production finding must be closed atomically:
+A future evidence change must be reviewed atomically:
 
-1. collect the non-secret evidence;
-2. update the matching evidence record from `pending` to `accepted`;
-3. update the matching acceptance control to `passed`;
-4. update the matching finding to `resolved`;
-5. update the committed configuration when the evidence contract requires an exact match;
-6. run the full validation suite;
-7. review the change before merge.
+1. collect only non-secret evidence;
+2. update the matching evidence record;
+3. update the matching acceptance control or finding when its decision changes;
+4. update exact committed configuration when the evidence contract requires agreement;
+5. run Mainnet evidence, acceptance, Gate, lifecycle-audit, D1, test, build, browser, and production UI checks;
+6. review the public-surface wording before merge.
 
-An accepted evidence record cannot coexist with a pending acceptance control or open finding. A pending evidence record cannot coexist with a passed control or resolved finding.
+An accepted evidence record cannot coexist with a pending acceptance control or open matching finding.
 
 ## Trust boundary
 
-The checker proves structural completeness and repository consistency. It does not independently prove that a human attestation is truthful or that an external service operated correctly. Public transaction hashes can be verified against the XRPL, while private provider and infrastructure checks still require responsible review.
+The checker proves structural completeness and repository consistency. It does not independently prove that a human attestation is truthful or that an external provider or infrastructure service operated correctly.
+
+Public XRPL transaction hashes can be independently checked against the ledger. Private provider and infrastructure checks still require responsible human review. No evidence record grants custody, signing authority, refund authority, or permission to bypass validated-ledger verification.
