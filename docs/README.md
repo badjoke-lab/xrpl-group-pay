@@ -82,6 +82,7 @@ A feature contract documents the exact behavior of a shipped or actively impleme
 ## 7. User experience
 
 - `ui-ux-spec.md` — experience principles, content order, contextual help, status presentation, and wallet/asset display.
+- `guide-and-contextual-help.md` — current PR #148 searchable multilingual Guide, stable anchors, typed help coverage, private-flow safety, and keyboard/mobile behavior.
 - `screen-inventory.md` — required screens, actors, priorities, states, and fixtures.
 - `accessibility-spec.md` — WCAG target and critical-flow accessibility requirements.
 - `responsive-behavior.md` — viewport, reflow, navigation, table, and visual-regression behavior.
