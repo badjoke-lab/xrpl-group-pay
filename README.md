@@ -6,7 +6,7 @@ A Bill operator prepares a Bill, chooses who receives the payments, allocates pa
 
 ## Current implementation
 
-The merged and audited application currently provides:
+The merged application provides:
 
 - two explicit payment modes:
   - **Pay a representative** for reimbursements, fees, shared purchases, and collections received by one person;
@@ -18,7 +18,7 @@ The merged and audited application currently provides:
 - explicit deterministic remainder assignment;
 - optional recipient-funded accounting in representative mode without a self-transfer;
 - expected payer XRPL addresses and separate payer capabilities;
-- mode-aware creator review before Bill freeze;
+- mode-aware review before Bill freeze;
 - mode- and Asset-aware participant instructions;
 - participant final confirmation before wallet handoff;
 - XRP and official RLUSD recipient and payer readiness checks;
@@ -40,8 +40,17 @@ The merged and audited application currently provides:
 - D1 enforcement of frozen Bill and PaymentSlot facts;
 - public transaction proof;
 - shared semantic status badges with text and icons;
+- Classic Address checksum validation and explicit X-address review;
+- recipient-versus-payer Wallet Provider guidance and exchange/manual-transfer warnings;
+- user-triggered clipboard assistance with direct-entry fallback;
+- optional browser-local saved wallets:
+  - label, canonical address, optional recipient Destination Tag, role, network, favorite, and local timestamps only;
+  - role- and network-aware search, selection, favorites, and recent use;
+  - edit, delete, delete-all, JSON export, and validated import;
+  - explicit per-field and post-Bill save actions;
+  - no API, D1, analytics, cross-device sync, identity proof, Capability, Bill, PaymentSlot, transaction, receipt, proof, balance, or readiness storage;
 - a searchable Guide and contextual help in English, Japanese, and Korean;
-- responsive payer, operator, progress, proof, Guide, and help experiences;
+- responsive payer, operator, progress, proof, Guide, help, and saved-wallet experiences;
 - deployment-aware Bill creation UI;
 - public Roadmap and Changelog pages.
 
@@ -50,32 +59,45 @@ The merged and audited application currently provides:
 | Network | XRPL Testnet and reviewed XRPL Mainnet |
 | Settlement Asset | XRP or official network-specific RLUSD; one Asset per Bill |
 | Payment mode | Representative recipient or external direct recipient |
-| Wallet Provider | Xaman |
+| Wallet Provider | Xaman for Payment and TrustSet handoff; compatible recipients do not need Xaman to receive |
+| Address input | Direct entry, ordinary paste, explicit clipboard assistance, Classic Address validation, X-address review, and optional browser-local saved wallets |
 | Allocation | Recipient-funded accounting plus Custom Amount, Equal, Percentage, or Shares |
 | Recovery | Safe retry, recheck, setup, review, incomplete closure, and copy-to-revise |
-| Interface language | English, Japanese, and Korean critical flows, Guide, and help |
+| Interface language | English, Japanese, and Korean critical flows, Guide, help, and saved-wallet states |
 | Custody | None; each payer sends directly to the frozen recipient |
 
 The PR #132–#149 payment-lifecycle revision passed its integrated lifecycle, multilingual, accessibility, visual, privacy, Testnet, and Mainnet-safe audit. The machine-readable audit is `config/payment-lifecycle-release-audit.json`.
+
+PR #150 completed the wallet-address safety layer. PR #151 adds the browser-local saved-wallet layer. PR #152 remains the final integrated wallet-input audit and feature-freeze gate.
 
 The production Mainnet Worker is publicly available at `https://xgp.badjoke-lab.com`. The reviewed deployment exposes Mainnet Bill creation and uses the accepted Mainnet payment and verification controls. The committed `internal + halted` configuration remains the fail-closed rollback baseline and is not a description of the currently displayed public creation UI.
 
 ## Remaining Make Waves v1 work
 
-No payment-lifecycle runtime work remains in progress for the approved revision.
+No payment-lifecycle runtime work remains in progress for the completed revision.
 
-Remaining submission work is limited to:
+Before submission assembly resumes, the bounded wallet-input phase requires only:
 
-- final pitch video capture;
-- final pitch deck export;
+- PR #152 integrated privacy, accessibility, localization, responsive, Mainnet-safe, and payment-regression audit;
+- feature freeze after that audit.
+
+Remaining submission work then consists of:
+
+- registration, project approval, and assigned Source Tag confirmation;
 - Source Tag metrics for the approved measurement range;
+- controlled real-user usage and evidence;
+- XRP and RLUSD demonstration capture;
+- final pitch video;
+- final pitch deck;
 - final submission-form assembly and evidence links.
 
 ## Product direction
 
 The completed payment-lifecycle revision is defined by the [payment lifecycle contract](docs/payment-lifecycle-contract.md), recorded in the [integrated release audit](docs/payment-lifecycle-release-audit.md), and preserved in the [PR #132–#149 implementation schedule](docs/payment-lifecycle-revision-schedule.md).
 
-Later work includes more tested XRPL Wallet Providers, fiat-denominated Bills, participant Asset choice, Settlement Quotes, Persistent Groups, Settlement Circles, Event Collection, curated additional XRPL assets, and research into additional Payment Rails.
+The bounded wallet-input phase is defined by the [wallet input and local address-book contract](docs/wallet-input-and-local-address-book.md) and tracked in the [PR #150–#152 schedule](docs/wallet-input-pre-submission-schedule.md).
+
+Later work includes camera QR scanning for Bill-entry assistance, Xaman account discovery, participant self-registration, more tested XRPL Wallet Providers, cloud-synchronized contacts under a separate privacy model, fiat-denominated Bills, participant Asset choice, Settlement Quotes, Persistent Groups, Settlement Circles, Event Collection, curated additional XRPL assets, and research into additional Payment Rails.
 
 See [ROADMAP.md](ROADMAP.md) for public status and direction.
 
@@ -89,17 +111,17 @@ Application and UI
   -> XRPL and infrastructure services
 ```
 
-The architecture separates Accounting Currency, obligation amount, Settlement Asset, Settlement Amount, Payment Intent, Wallet Provider, Verification Strategy, Receipt Contract, Allocation Strategy, and localization.
+The architecture separates Accounting Currency, obligation amount, Settlement Asset, Settlement Amount, Payment Intent, Wallet Provider, Verification Strategy, Receipt Contract, Allocation Strategy, localization, and optional browser-local input assistance.
 
 ## Non-custodial boundary
 
 XRPL Group Pay does not receive or pool settlement funds, maintain an application balance, approve transactions for users, swap or bridge assets, operate fiat entry or exit services, or guarantee collection and refunds.
 
-Funds move directly from each payer to the frozen Bill destination after wallet approval.
+Funds move directly from each payer to the frozen Bill destination after wallet approval. A saved-wallet record neither connects a wallet nor proves account control.
 
 ## Verification
 
-A wallet status or transaction identifier is not payment proof. The server checks network, successful validated result, sender, destination, tags, InvoiceID, Asset identity, requested amount, delivered amount, unsupported path fields, duplicate use, and PaymentSlot state.
+A wallet status, saved-wallet entry, label, or transaction identifier is not payment proof. The server checks network, successful validated result, sender, destination, tags, InvoiceID, Asset identity, requested amount, delivered amount, unsupported path fields, duplicate use, and PaymentSlot state.
 
 Replacement handoffs remain blocked until validated-ledger reconciliation shows that another attempt is safe or management explicitly accepts the documented repeated-payment risk where policy permits.
 
@@ -110,12 +132,15 @@ Start with [docs/README.md](docs/README.md).
 - [Product specification](docs/product-spec.md)
 - [Payment lifecycle contract](docs/payment-lifecycle-contract.md)
 - [Integrated payment lifecycle release audit](docs/payment-lifecycle-release-audit.md)
+- [Wallet input and local address-book contract](docs/wallet-input-and-local-address-book.md)
+- [Wallet input pre-submission schedule](docs/wallet-input-pre-submission-schedule.md)
 - [Architecture](docs/architecture.md)
 - [Payment contracts](docs/payment-contracts.md)
 - [Money and allocation](docs/money-and-allocation.md)
 - [Localization](docs/localization.md)
 - [Payment lifecycle localization](docs/payment-lifecycle-localization.md)
 - [Guide and contextual help](docs/guide-and-contextual-help.md)
+- [Privacy data map](docs/privacy-data-map.md)
 - [Non-custodial boundary](docs/non-custodial-boundary.md)
 - [Threat model](docs/threat-model.md)
 - [Payment lifecycle security](docs/payment-lifecycle-security.md)
@@ -160,7 +185,7 @@ node scripts/capture-production-bill-ui.mjs
 
 ## Environment and deployment
 
-Testnet and Mainnet use separate configuration, databases, XRPL endpoints, Source Tag values, and Asset Registry entries. Testnet Bills are not copied automatically to Mainnet.
+Testnet and Mainnet use separate configuration, databases, XRPL endpoints, Source Tag values, and Asset Registry entries. Testnet Bills are not copied automatically to Mainnet. Saved-wallet records are also filtered by network and remain browser-local.
 
 The public Mainnet Worker is deployed at `https://xgp.badjoke-lab.com` with the isolated Mainnet D1 binding. Mainnet operation remains subject to the release gate and enabled, verify-only, and halted modes. The committed production configuration remains `internal + halted` so the reviewed fail-closed target can be restored during an incident.
 
