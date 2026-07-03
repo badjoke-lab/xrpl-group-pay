@@ -129,9 +129,15 @@ describe("saved wallet import and export", () => {
         }),
       ),
     });
-    expect(() => parseSavedWalletImport(tooMany)).toMatchObject({
-      code: "too_many_records",
-    });
+
+    let error: unknown;
+    try {
+      parseSavedWalletImport(tooMany);
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toBeInstanceOf(SavedWalletStorageError);
+    expect(error).toMatchObject({ code: "too_many_records" });
   });
 
   it("rejects unknown fields by never serializing them", () => {
