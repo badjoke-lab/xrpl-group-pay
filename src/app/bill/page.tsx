@@ -1,6 +1,7 @@
 import { CircleAlert } from "lucide-react";
 import Link from "next/link";
 
+import { BillCopyNotice } from "@/components/bills/bill-copy-notice";
 import { TestnetBillForm } from "@/components/bills/testnet-bill-form";
 import { BrandMark } from "@/components/brand/brand-mark";
 import { LanguageSwitcher } from "@/components/localization/language-switcher";
@@ -58,7 +59,10 @@ export default async function BillPage() {
         </div>
 
         {publicCreationEnabled ? (
-          <TestnetBillForm />
+          <>
+            <BillCopyNotice />
+            <TestnetBillForm />
+          </>
         ) : (
           <section className="rounded-xl border border-action/30 bg-action/10 p-6 sm:p-8">
             <div className="flex items-start gap-4">

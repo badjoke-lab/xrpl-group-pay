@@ -11,6 +11,9 @@ import {
 export type BillCreationStep = 1 | 2 | 3 | 4;
 
 const VERSION = 1;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export const BILL_DRAFT_SESSION_EVENT = "xgp:bill-draft-session";
 
 export function billDraftStorageKey(network: XrplNetwork) {
   return `xgp.bill-draft.${network}.v${VERSION}`;
@@ -90,44 +93,77 @@ function sanitizeDraft(value: unknown, network: XrplNetwork): BillDraft | null {
   };
 }
 
-export function readBillDraftSession(network: XrplNetwork): {
-  draft: BillDraft;
-  step: BillCreationStep;
-} | null {
-  if (typeof window === "undefined") return null;
+function readEnvelope(network: XrplNetwork) {
   try {
-    const value = JSON.parse(
+    return JSON.parse(
       window.sessionStorage.getItem(billDraftStorageKey(network)) ?? "null",
     ) as Record<string, unknown> | null;
-    if (!value || value.version !== VERSION || value.network !== network) {
-      return null;
-    }
-    const draft = sanitizeDraft(value.draft, network);
-    if (!draft) return null;
-    const rawStep = Number(value.step);
-    const step =
-      rawStep === 1 || rawStep === 2 || rawStep === 3 || rawStep === 4
-        ? rawStep
-        : 1;
-    return { draft, step };
   } catch {
     return null;
   }
+}
+
+function copiedSource(value: unknown) {
+  const source = text(value).trim();
+  return source && UUID_PATTERN.test(source) ? source : null;
+}
+
+function announceDraftChange(network: XrplNetwork) {
+  window.dispatchEvent(
+    new CustomEvent(BILL_DRAFT_SESSION_EVENT, { detail: { network } }),
+  );
+}
+
+export function readBillDraftSession(network: XrplNetwork): {
+  draft: BillDraft;
+  step: BillCreationStep;
+  copiedFromPublicId?: string;
+} | null {
+  if (typeof window === "undefined") return null;
+  const value = readEnvelope(network);
+  if (!value || value.version !== VERSION || value.network !== network) {
+    return null;
+  }
+  const draft = sanitizeDraft(value.draft, network);
+  if (!draft) return null;
+  const rawStep = Number(value.step);
+  const step =
+    rawStep === 1 || rawStep === 2 || rawStep === 3 || rawStep === 4
+      ? rawStep
+      : 1;
+  const copiedFromPublicId = copiedSource(value.copiedFromPublicId);
+  return copiedFromPublicId
+    ? { draft, step, copiedFromPublicId }
+    : { draft, step };
 }
 
 export function writeBillDraftSession(
   network: XrplNetwork,
   draft: BillDraft,
   step: BillCreationStep,
+  copiedFromPublicId?: string | null,
 ) {
   if (typeof window === "undefined") return;
+  const existing = readEnvelope(network);
+  const source =
+    copiedFromPublicId === undefined
+      ? copiedSource(existing?.copiedFromPublicId)
+      : copiedSource(copiedFromPublicId);
   window.sessionStorage.setItem(
     billDraftStorageKey(network),
-    JSON.stringify({ version: VERSION, network, draft, step }),
+    JSON.stringify({
+      version: VERSION,
+      network,
+      draft,
+      step,
+      ...(source ? { copiedFromPublicId: source } : {}),
+    }),
   );
+  announceDraftChange(network);
 }
 
 export function clearBillDraftSession(network: XrplNetwork) {
   if (typeof window === "undefined") return;
   window.sessionStorage.removeItem(billDraftStorageKey(network));
+  announceDraftChange(network);
 }

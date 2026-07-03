@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CircleAlert,
+  CopyPlus,
   ExternalLink,
   LoaderCircle,
   LockKeyhole,
@@ -20,6 +21,11 @@ import type { BillProgress } from "@/features/bills/progress";
 import { billRecoveryTranslate } from "@/features/localization/bill-recovery-catalog";
 import { useLocalization } from "@/features/localization/provider";
 import { formatMoneyAmount } from "@/features/money/money";
+
+import {
+  BillCopyDraftError,
+  prepareCopiedBillDraft,
+} from "./bill-copy-draft";
 
 export type BillRecoveryControlsProps = {
   capability: string;
@@ -103,6 +109,21 @@ export function BillRecoveryControls({
   const isClosed = progress?.bill.status === "closed_incomplete";
   const isSettled = progress?.bill.status === "settled";
 
+  function copyIntoNewDraft() {
+    if (!progress) return;
+    setError(null);
+    try {
+      prepareCopiedBillDraft(progress);
+      window.location.assign("/bill");
+    } catch (copyError: unknown) {
+      setError(
+        copyError instanceof BillCopyDraftError
+          ? copyError.message
+          : t("actionError"),
+      );
+    }
+  }
+
   async function authorizeRetry(slotPublicId: string) {
     const accepted = ack[slotPublicId];
     if (!accepted?.prior || !accepted.repeated) return;
@@ -177,6 +198,29 @@ export function BillRecoveryControls({
         <p role="alert" className="mt-6 rounded-lg border border-danger/25 bg-danger/10 p-4 text-sm font-semibold text-danger">
           {error}
         </p>
+      )}
+
+      {!loading && progress && (
+        <CardAccent
+          family="neutral"
+          className="mt-7 rounded-xl border border-border bg-background p-5 sm:p-6"
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="max-w-3xl">
+              <h4 className="font-heading text-xl font-semibold">{t("copyTitle")}</h4>
+              <p className="mt-2 leading-7 text-muted">{t("copyBody")}</p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              className="shrink-0"
+              onClick={copyIntoNewDraft}
+            >
+              <CopyPlus aria-hidden="true" className="size-4" />
+              {t("copyAction")}
+            </Button>
+          </div>
+        </CardAccent>
       )}
 
       {!loading && progress && management?.reviews.length ? (
