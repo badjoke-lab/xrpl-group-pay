@@ -36,10 +36,22 @@ describe("frozen Bill immutability migration", () => {
     expect(sql).toContain(`OLD.${field} IS NOT NEW.${field}`);
   });
 
-  it("allows only the rollout-compatible recipient-funded normalization", () => {
+  it("allows only the rollout-compatible normalization updates", () => {
+    expect(sql).toContain("OLD.settlement_asset_id IS NULL");
+    expect(sql).toContain(
+      "NEW.settlement_contract_version = 'xrpl-group-pay:bill-settlement:v1'",
+    );
+    expect(sql).toContain("NEW.total_amount_units = OLD.total_drops");
     expect(sql).toContain("OLD.recipient_funded_amount_units IS NULL");
     expect(sql).toContain(
       "NEW.recipient_funded_amount_units = COALESCE(\n        OLD.creator_share_amount_units,\n        OLD.creator_share_drops,\n        '0'",
+    );
+    expect(sql).toContain("OLD.asset_id IS NULL");
+    expect(sql).toContain(
+      "NEW.payment_contract_version = 'xrpl-group-pay:payment-slot:v1'",
+    );
+    expect(sql).toContain(
+      "NEW.expected_amount_units = OLD.expected_amount_drops",
     );
   });
 
