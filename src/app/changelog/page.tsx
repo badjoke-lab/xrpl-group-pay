@@ -171,7 +171,7 @@ const KO_ENTRIES: readonly Entry[] = [
     body: [
       "검토된 Mainnet 런타임에서 청구 생성과 결제 검증을 활성화했습니다.",
       "모바일 레이아웃을 개선하고 결제자 입력을 확장형 카드로 변경했습니다.",
-      "모바일과 데스크톱 본番 화면의 오버플로 자동 검사를 추가했습니다.",
+      "모바일과 데스크톱 실제 화면의 오버플로 자동 검사를 추가했습니다.",
     ],
   },
   {
@@ -262,47 +262,51 @@ export default async function ChangelogPage() {
         </section>
 
         <div className="mt-10 space-y-6">
-          {entries.map(({ date, title, kind, icon: Icon, body, helpHref, helpLabel }) => (
-            <article
-              key={`${date}:${title}`}
-              className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8"
-            >
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex items-start gap-4">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-subtle">
-                    <Icon aria-hidden="true" className="size-5 text-brand" />
+          {entries.map(
+            ({ date, title, kind, icon: Icon, body, helpHref, helpLabel }) => (
+              <article
+                key={`${date}:${title}`}
+                className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8"
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex items-start gap-4">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-subtle">
+                      <Icon aria-hidden="true" className="size-5 text-brand" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-action">
+                        {kind}
+                      </p>
+                      <h2 className="mt-1 font-heading text-2xl font-semibold">
+                        {title}
+                      </h2>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-action">
-                      {kind}
-                    </p>
-                    <h2 className="mt-1 font-heading text-2xl font-semibold">{title}</h2>
-                  </div>
+                  <time className="text-sm font-semibold text-muted">{date}</time>
                 </div>
-                <time className="text-sm font-semibold text-muted">{date}</time>
-              </div>
-              <ul className="mt-6 space-y-3">
-                {body.map((item) => (
-                  <li key={item} className="flex gap-3 leading-7 text-muted">
-                    <span
-                      aria-hidden="true"
-                      className="mt-3 size-1.5 shrink-0 rounded-full bg-action"
-                    />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-              {helpHref && helpLabel ? (
-                <Link
-                  href={helpHref}
-                  className="mt-5 inline-flex min-h-11 items-center gap-2 font-semibold text-brand underline-offset-4 hover:underline"
-                >
-                  <Wrench aria-hidden="true" className="size-4" />
-                  {helpLabel}
-                </Link>
-              ) : null}
-            </article>
-          ))}
+                <ul className="mt-6 space-y-3">
+                  {body.map((item) => (
+                    <li key={item} className="flex gap-3 leading-7 text-muted">
+                      <span
+                        aria-hidden="true"
+                        className="mt-3 size-1.5 shrink-0 rounded-full bg-action"
+                      />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                {helpHref && helpLabel ? (
+                  <Link
+                    href={helpHref}
+                    className="mt-5 inline-flex min-h-11 items-center gap-2 font-semibold text-brand underline-offset-4 hover:underline"
+                  >
+                    <Wrench aria-hidden="true" className="size-4" />
+                    {helpLabel}
+                  </Link>
+                ) : null}
+              </article>
+            ),
+          )}
         </div>
 
         <div className="mt-10 flex flex-wrap gap-4 text-sm font-semibold">
