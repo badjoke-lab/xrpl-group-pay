@@ -52,6 +52,9 @@ jobs:
       - name: Validate Mainnet acceptance audit
         run: pnpm check:mainnet-acceptance
 
+      - name: Validate integrated lifecycle release audit
+        run: pnpm check:lifecycle-audit
+
       - name: Apply D1 migrations locally
         run: pnpm db:migrate:local
 
