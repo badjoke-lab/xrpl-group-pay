@@ -88,9 +88,11 @@ export function ParticipantAllocationCard({
           <XrplAddressField
             label={t("bill.participant.payer")}
             value={item.expectedPayerAddress}
+            displayLabel={item.label}
             role="payer"
             network={publicEnv.NEXT_PUBLIC_APP_NETWORK}
             onChangeAddress={(value) => onChange("expectedPayerAddress", value)}
+            onChangeDisplayLabel={(value) => onChange("label", value)}
           />
 
           {strategy === "custom" && (
