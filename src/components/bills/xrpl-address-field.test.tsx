@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { classicAddressToXAddress } from "xrpl";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -30,6 +36,7 @@ function RecipientHarness({ initialValue = "" }: { initialValue?: string }) {
 }
 
 afterEach(() => {
+  cleanup();
   vi.restoreAllMocks();
 });
 
