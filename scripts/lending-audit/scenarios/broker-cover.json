@@ -1,0 +1,24 @@
+{
+  "steps": [
+    {
+      "label": "cover deposit",
+      "transactionType": "LoanBrokerCoverDeposit",
+      "actor": "broker",
+      "amount": "50000"
+    },
+    {
+      "label": "cover withdraw",
+      "transactionType": "LoanBrokerCoverWithdraw",
+      "actor": "broker",
+      "amount": "5000",
+      "destination": "broker",
+      "destinationTag": 99
+    },
+    {
+      "label": "cover clawback",
+      "transactionType": "LoanBrokerCoverClawback",
+      "actor": "issuer",
+      "amount": "1000"
+    }
+  ]
+}
